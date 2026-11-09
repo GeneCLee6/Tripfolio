@@ -13,15 +13,20 @@ async function shot(page: Page, name: string) {
 }
 
 /** YYYY-MM-DD, `days` from today (UTC is close enough for test data) */
-const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
+// Dates are computed in the trip's own time zone: the app counts down in trip tz, so a UTC date
+// would be off by one whenever UTC and the trip zone are on different calendar days
+const inDays = (days: number, tz: string) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(Date.now() + days * 86_400_000),
+  )
 
 async function createTripViaApi(request: APIRequestContext, name: string) {
   const response = await request.post('/api/trips', {
     data: {
       name,
       destination: 'Bali',
-      startDate: inDays(20),
-      endDate: inDays(25),
+      startDate: inDays(20, 'Asia/Makassar'),
+      endDate: inDays(25, 'Asia/Makassar'),
       tz: 'Asia/Makassar',
       coverColor: '#B5654A',
       style: 'private-driver',
@@ -56,8 +61,8 @@ test('phone: create a trip, find it in the list, edit it, archive it', async ({ 
   // The destination fills in the zone and the local currency
   await expect(page.getByLabel('目的地時區')).toHaveValue('Pacific/Auckland')
   await expect(page.getByRole('button', { name: 'NZD' })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByLabel('出發日').fill(inDays(30))
-  await page.getByLabel('回程日').fill(inDays(37))
+  await page.getByLabel('出發日').fill(inDays(30, 'Pacific/Auckland'))
+  await page.getByLabel('回程日').fill(inDays(37, 'Pacific/Auckland'))
   await page.getByLabel('旅行型態').selectOption('campervan')
   await page
     .getByRole('radiogroup', { name: '封面色' })
