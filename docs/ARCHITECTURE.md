@@ -73,7 +73,7 @@ sw/                     Service Worker（Workbox 或手寫）：shell、資料�
 
 | 表 | 主要欄位 | 備註 |
 | --- | --- | --- |
-| `trips` | id、name、destination、centerLat／Lng、startDate、endDate、tz、baseCurrency、localCurrencies、coverAttachmentId、coverColor、style、ownerMemberId、archivedAt、deletedAt | style ∈ roadtrip／campervan／city／island／winter／other |
+| `trips` | id、name、destination、centerLat／Lng、startDate、endDate、tz、baseCurrency、localCurrencies、coverAttachmentId、coverColor、style、ownerMemberId、archivedAt、deletedAt | style ∈ roadtrip／campervan／private-driver／city／island／rail／other（A3b 實作；`shared/itinerary` 的 `TripStyle` 另收 self-drive、winter 當別名，對應上限同 roadtrip）；另有 secondaryCurrency（預設 TWD）、rev、driveLimitMin |
 | `members` | id、tripId、name、color、email?、role、userId? | role ∈ owner／editor／viewer |
 | `memberTokens`、`invites`、`shares` | tokenHash、tripId、memberId?、options JSON、revokedAt | token 128-bit，只存 SHA-256 |
 | `days` | id、tripId、date、idx、title、color、note、lodgingId? | |
