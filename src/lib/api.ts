@@ -371,6 +371,102 @@ export const sharesApi = {
   revoke(tripId: string, shareId: string): Promise<Rev & { ok: true }> {
     return request('DELETE', `${tripPath(tripId)}/shares/${encodeURIComponent(shareId)}`, {
       token: tokenFor(tripId),
+// ---- wishlist: must-eat / must-buy cards, votes, claims, scheduling (e5-t02..t04) ----
+
+import type { OgResponse } from '../../shared/api/geo.ts'
+import type {
+  WishlistClaimResponse,
+  WishlistItemResponse,
+  WishlistResponse,
+  WishlistScheduleResponse,
+  WishlistUnscheduleResponse,
+} from '../../shared/api/types.ts'
+import type {
+  WishlistClaimCreate,
+  WishlistClaimPatch,
+  WishlistItemCreate,
+  WishlistItemPatch,
+  WishlistSchedule,
+} from '../../shared/schema/index.ts'
+
+
+/** The item create body: the schema's input, so the defaults stay optional */
+export type WishlistCreateBody = Partial<WishlistItemCreate> &
+  Pick<WishlistItemCreate, 'category' | 'name'>
+/** The claim create body: every field has a default */
+export type WishlistClaimCreateBody = Partial<WishlistClaimCreate>
+
+const wishPath = (tripId: string, itemId?: string) =>
+  `${tripPath(tripId)}/wishlist${itemId ? `/${encodeURIComponent(itemId)}` : ''}`
+
+export const wishlistApi = {
+  /** GET /wishlist: items (not deleted) by order, with votes, claims and a place summary */
+  list(tripId: string, signal?: AbortSignal): Promise<WishlistResponse> {
+    return request('GET', wishPath(tripId), { token: tokenFor(tripId), signal })
+  },
+
+  create(tripId: string, body: WishlistCreateBody): Promise<WishlistItemResponse> {
+    return request('POST', wishPath(tripId), { token: tokenFor(tripId), body })
+  },
+
+  patch(tripId: string, itemId: string, patch: WishlistItemPatch): Promise<WishlistItemResponse> {
+    return request('PATCH', wishPath(tripId, itemId), { token: tokenFor(tripId), body: patch })
+  },
+
+  /** Soft delete; a scheduled item's stop stays (its wishlistItemId is cleared) */
+  remove(tripId: string, itemId: string): Promise<Rev & { ok: true }> {
+    return request('DELETE', wishPath(tripId, itemId), { token: tokenFor(tripId) })
+  },
+
+  /** The caller's own 「想去」: POST adds it, DELETE takes it back (both idempotent) */
+  vote(tripId: string, itemId: string, on: boolean): Promise<WishlistItemResponse> {
+    return request(on ? 'POST' : 'DELETE', `${wishPath(tripId, itemId)}/vote`, {
+      token: tokenFor(tripId),
+    })
+  },
+
+  addClaim(
+    tripId: string,
+    itemId: string,
+    body: WishlistClaimCreateBody,
+  ): Promise<WishlistClaimResponse> {
+    return request('POST', `${wishPath(tripId, itemId)}/claims`, { token: tokenFor(tripId), body })
+  },
+
+  patchClaim(
+    tripId: string,
+    itemId: string,
+    claimId: string,
+    patch: WishlistClaimPatch,
+  ): Promise<WishlistClaimResponse> {
+    return request('PATCH', `${wishPath(tripId, itemId)}/claims/${encodeURIComponent(claimId)}`, {
+      token: tokenFor(tripId),
+      body: patch,
+    })
+  },
+
+  removeClaim(tripId: string, itemId: string, claimId: string): Promise<Rev & { ok: true }> {
+    return request('DELETE', `${wishPath(tripId, itemId)}/claims/${encodeURIComponent(claimId)}`, {
+      token: tokenFor(tripId),
+    })
+  },
+
+  /** Creates the stop on that day (appended unless afterStopId) and links the two */
+  schedule(tripId: string, itemId: string, body: WishlistSchedule): Promise<WishlistScheduleResponse> {
+    return request('POST', `${wishPath(tripId, itemId)}/schedule`, { token: tokenFor(tripId), body })
+  },
+
+  /** Deletes the stop (edits made on it are lost) and puts the item back in the pocket list */
+  unschedule(tripId: string, itemId: string): Promise<WishlistUnscheduleResponse> {
+    return request('POST', `${wishPath(tripId, itemId)}/unschedule`, { token: tokenFor(tripId) })
+  },
+
+  /** POST /og: the page's og:title / og:image through the Worker (422 url_not_allowed, 502, 429) */
+  og(tripId: string, url: string, signal?: AbortSignal): Promise<OgResponse> {
+    return request('POST', `${tripPath(tripId)}/og`, {
+      token: tokenFor(tripId),
+      body: { url },
+      signal,
     })
   },
 }

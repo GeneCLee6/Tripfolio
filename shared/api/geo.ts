@@ -130,3 +130,14 @@ export interface GeoUsageResponse {
   /** False when ORS_API_KEY is not set: every route is an estimate */
   orsConfigured: boolean
 }
+
+/** POST /api/trips/:id/og { url }: link preview from the page head (e5-t02, worker/proxy/og.ts) */
+export interface OgResponse {
+  /** The page the meta came from (after redirects) */
+  url: string
+  /** og:title, else twitter:title, else <title>; null when the page has none */
+  title: string | null
+  /** og:image (or twitter:image) made absolute; only http(s) */
+  imageUrl: string | null
+  siteName: string | null
+}

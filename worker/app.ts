@@ -4,6 +4,7 @@ import { ApiError, errorResponse, json } from './http.ts'
 import * as media from './media.ts'
 import { fxRefresh } from './proxy/fx.ts'
 import { geoSearch } from './proxy/geocode.ts'
+import { ogPreview } from './proxy/og.ts'
 import { geoParse } from './proxy/parse.ts'
 import { geoRoute, geoRoutes } from './proxy/route.ts'
 import { geoUsage } from './proxy/usage.ts'
@@ -194,6 +195,7 @@ const api = new Router()
   .add('POST', '/api/trips/:id/geo/route', geoRoute)
   .add('POST', '/api/trips/:id/geo/routes', geoRoutes)
   .add('GET', '/api/trips/:id/geo/usage', geoUsage)
+  .add('POST', '/api/trips/:id/og', ogPreview)
 
 async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
   try {

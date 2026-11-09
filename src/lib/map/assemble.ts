@@ -4,7 +4,13 @@ import {
   type RouteRequest,
   type RouteResponse,
 } from '../../../shared/api/geo.ts'
-import type { DayWithStops, LegOverride, Place, Stop } from '../../../shared/api/types.ts'
+import type {
+  DayWithStops,
+  LegOverride,
+  Place,
+  Stop,
+  WishlistItemView,
+} from '../../../shared/api/types.ts'
 import type { Locale } from '../../../shared/i18n/t.ts'
 import {
   defaultModeForStyle,
@@ -28,6 +34,9 @@ const FUEL_TYPES: ReadonlySet<string> = new Set(['fuel', 'supplies'])
 
 /** Prefix of fuel-layer ids: the same stop is also an itinerary pin, and ids must not collide */
 export const FUEL_ID_PREFIX = 'fuel:'
+
+/** Prefix of picks-layer ids (wishlist items) */
+export const PICK_ID_PREFIX = 'pick:'
 
 export interface MapDay {
   id: string
@@ -105,6 +114,7 @@ export function buildTripMapData(
   places: readonly Place[],
   overrides: readonly LegOverride[],
   options: AssembleOptions,
+  wishlist: readonly WishlistItemView[] = [],
 ): TripMapData {
   const placeById = new Map(places.map((place) => [place.id, place]))
   const overrideByKey = new Map(overrides.map((leg) => [legKey(leg.fromStopId, leg.toStopId), leg]))
@@ -194,8 +204,28 @@ export function buildTripMapData(
       type: place.category,
     }))
 
+  // Picks (e5-t03): wishlist items with a located place, except dropped ones; a scheduled item
+  // carries its stop's day (assigned days only). Ids are prefixed: the place may also be a pin.
+  const dayOfStop = new Map<string, number>()
+  for (const day of days) {
+    if (day.idx !== null) for (const stop of day.stops) dayOfStop.set(stop.id, day.idx - 1)
+  }
+  const picks: MapPlace[] = wishlist
+    .filter((item) => item.place && item.status !== 'dropped')
+    .map((item) => {
+      const dayIndex = item.stopId ? dayOfStop.get(item.stopId) : undefined
+      return {
+        id: PICK_ID_PREFIX + item.id,
+        lat: item.place!.lat,
+        lng: item.place!.lng,
+        name: item.name,
+        type: item.category,
+        ...(dayIndex !== undefined ? { dayIndex } : {}),
+      }
+    })
+
   mapDays.sort((a, b) => a.dayIndex - b.dayIndex)
-  return { days: mapDays, stops, overnightLinks, pocket, fuel, lodging: [], picks: [], legs }
+  return { days: mapDays, stops, overnightLinks, pocket, fuel, lodging: [], picks, legs }
 }
 
 // ---- routes ----------------------------------------------------------------------------------

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DayWithStops, LegOverride, Place, Trip } from '../../../shared/api/types.ts'
+import type {
+  DayWithStops,
+  LegOverride,
+  Place,
+  Trip,
+  WishlistItemView,
+} from '../../../shared/api/types.ts'
 import type { Locale } from '../../../shared/i18n/t.ts'
 import type { MapMode, MapRoute } from '../../map/types.ts'
+import { wishlistApi } from '../api.ts'
 import { useResource } from '../hooks.ts'
 import {
   buildTripMapData,
@@ -19,6 +26,8 @@ interface Loaded {
   days: DayWithStops[]
   legs: LegOverride[]
   places: Place[]
+  /** For the picks layer (e5-t03); empty when the wishlist could not be loaded */
+  wishlist: WishlistItemView[]
 }
 
 export interface TripMapDataState {
@@ -35,22 +44,29 @@ export function useTripMapData(
   locale: Locale,
 ): TripMapDataState {
   const resource = useResource<Loaded>(`map:${trip.id}`, async (signal) => {
-    const [days, places] = await Promise.all([
+    const [days, places, wishlist] = await Promise.all([
       mapApi.listDays(trip.id, signal),
       mapApi.listPlaces(trip.id, signal),
+      // The picks layer is extra: the map still opens without it
+      wishlistApi.list(trip.id, signal).then(
+        (response) => response.items,
+        () => [] as WishlistItemView[],
+      ),
     ])
-    return { days: days.days, legs: days.legs, places: places.places }
+    return { days: days.days, legs: days.legs, places: places.places, wishlist }
   })
   const { status, data: loaded, error, reload, set } = resource
 
   const data = useMemo(
     () =>
       loaded
-        ? buildTripMapData(loaded.days, loaded.places, loaded.legs, {
-            tz: trip.tz,
-            locale,
-            style: trip.style,
-          })
+        ? buildTripMapData(
+            loaded.days,
+            loaded.places,
+            loaded.legs,
+            { tz: trip.tz, locale, style: trip.style },
+            loaded.wishlist,
+          )
         : null,
     [loaded, trip.tz, trip.style, locale],
   )
