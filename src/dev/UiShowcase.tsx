@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react'
+import { Fragment, Suspense, useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 import {
   formatDate,
@@ -40,6 +40,23 @@ import {
 } from '../components/index.ts'
 import { MapPinIcon, PlusIcon, TrashIcon } from '../components/icons.tsx'
 import { useT } from '../lib/i18n.ts'
+import {
+  LAYER_LABEL_KEYS,
+  LazyTripMap,
+  MAP_LAYER_KEYS,
+  SAMPLE_DAY_COUNT,
+  googleMapsUrl,
+  sampleFuel,
+  sampleLodging,
+  sampleOvernightLinks,
+  samplePicks,
+  samplePocket,
+  sampleRoutes,
+  sampleStops,
+  type MapAction,
+  type MapLayers,
+  type MapPoint,
+} from '../map/index.ts'
 import { color, dayColor, dayColors, font, fontSize, radius, space } from '../styles/tokens.ts'
 
 // /dev/ui (AC-10.1): every base component, light and dark side by side. Development only: the route
@@ -449,6 +466,113 @@ function Gallery({ scheme }: { scheme: 'light' | 'dark' }) {
   )
 }
 
+/** The map (e3-t03) on the sample trip; lazy, so the maplibre chunk loads only here */
+function MapShowcase() {
+  const t = useT()
+  const toast = useToast()
+  const [view, setView] = useState<'trip' | 'day'>('trip')
+  const [day, setDay] = useState(0)
+  const [layers, setLayers] = useState<MapLayers>({
+    itinerary: true,
+    pocket: true,
+    lodging: true,
+    picks: true,
+    fuel: false,
+  })
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const places = [...sampleStops, ...samplePocket, ...sampleLodging, ...samplePicks, ...sampleFuel]
+
+  const onAction = (id: string, action: MapAction) => {
+    const place = places.find((item) => item.id === id)
+    if (!place) return
+    if (action === 'openGoogleMaps') window.open(googleMapsUrl(place), '_blank', 'noopener')
+    else toast.show(t('map.showcaseScheduled', { name: place.name }), { tone: 'success' })
+  }
+  const onLongPress = ({ lat, lng }: MapPoint) =>
+    toast.show(t('map.showcaseDropped', { coords: `${lat.toFixed(4)}, ${lng.toFixed(4)}` }))
+
+  return (
+    <MapPanel>
+      <Block title={t('map.showcaseTitle')}>
+        <p>{t('map.showcaseHint')}</p>
+        <Row>
+          <SegmentedControl
+            label={t('map.viewMode')}
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'trip', label: t('map.trip') },
+              { value: 'day', label: t('day.short', { n: day + 1 }) },
+            ]}
+          />
+        </Row>
+        <Row>
+          {Array.from({ length: SAMPLE_DAY_COUNT }, (_, index) => (
+            <DayChip
+              key={index}
+              index={index}
+              selected={view === 'day' && day === index}
+              onClick={() => {
+                setDay(index)
+                setView('day')
+              }}
+            />
+          ))}
+        </Row>
+        <Row role="group" aria-label={t('map.layers')}>
+          {MAP_LAYER_KEYS.map((key) => (
+            <Chip
+              key={key}
+              tone="fjord"
+              selected={layers[key]}
+              onClick={() => setLayers((current) => ({ ...current, [key]: !current[key] }))}
+            >
+              {t(LAYER_LABEL_KEYS[key])}
+            </Chip>
+          ))}
+        </Row>
+        <MapBox>
+          <Suspense fallback={<Skeleton $height={480} $radius="card" />}>
+            <LazyTripMap
+              stops={sampleStops}
+              routes={sampleRoutes}
+              overnightLinks={sampleOvernightLinks}
+              pocket={samplePocket}
+              lodging={sampleLodging}
+              picks={samplePicks}
+              fuel={sampleFuel}
+              mode={view === 'trip' ? 'trip' : { day }}
+              layers={layers}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onAction={onAction}
+              onLongPress={onLongPress}
+              height="480px"
+            />
+          </Suspense>
+        </MapBox>
+      </Block>
+    </MapPanel>
+  )
+}
+
+const MapPanel = styled.div`
+  margin-top: ${space.xl}px;
+  padding: ${space.xl}px;
+  border-radius: ${radius.cover}px;
+  border: 1px solid ${color.line};
+  background: ${color.paper};
+  color: ${color.ink};
+  p {
+    margin: 0;
+    color: ${color.muted};
+  }
+`
+
+const MapBox = styled.div`
+  min-width: 0;
+`
+
 export default function UiShowcase() {
   const t = useT()
   return (
@@ -464,6 +588,7 @@ export default function UiShowcase() {
         <Gallery scheme="light" />
         <Gallery scheme="dark" />
       </Columns>
+      <MapShowcase />
     </Page>
   )
 }

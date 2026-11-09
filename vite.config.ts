@@ -32,6 +32,11 @@ export default defineConfig({
           // Two entries (ARCHITECTURE.md §1): the app, and the read-only share page as its own
           // small bundle that never loads the editor
           input: { app: 'index.html', share: 'share.html' },
+          // MapLibre in its own lazy chunk named `maplibre` (budget ≤ 250 kB gzip, §6); only the
+          // map component imports it (rolldown's successor to manualChunks)
+          output: {
+            codeSplitting: { groups: [{ name: 'maplibre', test: /node_modules[\\/]maplibre-gl[\\/]/ }] },
+          },
         },
       },
     },

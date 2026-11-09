@@ -26,8 +26,17 @@
 | --- | --- | --- | --- | --- |
 | 自繪線條圖示（關閉、加號、下拉、地圖針、垃圾桶） | 基礎元件 | `src/components/icons.tsx`，仿 Lucide 的 24 格線、2 px 筆畫 | 本專案 | 內嵌 SVG |
 | 空狀態插圖（旅行箱、地圖針、收據） | `EmptyState` | `src/components/EmptyState.tsx`，程式畫的幾何 SVG，顏色取自 token | 本專案 | 內嵌 SVG |
+| 地圖針圖示（書籤、床、星、油槍）與地圖按鈕（定位、全螢幕） | 地圖針（口袋名單／住宿／必吃必買／加油與補給）、地圖控制鈕 | `src/map/sprite.ts`、`src/map/TripMap.tsx`，仿 Lucide 24 格線手繪路徑（非複製 Lucide 原始碼；Lucide 為 ISC 授權，日後改用正式套件時保留其 ISC 聲明） | 本專案 | 程式產生 SVG（data URL → `map.addImage`） |
 | Lucide（規劃中） | 全站圖示 | <https://lucide.dev> | ISC | 尚未加入；加入時改用它並更新此列 |
 
 ## 3. 地圖
 
-尚未加入（MapLibre GL JS 與底圖 style 於 E4 登記）。
+| 項目 | 來源 | 授權／條件 | 載入 |
+| --- | --- | --- | --- |
+| MapLibre GL JS 6.16.0 | <https://maplibre.org>（npm `maplibre-gl`，固定版本） | BSD-3-Clause | `src/map/TripMap.tsx` 動態載入，獨立 chunk `maplibre`；worker 檔以 `?url` 交給 `setWorkerUrl()`；CSS `maplibre-gl/dist/maplibre-gl.css` 跟著 lazy chunk |
+| 底圖 style：OpenFreeMap `liberty` | <https://tiles.openfreemap.org/styles/liberty>（`src/map/config.ts` 的 `MAP_STYLE_URL`，可用 `VITE_MAP_STYLE_URL` 覆寫） | OpenFreeMap 免費、無金鑰、公平使用；style 為 BSD／CC-BY | 執行期 fetch，`restyle()` 依 `tokens.ts` 改色（紙感底、低對比路網、冰川色水域、隱藏 POI 與路牌），深色主題同一套覆寫就地套用 |
+| 向量瓦片、字型（glyphs）、sprite | OpenFreeMap（OpenMapTiles schema，資料來自 OpenStreetMap） | 資料 © OpenStreetMap contributors（ODbL）；© OpenMapTiles | style 內的 sources；叢集數字用 glyph `Noto Sans Bold` |
+| 低縮放地形底（`ne2_shaded`） | Natural Earth（經 OpenFreeMap） | 公有領域 | 保留但去飽和、低不透明度 |
+
+- **署名**：保留 MapLibre 的 AttributionControl（compact）；文字來自 style 的 sources（OpenFreeMap © OpenMapTiles Data from OpenStreetMap），不得移除。
+- **後備**：Protomaps pmtiles（自託管在 R2）或 MapTiler 免費層，改 `VITE_MAP_STYLE_URL`（`ARCHITECTURE.md` §5）；pmtiles 另需 protocol 外掛，字型名稱若不同要改 `MAP_LABEL_FONT`。
