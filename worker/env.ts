@@ -23,4 +23,6 @@ export interface Env {
   /** OpenRouteService key, a secret: `npx wrangler secret put ORS_API_KEY` (and `--env preview`).
    * Without it every route is a straight-line estimate */
   ORS_API_KEY?: string
+  /** Exchange rate provider base URL (wrangler var; open.er-api.com, no key; e7-t03) */
+  FX_API_URL?: string
 }

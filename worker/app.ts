@@ -2,6 +2,7 @@ import type { HealthResponse } from '../shared/health.ts'
 import type { Env } from './env.ts'
 import { ApiError, errorResponse, json } from './http.ts'
 import * as media from './media.ts'
+import { fxRefresh } from './proxy/fx.ts'
 import { geoSearch } from './proxy/geocode.ts'
 import { geoParse } from './proxy/parse.ts'
 import { geoRoute, geoRoutes } from './proxy/route.ts'
@@ -186,6 +187,7 @@ const api = new Router()
   .add('DELETE', '/api/trips/:id/settlements/:sid', deleteSettlement)
   .add('GET', '/api/trips/:id/fx', getFx)
   .add('PUT', '/api/trips/:id/fx/overrides', putFxOverrides)
+  .add('POST', '/api/trips/:id/fx/refresh', fxRefresh)
   // External API proxies (e3-t02, e3-t04): worker/proxy/*, never called from the browser
   .add('GET', '/api/trips/:id/geo/search', geoSearch)
   .add('POST', '/api/trips/:id/geo/parse', geoParse)

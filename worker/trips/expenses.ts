@@ -12,8 +12,8 @@
 //   same currency as the trip → 1 · explicit `fxRate` (manual) · trips.fxOverrides[currency] (trip)
 //   · fxRates for that date, else the latest earlier date up to 7 days back (auto)
 //   · otherwise 422 `fx_unavailable` with details.needsRate = true (the UI asks for a rate).
-// TODO(e7-t03): the daily fetch from open.er-api.com (worker/proxy) fills fxRates; until then rows
-// are inserted by hand (tests seed them).
+// fxRates is filled by worker/proxy/fx.ts (e7-t03): daily cron, plus one on-demand fetch here
+// before the 422.
 //
 // Removed members keep their shares: balances still count them, and an expense that already names
 // a removed member may keep naming them on edit; new references must be current members.
@@ -59,6 +59,7 @@ import {
   type ParticipantInput,
 } from '../../shared/schema/expense.ts'
 import { authTrip, type MemberAuth } from '../auth.ts'
+import { ensureRate } from '../proxy/fx.ts'
 import { insertStatement, writeWithRev, type Row } from '../db.ts'
 import { ApiError, invalid, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
@@ -184,6 +185,10 @@ export async function resolveRate(
   }
   const found = await lookupRate(db, trip, currency, date)
   if (found) return found
+  // No row yet: fetch the latest rates once (e7-t03, throttled, never throws), then look again
+  const filled = await ensureRate({ DB: db }, { date, base: trip.baseCurrency, quote: currency })
+  const retried = filled ? await lookupRate(db, trip, currency, date) : null
+  if (retried) return retried
   const details: FxUnavailableDetails = {
     needsRate: true,
     currency,

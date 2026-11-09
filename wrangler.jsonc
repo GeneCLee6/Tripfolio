@@ -46,7 +46,8 @@
     "APP_VERSION": "local",
     "PHOTON_URL": "https://photon.komoot.io/api/",
     "NOMINATIM_URL": "https://nominatim.openstreetmap.org/search",
-    "ORS_URL": "https://api.openrouteservice.org"
+    "ORS_URL": "https://api.openrouteservice.org",
+    "FX_API_URL": "https://open.er-api.com"
   },
   // Staging and pull request previews (DEPLOY.md §2): separate Workers, so each has its own Durable
   // Object storage and never touches production's. Bindings and vars are not inherited from the
@@ -80,7 +81,8 @@
         "APP_ENV": "preview",
         "PHOTON_URL": "https://photon.komoot.io/api/",
         "NOMINATIM_URL": "https://nominatim.openstreetmap.org/search",
-        "ORS_URL": "https://api.openrouteservice.org"
+        "ORS_URL": "https://api.openrouteservice.org",
+        "FX_API_URL": "https://open.er-api.com"
       }
     }
   }

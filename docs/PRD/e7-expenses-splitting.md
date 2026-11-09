@@ -50,6 +50,11 @@ depends_on: [E1, E10]
   - `GET/POST /api/trips/:id/pool/contributions`、`PATCH/DELETE …/contributions/:cid`、`PATCH /api/trips/:id/pool/settings { refundMode }`。
   - `GET /api/trips/:id/balances`（`computeBalances` 的結果、`poolBalanceMinor`、`suggested`＝`suggestSettlements`）；`GET/POST /api/trips/:id/settlements`、`DELETE …/settlements/:sid`（軟刪）。
   - `GET /api/trips/:id/fx?date=&quote=`、`PUT /api/trips/:id/fx/overrides { "NZD": 0.91 }`（整份取代）。
+- **自動匯率（e7-t03，`worker/proxy/fx.ts`）**：來源 open.er-api.com（`FX_API_URL`，免金鑰，供應商每天約 00:00 UTC 更新一次）。`GET /v6/latest/<base>` 的結果對 `currencies.ts` 裡每個已知幣別各寫一列 `fxRates(date＝time_last_update 的 UTC 日期, base, quote, rate, source='open.er-api')`，同日重抓就覆蓋；只存 base→quote 一個方向。
+  - **每日**：唯一的 cron `0 17 * * *` 先跑備份、再跑 `refreshAllBases`：未刪除旅程的每個主幣各抓一次，再加 AUD、TWD（一天只有幾次呼叫）；匯率失敗只記 log，不影響備份成敗。
+  - **即時補抓**：記帳／改帳解析匯率時，主幣在 `fxRates` 7 天內都沒有列，就在回 422 之前抓一次該主幣的最新匯率再查一次。只有記帳日期在「今天前 7 天到明天」之間才抓（最新匯率幫不了更早或未來的日期）；每個主幣每小時最多一次（`providerThrottle` 的 `fx:<base>`）；失敗一律當成沒有，照舊回 422 needsRate。
+  - **手動重抓**：`POST /api/trips/:id/fx/refresh`（editor；每旅程每分鐘 2 次，超過 429＋Retry-After；供應商失敗 502 `provider_error`）→ `{ date, count }`。
+  - 每次呼叫記在 `apiUsage(provider='fx')`（cron 與即時補抓的 tripId 記 `*`）；全站每天上限 100 次。
 - **匯率解析順序**（匯率＝1 單位該幣等於多少主幣，6 位小數）：與主幣相同 → 1；請求帶 `fxRate`（manual）；旅程預設 `fxOverrides`（trip）；`fxRates` 當天，否則往前最多 7 天內最近的一天（auto）；都沒有 → 422 `fx_unavailable`、`details.needsRate=true`，介面請使用者輸入匯率。`fxRates` 一列的意思是「1 base ＝ rate quote」（open.er-api.com 的形式），兩個方向都接受。每日抓取是 e7-t03。PATCH 只在幣別改了、或日期改了且原本是 auto 時重新取匯率；`fxRate: null` 清掉手動匯率並重新取。
 - **分攤**：一律在主幣金額上跑 `splitExpense`；「指定金額」以原幣輸入，先以原幣驗證總和，再把這些金額當權重分配主幣，總和仍等於 `baseMinor`。
 - **歷史**：每次建立／修改／刪除／還原寫一條 `expenseHistory`（entity ＝ expense／pool／settlement），`diff` 是 `{ 欄位: [前, 後] }`，`snapshot` 是改完後的完整狀態（含每人分攤），所以可以還原任一版；沒有實際變動的 PATCH 不寫歷史、也不升 rev。
@@ -60,6 +65,7 @@ depends_on: [E1, E10]
 
 - [ ] AC-7.1 — 記一筆：所有欄位、五種分法、收據、連行程點；手機上從按「＋」到存檔 ≤ 10 秒（實測）；離線記帳連線後同步。
 - [ ] AC-7.2 — 多幣別：自動取當日匯率、手動覆寫、批次套用、旅程預設匯率；結算以主幣；分計算以整數分且總和一致（測試）。
+  - 進度（e7-t03）：自動匯率已有——每日 cron（約 17:00 UTC，接在備份後）＋記帳時查不到就即時補抓一次；手動覆寫、批次套用（`apply-rate`）、旅程預設匯率在 e7-t01 已完成。**介面未做**（e7-t02 的匯率欄、422 needsRate 提示），所以 AC 還不勾。
 - [ ] AC-7.3 — 公基金：出資、池付、結餘、退還方式二選一、併入結算（測試）。
 - [ ] AC-7.4 — 餘額與結算：餘額即時正確；最少轉帳建議（測試含 2–8 人）；部分結清；結算紀錄。
 - [ ] AC-7.5 — 統計與匯出：日／類別／人、預算進度、實付 vs 分攤；CSV 在 Excel 正常開。
@@ -70,7 +76,7 @@ depends_on: [E1, E10]
 ### M2
 
 - [x] `e7-t01` schema（`expenses`、`expenseShares`、`poolContributions`、`settlements`、`expenseHistory`、`fxRates`）；`split()` 與 `balances()` 純函式與測試 · AC-7.1, 7.4 · M · ← e1-t03 · `#G1a`（純函式先前已在 `feat/shared-pure-core` 完成；這次是 migration 0007 與 API）
-- [ ] `e7-t03` 匯率：Worker 代理匯率 API、每日快取、手動覆寫與批次套用、旅程預設匯率 · AC-7.2 · S · ← e7-t01
+- [x] `e7-t03` 匯率：Worker 代理匯率 API、每日快取、手動覆寫與批次套用、旅程預設匯率 · AC-7.2 · S · ← e7-t01 · `#G1b`（自動抓取；手動覆寫、批次套用、旅程預設匯率已在 e7-t01）
 - [ ] `e7-t04` 公基金：出資、池付、結餘卡、退還方式 · AC-7.3 · S · ← e7-t01
 - [ ] `e7-t02` 記一筆表單（手機優先、數字鍵盤、最近類別、幣別記憶、相機收據、連行程點）＋離線佇列 · AC-7.1 · M · ← e7-t01, e10-t05
 - [ ] `e7-t08` 花費清單頁（依日分組、篩選、搜尋、顯示行程點與收據） · AC-7.1 · S · ← e7-t02
