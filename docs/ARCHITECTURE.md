@@ -141,7 +141,7 @@ sw/                     Service Worker（Workbox 或手寫）：shell、資料�
 | --- | --- | --- |
 | app 首屏 | 180 kB | 不含 MapLibre 與各頁 lazy chunk |
 | share 首屏 | 120 kB | 封面與每日卡先畫；地圖 lazy |
-| MapLibre chunk | 250 kB | 兩個入口共用 |
+| MapLibre chunk | 300 kB | 兩個入口共用；2026-11-09 由 250 調高：maplibre-gl 6.x（修 GHSA-jrc7-96c5-q579 XSS，5.x 無修正版）實測 287.7 kB gzip，安全優先 |
 | 單頁 chunk | 60 kB | 日程、記帳、相簿各自 lazy |
 
 ## 7. 測試

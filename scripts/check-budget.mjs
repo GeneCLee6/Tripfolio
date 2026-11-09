@@ -1,7 +1,7 @@
 // JS budgets (docs/ARCHITECTURE.md §6, e11-t01/e11-t02), gzip:
 //   app first screen   ≤ 180 kB  (index.html and its static imports; lazy pages and MapLibre excluded)
 //   share first screen ≤ 120 kB  (share.html and its static imports)
-//   MapLibre chunk     ≤ 250 kB  (shared by both entries; passes while it does not exist yet)
+//   MapLibre chunk     ≤ 300 kB  (shared by both entries; passes while it does not exist yet)
 //
 // An entry's JS is what it loads before it can render: the entry chunk and its static imports.
 // Dynamic imports load later, so they do not count. Reads Vite's manifest, so run it after
@@ -17,7 +17,7 @@ const APP_ENTRY = 'index.html'
 const SHARE_ENTRY = 'share.html'
 const APP_LIMIT = 180 * KB
 const SHARE_LIMIT = 120 * KB
-const MAPLIBRE_LIMIT = 250 * KB
+const MAPLIBRE_LIMIT = 300 * KB // raised from 250 on 2026-11-09: maplibre-gl 6.x (fixes GHSA-jrc7-96c5-q579) measures 287.7 kB gzip
 const MAPLIBRE = /maplibre/i
 
 if (!existsSync(MANIFEST)) {
