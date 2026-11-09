@@ -17,6 +17,20 @@ import {
 import { createLodging, deleteLodging, listLodgings, patchLodging } from './trips/lodging.ts'
 import { createShare, listShares, publicShare, revokeShare } from './share.ts'
 import {
+  applyRate,
+  createExpense,
+  deleteExpense,
+  expenseHistory,
+  expenseSummary,
+  getExpense,
+  getFx,
+  listExpenses,
+  patchExpense,
+  putFxOverrides,
+  restoreExpense,
+  tripMoneyHistory,
+} from './trips/expenses.ts'
+import {
   createStop,
   deleteLeg,
   deleteStop,
@@ -44,6 +58,19 @@ import {
   patchPlace,
   placeRefs,
 } from './trips/places.ts'
+import {
+  createContribution,
+  deleteContribution,
+  listContributions,
+  patchContribution,
+  patchPoolSettings,
+} from './trips/pool.ts'
+import {
+  createSettlement,
+  deleteSettlement,
+  getBalances,
+  listSettlements,
+} from './trips/settlements.ts'
 import { createTrip, deleteTrip, getTrip, listTrips, patchTrip } from './trips/trips.ts'
 import {
   createClaim,
@@ -137,6 +164,28 @@ const api = new Router()
   .add('PATCH', '/api/trips/:id/bookings/:bid', patchBooking)
   .add('DELETE', '/api/trips/:id/bookings/:bid', deleteBooking)
   .add('GET', '/api/trips/:id/deadlines', listDeadlines)
+  // Expenses, pool, balances, settlements, FX (e7-t01). Fixed segments before :eid
+  .add('GET', '/api/trips/:id/expenses', listExpenses)
+  .add('POST', '/api/trips/:id/expenses', createExpense)
+  .add('GET', '/api/trips/:id/expenses/summary', expenseSummary)
+  .add('POST', '/api/trips/:id/expenses/apply-rate', applyRate)
+  .add('GET', '/api/trips/:id/expenses/:eid', getExpense)
+  .add('PATCH', '/api/trips/:id/expenses/:eid', patchExpense)
+  .add('DELETE', '/api/trips/:id/expenses/:eid', deleteExpense)
+  .add('POST', '/api/trips/:id/expenses/:eid/restore', restoreExpense)
+  .add('GET', '/api/trips/:id/expenses/:eid/history', expenseHistory)
+  .add('GET', '/api/trips/:id/expense-history', tripMoneyHistory)
+  .add('GET', '/api/trips/:id/pool/contributions', listContributions)
+  .add('POST', '/api/trips/:id/pool/contributions', createContribution)
+  .add('PATCH', '/api/trips/:id/pool/contributions/:cid', patchContribution)
+  .add('DELETE', '/api/trips/:id/pool/contributions/:cid', deleteContribution)
+  .add('PATCH', '/api/trips/:id/pool/settings', patchPoolSettings)
+  .add('GET', '/api/trips/:id/balances', getBalances)
+  .add('GET', '/api/trips/:id/settlements', listSettlements)
+  .add('POST', '/api/trips/:id/settlements', createSettlement)
+  .add('DELETE', '/api/trips/:id/settlements/:sid', deleteSettlement)
+  .add('GET', '/api/trips/:id/fx', getFx)
+  .add('PUT', '/api/trips/:id/fx/overrides', putFxOverrides)
   // External API proxies (e3-t02, e3-t04): worker/proxy/*, never called from the browser
   .add('GET', '/api/trips/:id/geo/search', geoSearch)
   .add('POST', '/api/trips/:id/geo/parse', geoParse)

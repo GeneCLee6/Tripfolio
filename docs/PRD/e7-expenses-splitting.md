@@ -40,6 +40,22 @@ depends_on: [E1, E10]
 - 匯率：`fxRates`（date、base、quote、rate、source）；來源見總 PRD Q4；一律允許手動覆寫。
 - 純函式已先行實作於 `shared/money/`（分支 feat/shared-pure-core），schema 部分留給 G1。
 
+### API 已有（e7-t01）
+
+- **Migration `0007_expenses.sql`**：`expenses`、`expenseShares`、`poolContributions`、`settlements`、`expenseHistory`、`fxRates`；`trips` 加 `poolRefundMode`（預設 `proportional`）與 `fxOverrides`（JSON，旅程預設匯率）。每筆另存 `fxSource`（`base`／`manual`／`trip`／`auto`）與 `fxDate`，就是「標示來源」。stopId／dayId／收據／booking 不設外鍵（行程點是硬刪，附件與 booking 表之後才有）。
+- **路由**（成員 token；viewer 讀、editor 寫，任何 editor 都能改任何一筆，歷史記下是誰改的）：
+  - `GET/POST /api/trips/:id/expenses`（篩選 `from`、`to`、`category`、`memberId`＝付款人或分攤人、`q`＝說明關鍵字、`deleted=1` 只看軟刪）；`GET/PATCH/DELETE …/expenses/:eid`；`POST …/expenses/:eid/restore`（`{}` 取消刪除，`{ historyId }` 還原到那一版）；`GET …/expenses/:eid/history`；`GET /api/trips/:id/expense-history?entity=`（整趟的金錢紀錄，新到舊）。
+  - `GET …/expenses/summary?by=day|category|member&from=&to=`（主幣分加總；member 另給 `paidMinor` 實付與 `shareMinor` 應分攤）。
+  - `POST …/expenses/apply-rate { currency, rate, scope: unsettled|all }`：把手動匯率套到同幣別的花費並重算分攤，每筆一條歷史。「未結算」＝最後一筆結算紀錄之後才記的花費。
+  - `GET/POST /api/trips/:id/pool/contributions`、`PATCH/DELETE …/contributions/:cid`、`PATCH /api/trips/:id/pool/settings { refundMode }`。
+  - `GET /api/trips/:id/balances`（`computeBalances` 的結果、`poolBalanceMinor`、`suggested`＝`suggestSettlements`）；`GET/POST /api/trips/:id/settlements`、`DELETE …/settlements/:sid`（軟刪）。
+  - `GET /api/trips/:id/fx?date=&quote=`、`PUT /api/trips/:id/fx/overrides { "NZD": 0.91 }`（整份取代）。
+- **匯率解析順序**（匯率＝1 單位該幣等於多少主幣，6 位小數）：與主幣相同 → 1；請求帶 `fxRate`（manual）；旅程預設 `fxOverrides`（trip）；`fxRates` 當天，否則往前最多 7 天內最近的一天（auto）；都沒有 → 422 `fx_unavailable`、`details.needsRate=true`，介面請使用者輸入匯率。`fxRates` 一列的意思是「1 base ＝ rate quote」（open.er-api.com 的形式），兩個方向都接受。每日抓取是 e7-t03。PATCH 只在幣別改了、或日期改了且原本是 auto 時重新取匯率；`fxRate: null` 清掉手動匯率並重新取。
+- **分攤**：一律在主幣金額上跑 `splitExpense`；「指定金額」以原幣輸入，先以原幣驗證總和，再把這些金額當權重分配主幣，總和仍等於 `baseMinor`。
+- **歷史**：每次建立／修改／刪除／還原寫一條 `expenseHistory`（entity ＝ expense／pool／settlement），`diff` 是 `{ 欄位: [前, 後] }`，`snapshot` 是改完後的完整狀態（含每人分攤），所以可以還原任一版；沒有實際變動的 PATCH 不寫歷史、也不升 rev。
+- **被移除的成員**：分攤列保留、餘額照算（`removed: true`，只要還有非零數字就列出）；已經出現在某筆的移除成員，修改那筆時仍可保留，新的引用只能是現任成員。
+- 每個寫入都升旅程 `rev`。
+
 ## 驗收條件
 
 - [ ] AC-7.1 — 記一筆：所有欄位、五種分法、收據、連行程點；手機上從按「＋」到存檔 ≤ 10 秒（實測）；離線記帳連線後同步。
@@ -53,7 +69,7 @@ depends_on: [E1, E10]
 
 ### M2
 
-- [ ] `e7-t01` schema（`expenses`、`expenseShares`、`poolContributions`、`settlements`、`expenseHistory`、`fxRates`）；`split()` 與 `balances()` 純函式與測試 · AC-7.1, 7.4 · M · ← e1-t03
+- [x] `e7-t01` schema（`expenses`、`expenseShares`、`poolContributions`、`settlements`、`expenseHistory`、`fxRates`）；`split()` 與 `balances()` 純函式與測試 · AC-7.1, 7.4 · M · ← e1-t03 · `#G1a`（純函式先前已在 `feat/shared-pure-core` 完成；這次是 migration 0007 與 API）
 - [ ] `e7-t03` 匯率：Worker 代理匯率 API、每日快取、手動覆寫與批次套用、旅程預設匯率 · AC-7.2 · S · ← e7-t01
 - [ ] `e7-t04` 公基金：出資、池付、結餘卡、退還方式 · AC-7.3 · S · ← e7-t01
 - [ ] `e7-t02` 記一筆表單（手機優先、數字鍵盤、最近類別、幣別記憶、相機收據、連行程點）＋離線佇列 · AC-7.1 · M · ← e7-t01, e10-t05
