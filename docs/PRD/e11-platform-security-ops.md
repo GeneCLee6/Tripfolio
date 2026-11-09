@@ -40,7 +40,7 @@ depends_on: []
 
 - [ ] AC-11.1 — 部署：PR 預覽與 `main` 自動上線可用；`DEPLOY.md`。
   - 進度（A1）：`DEPLOY.md`、`deploy.yml`、`preview.yml` 已有；正式與預覽設定以 `wrangler deploy --dry-run` 確認綁定正確（正式 D1 `tripfolio`、預覽 `tripfolio-staging`）。**workflow 還沒在 GitHub 跑過**（尚無 remote、未設 `CLOUDFLARE_API_TOKEN`），也還沒部署過，所以不勾。
-- [ ] AC-11.2 — CI：lint／typecheck／test／build／check-i18n／bundle 預算全部在 CI 擋。
+- [x] AC-11.2 — CI：lint／typecheck／test／build／check-i18n／bundle 預算全部在 CI 擋。（2026-11-09 repo 建立後第一次 push，GitHub Actions `CI / verify` 六步全綠，run 42613183736）
   - 進度（A1）：六個步驟都寫進 `ci.yml`，本機六個指令全部通過；**`ci.yml` 還沒在 GitHub Actions 跑過**，等 repo 建立、第一個 PR 跑綠才勾。
 - [ ] AC-11.3 — 備份：每日備份到 R2 並實際還原一次成功。
   - 進度（#backup，e11-t03）：`worker/backup.ts`＋`scheduled`＋cron `0 17 * * *` 已實作，單元測試涵蓋全部表與筆數、gzip 還原、`APP_ENV` 前綴、30 天清理、失敗重拋。2026-11-09 在本機排練過：`wrangler dev --test-scheduled` 觸發 → 本機 R2 出現備份 → 取回、解壓 → `d1 execute --file` 進空的本機 staging D1 → 資料相同、`migrations apply` 回報無待套用（`DEPLOY.md` §10）。**正式站的每日執行與遠端還原要等第一次部署後確認**，所以不勾。
