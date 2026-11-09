@@ -40,6 +40,14 @@ depends_on: [E10, E11]
 - 日色：每日一色，從 E10 的 10 色循環；針上的編號是當日順序。
 - 靜態地圖（E8 列印用）由同一個 MapLibre canvas 匯出 PNG。
 - **API 已有**（#A3b，`worker/trips/places.ts`）：`GET/POST /api/trips/:id/places`、`PATCH/DELETE /api/trips/:id/places/:pid`（刪除時引用它的 stops 改為無地點）、`GET /api/trips/:id/places/:pid/refs`（目前只有 stops；住宿、口袋名單之後加）、`POST /api/trips/:id/places/:pid/merge-into/:targetId`（改指向後刪除重複的那筆，回 `repointed`）。
+- **API 已有**（#proxy，`worker/proxy/*`，型別在 `shared/api/geo.ts`；任何成員角色皆可呼叫，用量頁限擁有者）：
+  - `GET /api/trips/:id/geo/search?q=&lat=&lng=&lang=`：Photon 優先、失敗或查無結果改 Nominatim（帶 `User-Agent`／`Referer`，經 D1 `providerThrottle` 全域限 1 次／秒）；回 `{ results: GeoResult[], source, cached }`，`GeoResult` 為 `nameLocal、nameEn、lat、lng、address、category、source、externalId`，類別對到 `sight／food／shopping／lodging／transport／fuel／supplies／nature／other`。Photon 公開站只接受 en／de／fr，其他語言送 `default`（當地名稱），此時 `nameEn` 為空字串。
+  - `POST /api/trips/:id/geo/parse` `{ text }`：解析 `lat, lng`、Google Maps 長網址（`!3d…!4d…`、`/@lat,lng,`、`?q=lat,lng`）與 `maps.app.goo.gl` 短網址（Worker 端跟轉址，最多 2 跳、共 3 秒、只跟到 Google 網域）；回 `{ lat, lng, name?, source: 'coords'|'link' }`，找不到座標回 422 `no_coordinates`。
+  - `POST /api/trips/:id/geo/route` `{ from, to, mode: drive|walk|cycle }` → `{ distanceM, durationS, geometry（GeoJSON LineString，≤ 200 點）, source: 'ors'|'estimate', cached, fallbackReason? }`；`POST /api/trips/:id/geo/routes` `{ legs }`（最多 30 段，依序回 `{ routes }`，重複段只算一次）。沒有金鑰、配額用完、ORS 回 429／403 或失敗時，回 `estimateLeg` 與直線（`source: 'estimate'`，前端標「估」）。露營車送 `drive`；大眾運輸／飛機／渡輪由前端直接 `estimateLeg`。
+  - `GET /api/trips/:id/geo/usage`（擁有者）：今日（UTC）本旅程與全部旅程的 photon／nominatim／ors 呼叫數與限制值。
+  - 快取與計數（`migrations/0003_proxy.sql`）：`geoCache`（provider＋語言＋正規化查詢＋偏好座標取 0.1°，7 天）、`routeCache`（方式＋起訖座標取 5 位小數，永久，只存 ORS 結果）、`apiUsage(date, provider, tripId, count)`（只算實際呼叫，快取命中不算）、`rateLimits`（每成員搜尋＋解析 30 次／分，固定一分鐘窗，盡力而為，e11-t04 再強化）、`providerThrottle`。
+  - 限制：ORS 每旅程每日 300 次、全部旅程每日 2,000 次（免費金鑰的配額）；429 後該 isolate 暫停 ORS 1 分鐘、403 暫停 10 分鐘。超過速率回 429 `rate_limited`（`details.retryAfterS`＋`Retry-After` 標頭）。
+  - Provider 網址是 `wrangler.jsonc` 的 vars（`PHOTON_URL`、`NOMINATIM_URL`、`ORS_URL`，正式與 preview 各一份）；ORS 金鑰是 secret：`npx wrangler secret put ORS_API_KEY`（preview 再加 `--env preview`），沒設定時所有路線都是估算。
 
 ## 驗收條件
 
@@ -54,9 +62,9 @@ depends_on: [E10, E11]
 ### M0
 
 - [x] `e3-t01` schema `places`（nameLocal、nameEn、lat、lng、address、category、source、hours JSON、links）與引用；`/api/places` · AC-3.1, 3.4 · S · ← e1-t01 · #A3b
-- [ ] `e3-t02` 地點搜尋元件：Worker 代理 Photon／Nominatim（快取、速率、UA）、Google Maps 連結與座標解析、手動放針 · AC-3.1 · M · ← e3-t01
+- [ ] `e3-t02` 地點搜尋元件：Worker 代理 Photon／Nominatim（快取、速率、UA）、Google Maps 連結與座標解析、手動放針 · AC-3.1 · M · ← e3-t01 · 後端部分完成（#proxy）
 - [ ] `e3-t03` 地圖元件：MapLibre＋OpenFreeMap style 客製、類型圖示、日色、叢集、點卡、手機全螢幕、獨立 chunk · AC-3.2 · M · ← e10-t01
-- [ ] `e3-t04` 路線服務：Worker 代理 OpenRouteService（自駕／步行／單車）、D1 快取、直線後備；每日線與全程過夜連線 · AC-3.3 · M · ← e3-t03
+- [ ] `e3-t04` 路線服務：Worker 代理 OpenRouteService（自駕／步行／單車）、D1 快取、直線後備；每日線與全程過夜連線 · AC-3.3 · M · ← e3-t03 · 後端部分完成（#proxy）
 
 ### M1
 

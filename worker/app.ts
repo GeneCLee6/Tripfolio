@@ -1,6 +1,10 @@
 import type { HealthResponse } from '../shared/health.ts'
 import type { Env } from './env.ts'
 import { ApiError, errorResponse, json } from './http.ts'
+import { geoSearch } from './proxy/geocode.ts'
+import { geoParse } from './proxy/parse.ts'
+import { geoRoute, geoRoutes } from './proxy/route.ts'
+import { geoUsage } from './proxy/usage.ts'
 import { Router } from './router.ts'
 import { createShare, listShares, publicShare, revokeShare } from './share.ts'
 import {
@@ -76,6 +80,12 @@ const api = new Router()
   .add('DELETE', '/api/trips/:id/places/:pid', deletePlace)
   .add('GET', '/api/trips/:id/places/:pid/refs', placeRefs)
   .add('POST', '/api/trips/:id/places/:pid/merge-into/:targetId', mergePlace)
+  // External API proxies (e3-t02, e3-t04): worker/proxy/*, never called from the browser
+  .add('GET', '/api/trips/:id/geo/search', geoSearch)
+  .add('POST', '/api/trips/:id/geo/parse', geoParse)
+  .add('POST', '/api/trips/:id/geo/route', geoRoute)
+  .add('POST', '/api/trips/:id/geo/routes', geoRoutes)
+  .add('GET', '/api/trips/:id/geo/usage', geoUsage)
 
 async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
   try {

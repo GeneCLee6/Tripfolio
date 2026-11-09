@@ -15,4 +15,12 @@ export interface Env {
   APP_VERSION?: string
   /** Which environment this is; the daily backup writes under backups/<APP_ENV>/ (absent = production) */
   APP_ENV?: string
+  /** Place search provider base URLs (wrangler vars; swappable, ARCHITECTURE.md §5) */
+  PHOTON_URL?: string
+  NOMINATIM_URL?: string
+  /** OpenRouteService base URL (wrangler var) */
+  ORS_URL?: string
+  /** OpenRouteService key, a secret: `npx wrangler secret put ORS_API_KEY` (and `--env preview`).
+   * Without it every route is a straight-line estimate */
+  ORS_API_KEY?: string
 }

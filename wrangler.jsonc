@@ -39,8 +39,15 @@
     // Daily D1 backups (e11-t03)
     { "binding": "BACKUPS", "bucket_name": "tripfolio-backups" }
   ],
-  // The deployed commit; the deploy workflows override it with --var APP_VERSION:<sha>
-  "vars": { "APP_VERSION": "local" },
+  // The deployed commit; the deploy workflows override it with --var APP_VERSION:<sha>.
+  // Provider base URLs for worker/proxy/* (ARCHITECTURE.md §5: swap a provider by changing them).
+  // ORS_API_KEY is a secret, not a var: `npx wrangler secret put ORS_API_KEY` (and --env preview)
+  "vars": {
+    "APP_VERSION": "local",
+    "PHOTON_URL": "https://photon.komoot.io/api/",
+    "NOMINATIM_URL": "https://nominatim.openstreetmap.org/search",
+    "ORS_URL": "https://api.openrouteservice.org"
+  },
   // Staging and pull request previews (DEPLOY.md §2): separate Workers, so each has its own Durable
   // Object storage and never touches production's. Bindings and vars are not inherited from the
   // top level: repeat each one here. Selected at build time with CLOUDFLARE_ENV=preview (the Vite
@@ -68,7 +75,13 @@
         { "binding": "MEDIA", "bucket_name": "tripfolio-media" },
         { "binding": "BACKUPS", "bucket_name": "tripfolio-backups" }
       ],
-      "vars": { "APP_VERSION": "local", "APP_ENV": "preview" }
+      "vars": {
+        "APP_VERSION": "local",
+        "APP_ENV": "preview",
+        "PHOTON_URL": "https://photon.komoot.io/api/",
+        "NOMINATIM_URL": "https://nominatim.openstreetmap.org/search",
+        "ORS_URL": "https://api.openrouteservice.org"
+      }
     }
   }
 }
