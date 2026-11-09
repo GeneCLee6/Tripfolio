@@ -1,6 +1,6 @@
 # Tripfolio · 旅誌 (working title)
 
-A private trip planner and shared wallet for one group of friends.
+A trip planner and shared wallet for one group of friends (friends-only app; this repository is public).
 
 Plan a trip the way a travel agency presents one: day-by-day itinerary, stops on a map with driving times, lodging and bookings, must-eat / must-buy picks with prices and photos. Share a read-only page with friends and family. On the road, everyone in the group logs expenses (multi-currency, shared fund, flexible splits) and the app settles who owes whom. After the trip, the same page flips into a recap.
 
