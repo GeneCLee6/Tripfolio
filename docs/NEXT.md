@@ -4,20 +4,22 @@
 
 ## 1. 現在的位置
 
-- **2026-11-09 規劃完成，尚未有程式碼、尚未 `git init` 到遠端。** 工作名稱 **Tripfolio · 旅誌**（未拍板）。總 PRD `docs/PRD/00-prd.md`、旅遊領域筆記 `docs/PRD/01-travel-domain-notes.md`、11 個 epic（71 個 task、57 條 AC）、`ROADMAP.md` Phase A–J（跳過 E、M）、`ARCHITECTURE.md`、`DESIGN.md`、`PLANNING-METHOD.md`、視覺稿 `docs/design/mockup.html`、標誌 `docs/design/logo/logo.svg`。
-- **下一步：擁有者拍板 §2 的 Q1（名稱），然後 A1。**
+- **2026-11-09 規劃完成，尚未有程式碼。** 名稱拍板 **Tripfolio · 旅誌**；GitHub `GeneCLee6/Tripfolio`（私人）。主幣預設 **AUD**、第二幣別 TWD。擁有者接下來要規劃：紐西蘭露營車、峇里島包車、泰國、斐濟、帛琉、歐洲（型態範本與幣別見 `01-travel-domain-notes.md` §9b）。總 PRD `docs/PRD/00-prd.md`、旅遊領域筆記 `docs/PRD/01-travel-domain-notes.md`、11 個 epic（71 個 task、57 條 AC）、`ROADMAP.md` Phase A–J（跳過 E、M）、`ARCHITECTURE.md`、`DESIGN.md`、`PLANNING-METHOD.md`、視覺稿 `docs/design/mockup.html`、標誌 `docs/design/logo/logo.svg`。
+- **平行開發（2026-11-09 擁有者要求）**：A1 之後，互不碰同一個資料夾的批次可以由多個 agent 各自在 worktree 平行做、各開 PR、依序合併（後合併的先 rebase）。分工規則：`shared/**` 純函式一組、`worker/**`＋`migrations/**` 一組、`src/**` 一組；共用的設定檔（`package.json`、`tsconfig*`、`vite.config.ts`、`wrangler.jsonc`）只有 A1 和明確被指定的批次可以改。ROADMAP 的批次內容不變，只是幾批同時進行。
+- **下一步：A1（repo 骨架）由單一 agent 先做完並合併；接著 A2（`src/`）、A3 後端（`worker/`＋`shared/schema`）、以及提前的純函式批（`shared/money`、`shared/time`、`shared/itinerary`，對應 e7-t01 的 split／balances、e2-t06 的日出日落、e2-t05 的移動段計算）三個 agent 平行。**
 
 ## 2. 待擁有者決定（開工前）
 
-| 問題 | 在哪一批之前 | 建議 |
+| 問題 | 在哪一批之前 | 決定 |
 | --- | --- | --- |
-| Q1 產品名稱 | A1 | Tripfolio · 旅誌（備選 Wayfolio · 行旅簿、Roam & Ledger · 旅帳） |
-| Q1b 預設繁中、繁中為來源語言 | A2 | 是；第一次依瀏覽器語言，非 `zh*` 用英文 |
-| Q2 身分方式 | H3 | 邀請連結＋「我是誰」；Google 登入排 H3 |
-| Q3 地圖／搜尋／路線 provider | B2 | MapLibre＋OpenFreeMap、Photon＋Nominatim、OpenRouteService（要註冊金鑰） |
-| Q4 匯率來源 | G1 | open.er-api.com（有 TWD）；永遠可手動覆寫 |
-| Q5 主幣別預設 TWD、結算只用主幣 | G1 | 是 |
+| ~~Q1 產品名稱~~ | — | 已拍板（2026-11-09）：Tripfolio · 旅誌 |
+| ~~Q1b 預設繁中、繁中為來源語言~~ | — | 已拍板：是 |
+| ~~Q2 身分方式~~ | — | 已拍板：邀請連結＋「我是誰」；Google 登入排 H3 |
+| ~~Q3 地圖／搜尋／路線 provider~~ | B2 | 已拍板：MapLibre＋OpenFreeMap、Photon＋Nominatim、OpenRouteService；**擁有者要在 B2 前註冊 ORS 金鑰並 `wrangler secret put ORS_API_KEY`** |
+| ~~Q4 匯率來源~~ | — | 已拍板：open.er-api.com，永遠可手動覆寫 |
+| ~~Q5 主幣別~~ | — | 已拍板：預設 AUD、第二幣別 TWD，每旅程可改 |
 | Q6 Email 提醒 | M3 | 先不做 |
+| **部署 secret** | A1 合併後 | 擁有者在 GitHub repo 設 `CLOUDFLARE_API_TOKEN`（同 TKU Arcade 的 token 即可；`CLOUDFLARE_ACCOUNT_ID` 已設）；沒設之前部署 workflow 會跳過不會失敗 |
 
 ## 3. 工作方式（每批）
 

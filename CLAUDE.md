@@ -1,4 +1,4 @@
-# CLAUDE.md — Tripfolio · 旅誌（工作名稱）
+# CLAUDE.md — Tripfolio · 旅誌
 
 給 Claude Code 的專案說明。開始工作前先讀 `docs/NEXT.md`；實作後會補 `RULES.md` 與 `ARCHITECTURE.md` 的實作細節。
 
@@ -30,6 +30,8 @@
 9. 程式碼、註解、commit、**PR 標題**用英文；文件用繁體中文（台灣用語）；介面兩語都要。
 10. **一批一個 PR**，照 `docs/ROADMAP.md` 的批次號；在同一個 PR 更新 epic 勾選、`PRD/README.md` 進度表、ROADMAP、NEXT。
 11. 離線與即時同步的 AC（E2 AC-2.6、E3 AC-3.5、E10 AC-10.4）要兩台裝置實測才能勾。
+12. **多個 agent 平行時**（`docs/NEXT.md` §1）：只改自己被指派的資料夾；`package.json`、`tsconfig*`、`vite.config.ts`、`wrangler.jsonc`、CI 檔只有被明確指定的批次可以改，需要新依賴就在 PR 說明裡寫、由合併者加；合併前 rebase 到最新 `main`。
+13. 主幣別預設 **AUD**、第二顯示幣別 **TWD**；幣別小數位查 `shared/money/currencies.ts`，不要假設都是 2 位。
 
 ## 指令（A1 之後生效）
 

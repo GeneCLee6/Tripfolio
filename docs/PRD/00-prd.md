@@ -9,7 +9,7 @@ owner: GeneCLee6
 
 > 這是產品的總 PRD：願景、範圍、功能需求（F）、驗收條件總表、里程碑與風險。每個 epic 的細節、AC 與 task 拆分在同一個資料夾的 `e*.md`，**勾選狀態以 epic 文件為準**。資料夾的閱讀方式與 task 格式見 [`README.md`](README.md)，旅遊專業角度的領域知識與檢核見 [`01-travel-domain-notes.md`](01-travel-domain-notes.md)，為什麼只分三層見 [`../PLANNING-METHOD.md`](../PLANNING-METHOD.md)。
 >
-> **名稱未拍板**（§14 Q1）：工作名稱「Tripfolio · 旅誌」。介面預設繁體中文、第一次依瀏覽器語言切英文（§14 Q1b，建議）。
+> **名稱已拍板（2026-11-09）**：**Tripfolio · 旅誌**（§14 Q1）。介面預設繁體中文、第一次依瀏覽器語言切英文（§14 Q1b）。**主幣別預設 AUD、第二顯示幣別 TWD**（§14 Q5）；擁有者的旅程型態：紐西蘭露營車環島、峇里島包車、泰國、斐濟、帛琉、歐洲，所以型態範本要有露營車、包車、海島、歐洲鐵路／城市，幣別要涵蓋 NZD、IDR（無小數）、THB、FJD、USD（帛琉）、EUR。
 
 ## 1. 願景
 
@@ -229,17 +229,17 @@ AC 編號是 `AC-<epic>.<序號>`；勾選狀態與完整文字以各 epic 為�
 
 ## 14. 未決問題（跨 epic）
 
-- [ ] **Q1:** 產品名稱？工作名稱「Tripfolio · 旅誌」；備選「Wayfolio · 行旅簿」「Roam & Ledger · 旅帳」。
-      **A:** _(開工 A1 前拍板；repo 與 Worker 名稱跟著走)_
-- [ ] **Q1b:** 介面預設繁中、繁中為來源語言（與 TKU Arcade 相反）？
-      **A:** _(建議是：使用者與同行朋友是台灣人、內容是中文；英文給分享頁的外國朋友；第一次依瀏覽器語言，非 `zh*` 用英文)_
-- [ ] **Q2:** 身分方式：邀請連結＋「我是誰」（Tricount 式，免帳號）就好，Google 登入排到 M2 末（H3）？
-      **A:** _(建議是；朋友圈不需要帳號門檻，記帳身分靠成員＋裝置 token)_
-- [ ] **Q3:** 地圖與路線 provider：MapLibre＋OpenFreeMap（底圖）、Photon＋Nominatim（搜尋）、OpenRouteService（路線，擁有者註冊免費金鑰）？
-      **A:** _(建議是；見 `ARCHITECTURE.md` §5；ORS 金鑰在 B2 之前要有)_
-- [ ] **Q4:** 匯率來源：open.er-api.com（免費、含 TWD、每日更新）或 frankfurter.app（ECB，**沒有 TWD**）？
-      **A:** _(建議 open.er-api.com，後備手動；G1 之前拍板)_
-- [ ] **Q5:** 主幣別預設 TWD、結算只用主幣？
-      **A:** _(建議是；每人餘額一個數字最清楚)_
+- [x] **Q1:** 產品名稱？
+      **A:** **2026-11-09 擁有者拍板：Tripfolio · 旅誌。** GitHub `GeneCLee6/Tripfolio`、Worker `tripfolio`。
+- [x] **Q1b:** 介面預設繁中、繁中為來源語言（與 TKU Arcade 相反）？
+      **A:** 2026-11-09 擁有者同意建議：是。第一次依瀏覽器語言，非 `zh*` 用英文。
+- [x] **Q2:** 身分方式：邀請連結＋「我是誰」（Tricount 式，免帳號）就好，Google 登入排到 M2 末（H3）？
+      **A:** 2026-11-09 擁有者同意建議：是。
+- [x] **Q3:** 地圖與路線 provider：MapLibre＋OpenFreeMap（底圖）、Photon＋Nominatim（搜尋）、OpenRouteService（路線，擁有者註冊免費金鑰）？
+      **A:** 2026-11-09 擁有者同意建議：是。ORS 金鑰在 B2 之前要放進 Worker secret `ORS_API_KEY`。
+- [x] **Q4:** 匯率來源：open.er-api.com（免費、含 TWD 與 AUD、每日更新）或 frankfurter.app（ECB，**沒有 TWD**）？
+      **A:** 2026-11-09 擁有者同意建議：open.er-api.com，後備手動。
+- [x] **Q5:** 主幣別與結算幣別？
+      **A:** **2026-11-09 擁有者拍板：預設 AUD（擁有者常用），第二顯示幣別 TWD**；每個旅程可改。結算只用主幣；清單與統計可同時顯示第二幣別。幣別要有正確的小數位（IDR、JPY、KRW 0 位；其餘 2 位），見 E7。
 - [ ] **Q6:** 要不要 Email 提醒（預訂期限）與寄信服務？
       **A:** _(建議 M3 再看；先靠進站看「即將到期」)_
