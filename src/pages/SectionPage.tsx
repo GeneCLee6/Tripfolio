@@ -21,11 +21,13 @@ const Wrapper = styled.div`
 // Sections that have a real page load it as its own chunk (B1: the itinerary)
 const ItineraryPage = lazy(() => import('./itinerary/ItineraryPage.tsx'))
 const MapPage = lazy(() => import('./map/MapPage.tsx'))
+const ExpensesPage = lazy(() => import('./expenses/ExpensesPage.tsx'))
 
 /** Map, lists and expenses until their batches fill them: a designed empty state */
 export default function SectionPage({ section }: { section: PlaceholderSectionId }) {
   if (section === 'itinerary') return <ItineraryPage />
   if (section === 'map') return <MapPage />
+  if (section === 'expenses') return <ExpensesPage />
   return <Placeholder section={section} />
 }
 

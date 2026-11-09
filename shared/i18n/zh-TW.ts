@@ -560,6 +560,7 @@ export const zhTW = {
   'dev.ui.stopC': '庫克山 Hooker Valley 步道',
   'dev.ui.dayTitle': '湖區',
   'expenses.title': '花費',
+  'expenses.balancesLink': '餘額與結算',
   'expenses.editTitle': '修改花費',
   'expenses.category': '類別',
   'expenses.category.food': '餐飲',

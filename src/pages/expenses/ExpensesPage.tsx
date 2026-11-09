@@ -17,6 +17,7 @@ import {
   useToast,
 } from '../../components/index.ts'
 import { PlusIcon } from '../../components/icons.tsx'
+import { ButtonLink } from '../../components/ButtonLink.tsx'
 import { itineraryApi } from '../../lib/api.ts'
 import { expensesApi, onExpensesChanged, type ExpenseQuery } from '../../lib/expenses/api.ts'
 import {
@@ -259,14 +260,19 @@ export default function ExpensesPage() {
         title={t('expenses.title')}
         lead={loaded ? t.plural('expenses.count', shown.length) : undefined}
         actions={
-          canEdit ? (
-            <AddOnWide>
-              <Button variant="primary" onClick={() => setSheet({ open: true, expense: null })}>
-                <PlusIcon size={16} />
-                {t('term.logExpense')}
-              </Button>
-            </AddOnWide>
-          ) : undefined
+          <>
+            <ButtonLink to="balances" variant="secondary">
+              {t('expenses.balancesLink')}
+            </ButtonLink>
+            {canEdit ? (
+              <AddOnWide>
+                <Button variant="primary" onClick={() => setSheet({ open: true, expense: null })}>
+                  <PlusIcon size={16} />
+                  {t('term.logExpense')}
+                </Button>
+              </AddOnWide>
+            ) : null}
+          </>
         }
       />
 

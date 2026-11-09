@@ -560,6 +560,7 @@ export const en: Record<MessageKey, string> = {
   'dev.ui.stopC': 'Mount Cook · Hooker Valley Track',
   'dev.ui.dayTitle': 'Lakes',
   'expenses.title': 'Expenses',
+  'expenses.balancesLink': 'Balances & settle up',
   'expenses.editTitle': 'Edit expense',
   'expenses.category': 'Category',
   'expenses.category.food': 'Food',

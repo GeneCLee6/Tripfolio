@@ -139,7 +139,7 @@ describe('TripHomePage', () => {
 
 describe('SectionPage', () => {
   it('is a designed empty state until its batch arrives', () => {
-    const html = render(<SectionPage section="expenses" />)
+    const html = render(<SectionPage section="picks" />)
     expect(html).toContain('<h1')
     expect(html).toContain('記帳即將開放')
   })
