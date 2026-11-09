@@ -369,6 +369,9 @@ export default function TripMap({
           pitchWithRotate: false,
           touchPitch: false,
           locale: {
+            // The canvas's aria-label (MapLibre's default is the English "Map"); not map.label,
+            // which names the surrounding region
+            'Map.Title': t('map.canvas'),
             'NavigationControl.ZoomIn': t('map.zoomIn'),
             'NavigationControl.ZoomOut': t('map.zoomOut'),
           },
