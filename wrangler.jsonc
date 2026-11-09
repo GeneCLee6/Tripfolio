@@ -68,7 +68,7 @@
         { "binding": "MEDIA", "bucket_name": "tripfolio-media" },
         { "binding": "BACKUPS", "bucket_name": "tripfolio-backups" }
       ],
-      "vars": { "APP_VERSION": "local" }
+      "vars": { "APP_VERSION": "local", "APP_ENV": "preview" }
     }
   }
 }
