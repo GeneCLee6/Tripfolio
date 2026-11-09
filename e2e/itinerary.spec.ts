@@ -230,3 +230,211 @@ test('English labels and the place picker errors', async ({ browser, request }) 
   await expect(pane.getByRole('status')).toContainText('Long-press the map')
   await context.close()
 })
+
+// ---- B3i (e2-t04, e2-t05, e2-t06): drag and drop, leg overrides, time checks ----
+
+/**
+ * A trip with three stops on Day 1 created through the API: Fergburger is closed on that weekday,
+ * Glenorchy and Kingston have overlapping bookings
+ */
+async function seed(request: APIRequestContext, name: string) {
+  const { trip, memberToken } = await createTrip(request, name)
+  const headers = { authorization: `Bearer ${memberToken}` }
+  const daysResponse = await request.get(`/api/trips/${trip.id}/days`, { headers })
+  const { days } = (await daysResponse.json()) as {
+    days: { id: string; date: string; idx: number | null }[]
+  }
+  const day1 = days[0]
+  const weekday = new Date(`${day1.date}T00:00:00Z`).getUTCDay()
+  // Local NZ wall clock → UTC (December: NZDT, UTC+13)
+  const at = (hm: string) => {
+    const [h, m] = hm.split(':').map(Number)
+    const [y, mo, d] = day1.date.split('-').map(Number)
+    return new Date(Date.UTC(y, mo - 1, d, h - 13, m)).toISOString().replace('.000Z', 'Z')
+  }
+  const place = async (nameLocal: string, lat: number, lng: number, hours: unknown = null) => {
+    const response = await request.post(`/api/trips/${trip.id}/places`, {
+      headers,
+      data: { nameLocal, lat, lng, category: 'food', source: 'manual', hours },
+    })
+    expect(response.status()).toBe(201)
+    return ((await response.json()) as { place: { id: string } }).place.id
+  }
+  const ferg = await place('Fergburger', -45.0318, 168.6598, {
+    periods: [{ day: (weekday + 1) % 7, open: '09:00', close: '17:00' }],
+  })
+  const glen = await place('Glenorchy', -44.8513, 168.3871)
+  const king = await place('Kingston', -45.3333, 168.7167)
+  const ids: Record<string, string> = {}
+  for (const [title, placeId, start, end, booking] of [
+    ['Fergburger', ferg, '10:00', '11:00', 'none'],
+    ['Glenorchy', glen, '12:00', '13:30', 'booked'],
+    ['Kingston', king, '13:00', '14:00', 'todo'],
+  ] as const) {
+    const response = await request.post(`/api/trips/${trip.id}/stops`, {
+      headers,
+      data: { dayId: day1.id, title, placeId, startAt: at(start), endAt: at(end), booking },
+    })
+    expect(response.status()).toBe(201)
+    ids[title] = ((await response.json()) as { stop: { id: string } }).stop.id
+  }
+  return { trip, memberToken, days, ids }
+}
+
+const dayNames = (page: Page, dayId: string) =>
+  page
+    .locator(
+      `section[data-day-id="${dayId}"] [data-stop-id] > button:first-child > span:first-child`,
+    )
+    .allTextContents()
+
+/** A key press with a pause after it (the drag library listens from the next tick on) */
+async function press(page: Page, key: string) {
+  await page.keyboard.press(key)
+  await page.waitForTimeout(150)
+}
+
+/** Press on `from` and move to `to` in small steps (dnd-kit needs movement after the press) */
+async function mouseDrag(page: Page, from: Locator, to: { x: number; y: number }) {
+  const box = (await from.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 6, { steps: 3 })
+  await page.mouse.move(to.x, to.y, { steps: 15 })
+  await page.mouse.move(to.x, to.y + 1, { steps: 2 })
+}
+
+for (const [label, width, height] of [
+  ['phone', 375, 812],
+  ['desktop', 1440, 900],
+] as const) {
+  test(`${label}: drag and drop, leg override and time checks`, async ({ page, request }) => {
+    const desktop = width >= 1200
+    await page.setViewportSize({ width, height })
+    const { trip, memberToken, days, ids } = await seed(request, `B3i ${label}`)
+    await page.addInitScript(
+      ([id, value]) =>
+        localStorage.setItem('tripfolio.memberTokens', JSON.stringify({ [id]: value })),
+      [trip.id, memberToken],
+    )
+    await page.goto(`/trips/${trip.id}/itinerary`)
+    const day1 = days[0].id
+    await expect.poll(() => dayNames(page, day1)).toEqual(['Fergburger', 'Glenorchy', 'Kingston'])
+
+    // e2-t06: the two warnings under the day header, and marks on the cards
+    const warnings = page.getByRole('list', { name: '時間提醒' }).first()
+    await expect(warnings.getByText('「Fergburger」10:00 到達時已打烊')).toBeVisible()
+    await expect(warnings.getByText('「Glenorchy」和「Kingston」的預訂時間重疊')).toBeVisible()
+    await expect(page.locator(`[data-stop-id="${ids.Fergburger}"]`)).toHaveAttribute(
+      'data-warned',
+      'true',
+    )
+    await expect(page.locator(`[data-stop-id="${ids.Kingston}"]`)).toHaveAttribute(
+      'data-warned',
+      'true',
+    )
+    // Tapping a warning brings its stop into focus
+    await warnings.getByRole('button', { name: /到達時已打烊/ }).click()
+    await expect(
+      page.getByRole('button', { name: '編輯「Fergburger」（有時間提醒）' }),
+    ).toBeFocused()
+    await shot(page, `${label}-b3i-warnings`)
+
+    // e2-t05: override the first leg's time → 「手動」, the day total and the limit warning change
+    const total = page.locator(`section[data-day-id="${day1}"] [data-day-total]`)
+    const before = (await total.textContent()) ?? ''
+    await expect(page.getByText(/每日駕駛上限 3 小時 30 分/).first()).toBeVisible()
+    const firstLeg = page.locator(`[data-leg="${ids.Fergburger}>${ids.Glenorchy}"]`)
+    await expect(firstLeg.getByText('手動')).toHaveCount(0)
+    await firstLeg.click()
+    const legPane = desktop
+      ? page.getByRole('complementary', { name: '細節' })
+      : page.getByRole('dialog', { name: '調整移動段' })
+    await expect(legPane.getByLabel('交通方式')).toHaveValue('drive')
+    await legPane.getByLabel('移動時間（分鐘）').fill('300')
+    await legPane.getByRole('button', { name: '儲存' }).click()
+    await expect(firstLeg.getByText('手動')).toBeVisible()
+    await expect(firstLeg.getByText('估')).toHaveCount(0)
+    await expect(firstLeg).toContainText('5 小時')
+    await expect(total).not.toHaveText(before)
+    await expect(page.getByText(/超過每日上限/).first()).toBeVisible()
+    // A ferry leaves the driving total; survives a reload
+    await firstLeg.click()
+    await legPane.getByLabel('交通方式').selectOption('ferry')
+    await legPane.getByLabel('移動時間（分鐘）').fill('')
+    await legPane.getByRole('button', { name: '儲存' }).click()
+    await expect(firstLeg).toContainText('渡輪')
+    await expect(page.getByText(/超過每日上限/)).toHaveCount(0)
+    await page.reload()
+    await expect(firstLeg).toContainText('渡輪')
+    await expect(firstLeg.getByText('手動')).toBeVisible()
+    // Back to automatic
+    await firstLeg.click()
+    await legPane.getByRole('button', { name: '恢復自動' }).click()
+    await expect(firstLeg).toContainText('露營車')
+    await expect(firstLeg.getByText('手動')).toHaveCount(0)
+    await shot(page, `${label}-b3i-legs`)
+
+    // e2-t04 keyboard: Space picks up, ArrowDown moves, Space drops
+    const handle = (name: string) => page.getByRole('button', { name: `拖曳「${name}」排序` })
+    await handle('Fergburger').focus()
+    await press(page, 'Space')
+    await press(page, 'ArrowDown')
+    await press(page, 'Space')
+    await expect.poll(() => dayNames(page, day1)).toEqual(['Glenorchy', 'Fergburger', 'Kingston'])
+    // Esc cancels
+    await handle('Kingston').focus()
+    await press(page, 'Space')
+    await press(page, 'ArrowUp')
+    await press(page, 'Escape')
+    await expect.poll(() => dayNames(page, day1)).toEqual(['Glenorchy', 'Fergburger', 'Kingston'])
+
+    // e2-t04 mouse: Kingston to the top
+    const top = (await page.locator(`[data-stop-id="${ids.Glenorchy}"]`).boundingBox())!
+    await mouseDrag(page, handle('Kingston'), { x: top.x + top.width / 2, y: top.y + 4 })
+    await page.mouse.up()
+    await expect.poll(() => dayNames(page, day1)).toEqual(['Kingston', 'Glenorchy', 'Fergburger'])
+    await page.reload()
+    await expect.poll(() => dayNames(page, day1)).toEqual(['Kingston', 'Glenorchy', 'Fergburger'])
+
+    // Across days
+    const day2 = days[1].id
+    await page
+      .locator(`[data-stop-id="${ids.Fergburger}"]`)
+      .evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    if (desktop) {
+      // All days are on screen: drop on Day 2's empty area
+      const area = page.locator(`[data-day-drop="${day2}"]`)
+      const box = (await area.boundingBox())!
+      await mouseDrag(page, handle('Fergburger'), {
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2,
+      })
+      await page.mouse.up()
+    } else {
+      // One day on screen: hold over the bottom edge zone until Day 2 comes in, then drop
+      await mouseDrag(page, handle('Fergburger'), { x: width / 2, y: height - 140 })
+      const edge = page.locator('[data-edge="bottom"]')
+      await expect(edge).toBeVisible()
+      const box = (await edge.boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 })
+      await expect(page.getByRole('heading', { level: 2, name: /^Day 2/ })).toBeVisible({
+        timeout: 3000,
+      })
+      const area = page.locator(`[data-day-drop="${day2}"]`)
+      const target = (await area.boundingBox())!
+      await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, {
+        steps: 10,
+      })
+      await page.mouse.up()
+    }
+    await expect.poll(() => dayNames(page, day2)).toEqual(['Fergburger'])
+    await page.reload()
+    if (!desktop) await page.getByRole('button', { name: '後一天' }).click()
+    await expect.poll(() => dayNames(page, day2)).toEqual(['Fergburger'])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    )
+    await shot(page, `${label}-b3i-moved`)
+  })
+}

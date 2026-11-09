@@ -1,13 +1,18 @@
+import { DndContext, useDroppable } from '@dnd-kit/core'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 import type { GeoPoint } from '../../../shared/api/geo.ts'
 import type { DayWithStops, Stop } from '../../../shared/api/types.ts'
+import type { Warning } from '../../../shared/itinerary/checks.ts'
 import { formatDate } from '../../../shared/i18n/format.ts'
 import { Button, Dialog, EmptyState, Skeleton, useToast } from '../../components/index.ts'
 import { useDetailPane, useTripContext } from '../../app/trip-context.ts'
 import { errorMessageKey } from '../../lib/errors.ts'
 import { useMediaQuery } from '../../lib/hooks.ts'
 import { useT } from '../../lib/i18n.ts'
+import { checkItineraryDay } from '../../lib/itinerary/checks.ts'
+import type { DisplayLeg } from '../../lib/itinerary/legs.ts'
+import { useCan } from '../../lib/role.ts'
 import { moveToDayTarget, type MoveTarget } from '../../lib/itinerary/order.ts'
 import { focusRing } from '../../styles/mixins.ts'
 import {
@@ -25,15 +30,20 @@ import {
 import { PageHeading, Stack } from '../parts.tsx'
 import { DayBlock } from './DayBlock.tsx'
 import { DayEditor } from './DayEditor.tsx'
+import { LegEditor } from './LegEditor.tsx'
 import { colorOfDay, stopName } from './labels.ts'
 import { StopEditor } from './StopEditor.tsx'
 import { isTempId, useItinerary } from './useItinerary.ts'
+import { EDGE_NEXT, EDGE_PREV, useStopDrag } from './useStopDrag.ts'
 
 // /trips/:id/itinerary (e2-t02, DESIGN.md §4 日程頁): a sticky strip of day chips, then the days.
 // Phones show one day at a time with previous / next; wider screens scroll through every day and
 // the chip of the day in view lights up. Unassigned days (outside the trip's dates) come last, muted.
 
 const TOP_BAR = 56
+/** The trip layout's bottom navigation on phones (src/app/TripLayout.tsx) */
+const BOTTOM_NAV = 64
+const HIGHLIGHT_MS = 2400
 
 /** One column that never grows past the page: the chip strip scrolls inside it */
 const Column = styled(Stack)`
@@ -126,6 +136,43 @@ const Days = styled.div`
   gap: ${space.lg}px;
 `
 
+const EdgeBox = styled.div<{ $side: 'top' | 'bottom'; $over: boolean }>`
+  position: fixed;
+  left: ${space.md}px;
+  right: ${space.md}px;
+  ${({ $side }) =>
+    $side === 'top'
+      ? css`
+          top: ${TOP_BAR + space.xs}px;
+        `
+      : css`
+          bottom: calc(${BOTTOM_NAV + space.xs}px + env(safe-area-inset-bottom, 0px));
+        `}
+  z-index: ${zIndex.overlay - 2};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: ${space.sm}px;
+  border: 2px dashed ${color.fjord};
+  border-radius: ${radius.card}px;
+  background: ${({ $over }) => ($over ? color.glacier : color.card)};
+  color: ${color.fjord};
+  font-size: ${fontSize.sm}px;
+  text-align: center;
+  pointer-events: none;
+`
+
+/** Phones: hold a dragged stop here to bring the previous / next day in */
+function EdgeZone({ id, side, label }: { id: string; side: 'top' | 'bottom'; label: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <EdgeBox ref={setNodeRef} $side={side} $over={isOver} data-edge={side}>
+      {label}
+    </EdgeBox>
+  )
+}
+
 const DayList = styled.div`
   display: grid;
   gap: ${space.sm}px;
@@ -142,9 +189,64 @@ export default function ItineraryPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [inViewId, setInViewId] = useState<string | null>(null)
   const [moving, setMoving] = useState<Stop | null>(null)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const sections = useRef(new Map<string, HTMLElement>())
+  const can = useCan()
+  const editable = can('editContent')
+  const motion = useMediaQuery(media.motion)
 
-  const days = useMemo(() => data?.days ?? [], [data?.days])
+  const dataDays = useMemo(() => data?.days ?? [], [data?.days])
+  const nameOf = (stop: Stop) =>
+    stopName(stop, stop.placeId ? placesById.get(stop.placeId) : undefined, t)
+  const dayLabelOf = (day: DayWithStops) =>
+    day.idx !== null ? t('day.short', { n: day.idx }) : t('itinerary.unassigned.headingNoDate')
+  const dataOrdered = [
+    ...dataDays.filter((day) => day.idx !== null),
+    ...dataDays.filter((day) => day.idx === null),
+  ]
+  const shownId = selectedId ?? dataOrdered[0]?.id ?? null
+  const drag = useStopDrag({
+    days: dataDays,
+    dayLabel: dayLabelOf,
+    stopLabel: (stopId) => {
+      const stop = dataDays.flatMap((day) => day.stops).find((item) => item.id === stopId)
+      return stop ? nameOf(stop) : ''
+    },
+    neighbour: (direction) => {
+      const index = dataOrdered.findIndex((day) => day.id === shownId)
+      if (index < 0) return null
+      return dataOrdered[direction === 'prev' ? index - 1 : index + 1] ?? null
+    },
+    showDay: (dayId) => setSelectedId(dayId),
+    onMove: (stopId, target) => void itinerary.moveStop(stopId, target),
+  })
+
+  // Time checks per day (e2-t06): pure, from the saved data
+  const warnings = useMemo(() => {
+    const out = new Map<string, Warning[]>()
+    for (const day of dataDays) {
+      out.set(day.id, checkItineraryDay(day, trip, placesById, dayLegs.get(day.id)?.legs ?? []))
+    }
+    return out
+  }, [dataDays, trip, placesById, dayLegs])
+
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    },
+    [],
+  )
+  const jumpToStop = (stopId: string) => {
+    const card = document.querySelector<HTMLElement>(`[data-stop-id="${CSS.escape(stopId)}"]`)
+    card?.scrollIntoView({ block: 'center', behavior: motion ? 'smooth' : 'auto' })
+    card?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
+    setHighlightedId(stopId)
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    highlightTimer.current = setTimeout(() => setHighlightedId(null), HIGHLIGHT_MS)
+  }
+
+  const days = drag.days
   const assigned = days.filter((day) => day.idx !== null)
   const unassigned = days.filter((day) => day.idx === null)
   const ordered = [...assigned, ...unassigned]
@@ -230,7 +332,8 @@ export default function ItineraryPage() {
 
   const editDay = (day: DayWithStops) => {
     setDetail({
-      title: day.idx !== null ? t('itinerary.day.editTitle', { n: day.idx }) : t('itinerary.day.edit'),
+      title:
+        day.idx !== null ? t('itinerary.day.editTitle', { n: day.idx }) : t('itinerary.day.edit'),
       content: (
         <DayEditor
           key={day.id}
@@ -244,6 +347,28 @@ export default function ItineraryPage() {
   }
 
   const move = (stop: Stop, target: MoveTarget) => void itinerary.moveStop(stop.id, target)
+
+  const editLeg = (day: DayWithStops, leg: DisplayLeg) => {
+    const from = day.stops.find((stop) => stop.id === leg.fromStopId)
+    const to = day.stops.find((stop) => stop.id === leg.toStopId)
+    setDetail({
+      title: t('itinerary.leg.editTitle'),
+      content: (
+        <LegEditor
+          key={`${leg.fromStopId}>${leg.toStopId}`}
+          leg={leg}
+          fromName={from ? nameOf(from) : ''}
+          toName={to ? nameOf(to) : ''}
+          style={trip.style}
+          onSave={(mode, minutes) =>
+            actions.current.setLeg(leg.fromStopId, leg.toStopId, mode, minutes)
+          }
+          onReset={() => actions.current.resetLeg(leg.fromStopId, leg.toStopId)}
+          onClose={() => setDetail(null)}
+        />
+      ),
+    })
+  }
 
   if (resource.status === 'error') {
     const { key, code } = errorMessageKey(resource.error)
@@ -331,27 +456,42 @@ export default function ItineraryPage() {
               </Button>
             </Pager>
           )}
-          <Days>
-            {shownDays.map((day) => (
-              <DayBlock
-                key={day.id}
-                ref={(element) => {
-                  if (element) sections.current.set(day.id, element)
-                  else sections.current.delete(day.id)
-                }}
-                day={day}
-                dayColor={colors.get(day.id)!}
-                trip={trip}
-                legs={dayLegs.get(day.id)}
-                places={placesById}
-                onEditDay={() => editDay(day)}
-                onAddStop={() => openStop(day, null)}
-                onOpenStop={(stop) => openStop(day, stop)}
-                onMove={move}
-                onMoveToDay={(stop) => setMoving(stop)}
-              />
-            ))}
-          </Days>
+          <DndContext {...drag.context}>
+            <Days>
+              {shownDays.map((day) => (
+                <DayBlock
+                  key={day.id}
+                  ref={(element) => {
+                    if (element) sections.current.set(day.id, element)
+                    else sections.current.delete(day.id)
+                  }}
+                  day={day}
+                  dayColor={colors.get(day.id)!}
+                  trip={trip}
+                  legs={dayLegs.get(day.id)}
+                  places={placesById}
+                  onEditDay={() => editDay(day)}
+                  onAddStop={() => openStop(day, null)}
+                  onOpenStop={(stop) => openStop(day, stop)}
+                  onMove={move}
+                  onMoveToDay={(stop) => setMoving(stop)}
+                  warnings={warnings.get(day.id)}
+                  editable={editable}
+                  motion={motion}
+                  draggingId={drag.activeId}
+                  highlightedId={highlightedId}
+                  onEditLeg={(leg) => editLeg(day, leg)}
+                  onJumpToStop={jumpToStop}
+                />
+              ))}
+            </Days>
+            {!wide && drag.activeId && position > 0 && (
+              <EdgeZone id={EDGE_PREV} side="top" label={t('itinerary.drag.prevDay')} />
+            )}
+            {!wide && drag.activeId && position >= 0 && position < ordered.length - 1 && (
+              <EdgeZone id={EDGE_NEXT} side="bottom" label={t('itinerary.drag.nextDay')} />
+            )}
+          </DndContext>
         </>
       )}
       <Dialog
@@ -385,7 +525,10 @@ export default function ItineraryPage() {
                     onClick={async () => {
                       const stop = moving
                       setMoving(null)
-                      const ok = await itinerary.moveStop(stop.id, moveToDayTarget(day.id, day.stops))
+                      const ok = await itinerary.moveStop(
+                        stop.id,
+                        moveToDayTarget(day.id, day.stops),
+                      )
                       if (!ok) return
                       if (!wide) setSelectedId(day.id)
                       toast.show(t('itinerary.stop.moved', { day: label }))

@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import styled, { css } from 'styled-components'
 import type { Place, Stop } from '../../../shared/api/types.ts'
 import { formatMoney } from '../../../shared/i18n/format.ts'
 import { isCurrencyCode } from '../../../shared/money/currencies.ts'
-import { IconButton, StopTypeIcon } from '../../components/index.ts'
+import { IconButton, StopTypeIcon, WarningIcon } from '../../components/index.ts'
 import { useT } from '../../lib/i18n.ts'
 import { focusRing } from '../../styles/mixins.ts'
 import {
@@ -19,15 +19,32 @@ import {
 import { BOOKING_LABEL, STOP_TYPE_LABEL, stopName, stopTimeText } from './labels.ts'
 
 // One stop on the day's rail (e2-t03, mockup Screen 2): name and time, a one-line note, and tags for
-// type, booking, cost and the rainy-day plan. The card opens the editor; the ⋯ menu moves it (the
-// keyboard and touch alternative to the drag and drop of e2-t04).
+// type, booking, cost and the rainy-day plan. The card opens the editor; the grip on the left drags
+// it (e2-t04) and the ⋯ menu moves it (the touch and pointer-free alternative). A warning mark sits
+// next to the name when a time check (e2-t06) is about this stop.
 
-const Card = styled.div<{ $backup: boolean; $pending: boolean }>`
+const Card = styled.div<{
+  $backup: boolean
+  $pending: boolean
+  $handle: boolean
+  $highlighted: boolean
+}>`
   position: relative;
   display: grid;
   gap: ${space.xs}px;
   padding: ${space.sm + 2}px ${space.md}px;
   padding-right: ${touchTarget + space.xs}px;
+  ${({ $handle }) =>
+    $handle &&
+    css`
+      padding-left: ${touchTarget + space.xs}px;
+    `}
+  ${({ $highlighted }) =>
+    $highlighted &&
+    css`
+      border-color: ${color.warning} !important;
+      box-shadow: 0 0 0 2px ${color.warning};
+    `}
   margin-bottom: ${space.sm}px;
   border: 1px solid ${color.line};
   border-radius: ${radius.card - 2}px;
@@ -121,6 +138,22 @@ const MoneyTag = styled(Tag)`
   font-variant-numeric: tabular-nums;
 `
 
+const HandleAnchor = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  z-index: 1;
+  transform: translateY(-50%);
+`
+
+const Warned = styled.span`
+  display: inline-flex;
+  align-items: center;
+  margin-right: ${space.xs}px;
+  color: ${color.warning};
+  vertical-align: -2px;
+`
+
 const MenuAnchor = styled.div`
   position: absolute;
   top: ${space.xs}px;
@@ -186,6 +219,12 @@ export interface StopCardProps {
   onMoveUp?: () => void
   onMoveDown?: () => void
   onMoveToDay?: () => void
+  /** The drag grip (the day renders it: it carries the drag library's listeners) */
+  handle?: ReactNode
+  /** A time check is about this stop: a warning mark next to the name */
+  warned?: boolean
+  /** Picked from the day's warning list: outlined for a moment */
+  highlighted?: boolean
 }
 
 export function StopCard({
@@ -199,6 +238,9 @@ export function StopCard({
   onMoveUp,
   onMoveDown,
   onMoveToDay,
+  handle,
+  warned = false,
+  highlighted = false,
 }: StopCardProps) {
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -229,9 +271,29 @@ export function StopCard({
   }
 
   return (
-    <Card $backup={stop.isBackup} $pending={pending} data-stop-id={stop.id}>
-      <Open type="button" onClick={onOpen} aria-label={t('itinerary.stop.open', { name })}>
-        <Name>{name}</Name>
+    <Card
+      $backup={stop.isBackup}
+      $pending={pending}
+      $handle={Boolean(handle)}
+      $highlighted={highlighted}
+      data-stop-id={stop.id}
+      data-warned={warned || undefined}
+    >
+      <Open
+        type="button"
+        onClick={onOpen}
+        aria-label={
+          warned ? t('itinerary.stop.openWarned', { name }) : t('itinerary.stop.open', { name })
+        }
+      >
+        <Name>
+          {warned && (
+            <Warned title={t('itinerary.check.stopMark')}>
+              <WarningIcon size={14} />
+            </Warned>
+          )}
+          {name}
+        </Name>
         {time && <Time>{time}</Time>}
       </Open>
       {note && (
@@ -251,6 +313,7 @@ export function StopCard({
         )}
         {stop.isBackup && <Tag>{t('itinerary.stop.backup')}</Tag>}
       </Tags>
+      {handle && <HandleAnchor>{handle}</HandleAnchor>}
       <MenuAnchor ref={anchor}>
         <IconButton
           size="sm"

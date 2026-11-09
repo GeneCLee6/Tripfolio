@@ -248,3 +248,99 @@ describe('StopEditor and PlacePicker', () => {
     expect(renderToStaticMarkup(<StopTypeIcon type="fuel" />)).toContain('<svg')
   })
 })
+
+describe('B3i: drag handle, leg badges, limit and warnings', () => {
+  const day: DayWithStops = {
+    id: 'd1',
+    tripId: 'trip1',
+    date: '2027-02-07',
+    idx: 2,
+    title: '',
+    color: null,
+    note: '',
+    lodgingId: null,
+    rev: 1,
+    updatedAt: '2026-11-09T00:00:00Z',
+    stops: [stop(), stop({ id: 's2', placeId: 'p2', title: 'Glenorchy wharf', type: 'sight' })],
+  }
+  const places = new Map([
+    ['p1', ferg],
+    ['p2', glenorchy],
+  ])
+  const render = (extra: Partial<Parameters<typeof DayBlock>[0]> = {}, minutes?: number) =>
+    renderToStaticMarkup(
+      <DayBlock
+        day={day}
+        dayColor="#B5654A"
+        trip={trip}
+        legs={assembleDay(day.stops, places, {
+          style: trip.style,
+          limitMinutes: null,
+          overrides: minutes === undefined ? {} : { 's1>s2': { mode: 'campervan', minutes } },
+          cache: new Map(),
+        })}
+        places={places}
+        onEditDay={noop}
+        onAddStop={noop}
+        onOpenStop={noop}
+        onMove={noop}
+        onMoveToDay={noop}
+        onEditLeg={noop}
+        {...extra}
+      />,
+    )
+
+  it('gives every stop a drag handle and makes the leg a button for editors', () => {
+    const html = render()
+    expect(html).toContain('aria-label="拖曳「Fergburger」排序"')
+    expect(html).toContain('aria-roledescription="sortable"')
+    expect(html).toContain('調整這段移動')
+    expect(html).toContain('每日駕駛上限 3 小時 30 分 · 可在旅程設定調整')
+    expect(html).not.toContain('手動')
+  })
+
+  it('viewers get neither the handle nor the leg button', () => {
+    const html = render({ editable: false })
+    expect(html).not.toContain('拖曳「Fergburger」排序')
+    expect(html).not.toContain('調整這段移動')
+  })
+
+  it('a manual leg says 手動, drops 估 and can push the day over the limit', () => {
+    const html = render({}, 300)
+    expect(html).toContain('手動')
+    expect(html).not.toContain('>估<')
+    expect(html).toContain('超過每日上限 3 小時 30 分')
+    expect(html).toContain('可在旅程設定調整')
+  })
+
+  it('lists warnings and marks the stops they are about', () => {
+    const html = render({
+      warnings: [
+        { kind: 'closed-on-arrival', stopIds: ['s1'], data: { arrival: '12:00' } },
+        { kind: 'booking-overlap', stopIds: ['s1', 's2'] },
+        { kind: 'after-sunset', stopIds: ['s2'], data: { start: '22:00', sunset: '21:15' } },
+        {
+          kind: 'no-buffer',
+          stopIds: ['s1', 's2'],
+          data: { finish: '21:10', bufferMinutes: 30, freeMinutes: -10 },
+        },
+      ],
+    })
+    expect(html).toContain('aria-label="時間提醒"')
+    expect(html).toContain('「Fergburger」12:00 到達時已打烊')
+    expect(html).toContain('「Fergburger」和「Glenorchy wharf」的預訂時間重疊')
+    expect(html).toContain('「Glenorchy wharf」22:00 開始，已在日落（21:15）之後')
+    expect(html).toContain('今天排滿了：預計 21:10 才結束，21:00 前留不到 30 分鐘緩衝')
+    expect(html).toContain('編輯「Fergburger」（有時間提醒）')
+    expect(html.match(/data-warned="true"/g)).toHaveLength(2)
+  })
+
+  it('reads in English too', () => {
+    setLocale('en')
+    const html = render({
+      warnings: [{ kind: 'closed-on-arrival', stopIds: ['s1'], data: { arrival: '12:00' } }],
+    })
+    expect(html).toContain('“Fergburger” is closed when you arrive at 12:00')
+    expect(html).toContain('Drag “Fergburger” to reorder')
+  })
+})

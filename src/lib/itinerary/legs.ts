@@ -16,6 +16,20 @@ import type { ItineraryStop, LegMode, TripStyle } from '../../../shared/itinerar
 // POST /geo/routes has answered. Transit, flight, ferry and other legs are never sent: they stay
 // client-side estimates (docs/NEXT.md, #proxy).
 
+/**
+ * The modes a leg override can be saved with (shared/schema legModes; kept here so the page does
+ * not pull zod into the app). On a campervan trip `drive` is shown as the campervan.
+ */
+export const OVERRIDE_MODES = ['drive', 'walk', 'transit', 'flight', 'ferry', 'other'] as const
+export type OverrideMode = (typeof OVERRIDE_MODES)[number]
+
+/** The override mode a shown leg mode is saved as (campervan → drive; cycle has none: other) */
+export function overrideModeOf(mode: LegMode): OverrideMode {
+  if (mode === 'campervan') return 'drive'
+  if (mode === 'cycle') return 'other'
+  return mode
+}
+
 /** The routing mode for a leg mode, or null when the leg is only ever estimated */
 export function routeModeFor(mode: LegMode): RouteMode | null {
   if (mode === 'drive' || mode === 'campervan') return 'drive'
@@ -38,9 +52,13 @@ export interface CachedRoute {
 
 export type RouteCache = ReadonlyMap<string, CachedRoute>
 
-/** A leg as the page shows it: `estimated` puts 「估」 next to it */
+/** A leg as the page shows it: `estimated` puts 「估」 next to it, `overridden` 「手動」 */
 export interface DisplayLeg extends Leg {
   estimated: boolean
+  /** A leg override exists (mode and/or minutes set by hand) */
+  overridden: boolean
+  /** The override's minutes, or null when only the mode is set (or there is no override) */
+  overrideMinutes: number | null
 }
 
 /** Stops in the shape the shared leg functions want, with coordinates from their places */
@@ -61,12 +79,24 @@ export function toItineraryStops(
   })
 }
 
+/**
+ * The leg mode an override stands for. The API knows one road mode, `drive`: on a campervan trip
+ * it is the campervan (same totals, campervan speed for estimates).
+ */
+export function legModeFromApi(mode: LegMode, style: TripStyle | undefined): LegMode {
+  return mode === 'drive' && style === 'campervan' ? 'campervan' : mode
+}
+
 /** The API's leg overrides keyed by legKey (a null `minutes` keeps the routed time) */
-export function overridesByKey(legs: readonly ApiLegOverride[]): Record<string, LegOverride> {
+export function overridesByKey(
+  legs: readonly ApiLegOverride[],
+  style?: TripStyle,
+): Record<string, LegOverride> {
   const out: Record<string, LegOverride> = {}
   for (const leg of legs) {
+    const mode = legModeFromApi(leg.mode, style)
     out[legKey(leg.fromStopId, leg.toStopId)] =
-      leg.minutes === null ? { mode: leg.mode } : { mode: leg.mode, minutes: leg.minutes }
+      leg.minutes === null ? { mode } : { mode, minutes: leg.minutes }
   }
   return out
 }
@@ -110,8 +140,10 @@ export function assembleDay(
   })
   // deriveLegs does not say which lookups were estimates: look the routed ones up again
   const display = legs.map((leg): DisplayLeg => {
-    if (leg.source === 'estimate') return { ...leg, estimated: true }
-    if (leg.source === 'manual') return { ...leg, estimated: false }
+    const override = options.overrides[legKey(leg.fromStopId, leg.toStopId)]
+    const flags = { overridden: Boolean(override), overrideMinutes: override?.minutes ?? null }
+    if (leg.source === 'estimate') return { ...leg, ...flags, estimated: true }
+    if (leg.source === 'manual') return { ...leg, ...flags, estimated: false }
     const from = items.find((item) => item.id === leg.fromStopId)
     const to = items.find((item) => item.id === leg.toStopId)
     const routeMode = routeModeFor(leg.mode)
@@ -121,7 +153,7 @@ export function assembleDay(
             routeKey({ lat: from.lat!, lng: from.lng! }, { lat: to.lat!, lng: to.lng! }, routeMode),
           )
         : undefined
-    return { ...leg, estimated: cached?.source === 'estimate' }
+    return { ...leg, ...flags, estimated: cached?.source === 'estimate' }
   })
   const summary = summarizeDay(items, legs, {
     style: options.style,
@@ -136,4 +168,16 @@ export function routeBatches(requests: readonly RouteRequest[]): RouteRequest[][
   const batches: RouteRequest[][] = []
   for (let i = 0; i < requests.length; i += size) batches.push(requests.slice(i, i + size))
   return batches
+}
+
+/** Max minutes the API takes (shared/schema stop.ts: one week) */
+const MAX_MINUTES = 7 * 24 * 60
+
+/** The typed minutes: null for empty, NaN for anything that is not 0..MAX whole minutes */
+export function parseMinutes(text: string): number | null {
+  const value = text.trim()
+  if (!value) return null
+  if (!/^\d+$/.test(value)) return Number.NaN
+  const n = Number(value)
+  return n <= MAX_MINUTES ? n : Number.NaN
 }

@@ -14,8 +14,9 @@ import {
   routeKey,
   type CachedRoute,
   type DayLegs,
+  type OverrideMode,
 } from '../../lib/itinerary/legs.ts'
-import { applyMove, type MoveTarget } from '../../lib/itinerary/order.ts'
+import { applyMove, applyMoveResult, type MoveTarget } from '../../lib/itinerary/order.ts'
 import type { StopValues } from './StopEditor.tsx'
 
 // The itinerary page's data: days with stops, leg overrides and the trip's places, loaded once and
@@ -72,16 +73,6 @@ export function useItinerary(trip: Trip) {
     },
     [set, t, toast],
   )
-
-  /** Re-read days and legs (after a move: the server's order and renumbering) */
-  const refreshDays = useCallback(async () => {
-    try {
-      const fresh = await itineraryApi.listDays(trip.id)
-      update((current) => ({ ...current, days: fresh.days, legs: fresh.legs }))
-    } catch {
-      // The optimistic state stays; the next load corrects it
-    }
-  }, [trip.id, update])
 
   const replaceStop = (days: DayWithStops[], id: string, stop: Stop) =>
     days.map((day) => ({ ...day, stops: day.stops.map((s) => (s.id === id ? stop : s)) }))
@@ -161,15 +152,15 @@ export function useItinerary(trip: Trip) {
       const snapshot = latest.current
       update((current) => ({ ...current, days: applyMove(current.days, stopId, target) }))
       try {
-        await itineraryApi.moveStop(trip.id, stopId, target)
-        await refreshDays()
+        const { stop, renumbered } = await itineraryApi.moveStop(trip.id, stopId, target)
+        update((current) => ({ ...current, days: applyMoveResult(current.days, stop, renumbered) }))
         return true
       } catch (error) {
         fail(error, snapshot)
         return false
       }
     },
-    [trip.id, update, fail, refreshDays],
+    [trip.id, update, fail],
   )
 
   const patchDay = useCallback(
@@ -209,6 +200,53 @@ export function useItinerary(trip: Trip) {
     [update],
   )
 
+  /** Set a leg's mode and, optionally, its minutes by hand (PUT /legs/:from/:to) */
+  const setLeg = useCallback(
+    async (fromStopId: string, toStopId: string, mode: OverrideMode, minutes: number | null) => {
+      const snapshot = latest.current
+      const same = (leg: LegOverride) => leg.fromStopId === fromStopId && leg.toStopId === toStopId
+      const draft: LegOverride = {
+        tripId: trip.id,
+        fromStopId,
+        toStopId,
+        mode,
+        minutes,
+        rev: 0,
+        updatedAt: new Date().toISOString(),
+      }
+      update((current) => ({ ...current, legs: [...current.legs.filter((l) => !same(l)), draft] }))
+      try {
+        const { leg } = await itineraryApi.putLeg(trip.id, fromStopId, toStopId, { mode, minutes })
+        if (leg) {
+          update((current) => ({
+            ...current,
+            legs: current.legs.map((l) => (same(l) ? leg : l)),
+          }))
+        }
+      } catch (error) {
+        fail(error, snapshot)
+      }
+    },
+    [trip.id, update, fail],
+  )
+
+  /** Back to the routed / estimated leg (DELETE /legs/:from/:to) */
+  const resetLeg = useCallback(
+    async (fromStopId: string, toStopId: string) => {
+      const snapshot = latest.current
+      update((current) => ({
+        ...current,
+        legs: current.legs.filter((l) => !(l.fromStopId === fromStopId && l.toStopId === toStopId)),
+      }))
+      try {
+        await itineraryApi.deleteLeg(trip.id, fromStopId, toStopId)
+      } catch (error) {
+        fail(error, snapshot)
+      }
+    },
+    [trip.id, update, fail],
+  )
+
   // ---- legs ----
   const [cache, setCache] = useState<ReadonlyMap<string, CachedRoute>>(() => new Map())
   const requested = useRef(new Set<string>())
@@ -217,7 +255,10 @@ export function useItinerary(trip: Trip) {
     () => new Map((data?.places ?? []).map((place) => [place.id, place])),
     [data?.places],
   )
-  const overrides = useMemo(() => overridesByKey(data?.legs ?? []), [data?.legs])
+  const overrides = useMemo(
+    () => overridesByKey(data?.legs ?? [], trip.style),
+    [data?.legs, trip.style],
+  )
   const dayLegs = useMemo(() => {
     const out = new Map<string, DayLegs>()
     for (const day of data?.days ?? []) {
@@ -278,5 +319,7 @@ export function useItinerary(trip: Trip) {
     moveStop,
     patchDay,
     addPlace,
+    setLeg,
+    resetLeg,
   }
 }

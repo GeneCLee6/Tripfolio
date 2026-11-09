@@ -1,7 +1,7 @@
 import type { Stop } from '../../../shared/api/types.ts'
 
 // Where /move should put a stop for the overflow menu's move up / move down / move to another day
-// (the drag and drop of e2-t04 will use the same call). `afterStopId: null` means first in the day.
+// and for drag and drop (e2-t04, dnd.ts). `afterStopId: null` means first in the day.
 
 export interface MoveTarget {
   dayId: string
@@ -25,7 +25,18 @@ export function moveToDayTarget(dayId: string, dayStops: readonly Stop[]): MoveT
   return { dayId, afterStopId: dayStops.length ? dayStops[dayStops.length - 1].id : null }
 }
 
-/** The days after a move, for the optimistic update (the server's order comes with the reload) */
+/** A sort key between two neighbours (as the Worker's planPlacement does without renumbering) */
+export function orderBetween(prev: number | null, next: number | null): number {
+  if (prev === null && next === null) return 1
+  if (prev === null) return (next as number) - 1
+  if (next === null) return prev + 1
+  return (prev + next) / 2
+}
+
+/**
+ * The days after a move, for the optimistic update: the stop takes a fractional order between its
+ * new neighbours (the server's answer then replaces it, see {@link applyMoveResult}).
+ */
 export function applyMove<T extends { id: string; stops: Stop[] }>(
   days: readonly T[],
   stopId: string,
@@ -39,13 +50,42 @@ export function applyMove<T extends { id: string; stops: Stop[] }>(
     return { ...day, stops: day.stops.filter((stop) => stop.id !== stopId) }
   })
   if (!moving) return [...days]
-  const moved: Stop = { ...moving, dayId: target.dayId }
+  const source: Stop = moving
   return without.map((day) => {
     if (day.id !== target.dayId) return day
     const stops = [...day.stops]
     const at =
       target.afterStopId === null ? 0 : stops.findIndex((s) => s.id === target.afterStopId) + 1
-    stops.splice(at, 0, moved)
+    const prev = at > 0 ? stops[at - 1].order : null
+    const next = at < stops.length ? stops[at].order : null
+    stops.splice(at, 0, { ...source, dayId: target.dayId, order: orderBetween(prev, next) })
     return { ...day, stops }
+  })
+}
+
+const byOrder = (a: Stop, b: Stop) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+
+/**
+ * The days once POST /move has answered: the moved stop as the server has it, the renumbered
+ * orders of its new day (when the gap got too small), and every touched day sorted by order.
+ */
+export function applyMoveResult<T extends { id: string; stops: Stop[] }>(
+  days: readonly T[],
+  stop: Stop,
+  renumbered: readonly { id: string; order: number }[],
+): T[] {
+  const orders = new Map(renumbered.map((item) => [item.id, item.order]))
+  return days.map((day) => {
+    const touched = day.id === stop.dayId || day.stops.some((s) => s.id === stop.id)
+    if (!touched) return day
+    const stops = day.stops.filter((s) => s.id !== stop.id)
+    if (day.id === stop.dayId) stops.push(stop)
+    const sorted = stops
+      .map((s) => {
+        const order = orders.get(s.id)
+        return order === undefined ? s : { ...s, order }
+      })
+      .sort(byOrder)
+    return { ...day, stops: sorted }
   })
 }

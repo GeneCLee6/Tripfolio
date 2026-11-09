@@ -1,5 +1,7 @@
 import type { Day, Stop } from '../../../shared/api/types.ts'
+import type { Warning } from '../../../shared/itinerary/checks.ts'
 import type { LegMode } from '../../../shared/itinerary/types.ts'
+import { DEFAULT_DAY_END } from '../../lib/itinerary/checks.ts'
 import type { MessageKey } from '../../../shared/i18n/t.ts'
 import { formatDuration } from '../../../shared/i18n/format.ts'
 import type { BookingState, StopType } from '../../../shared/schema/index.ts'
@@ -75,4 +77,34 @@ export function stopTimeText(stop: Stop, tz: string, t: Translate): string {
 export function costCurrencies(trip: Trip, current: string | null): CurrencyCode[] {
   const list = [...trip.localCurrencies, trip.baseCurrency, trip.secondaryCurrency, current]
   return [...new Set(list)].filter((code): code is CurrencyCode => !!code && isCurrencyCode(code))
+}
+
+/** A warning as one line of text */
+export function warningText(
+  warning: Warning,
+  names: ReadonlyMap<string, string>,
+  t: Translate,
+): string {
+  const name = (index: number) => names.get(warning.stopIds[index] ?? '') ?? ''
+  const data = warning.data ?? {}
+  switch (warning.kind) {
+    case 'closed-on-arrival':
+      return t('itinerary.check.closed', { name: name(0), arrival: String(data.arrival ?? '') })
+    case 'booking-overlap':
+      return t('itinerary.check.overlap', { a: name(0), b: name(1) })
+    case 'after-sunset':
+      return data.sunset
+        ? t('itinerary.check.sunset', {
+            name: name(0),
+            start: String(data.start ?? ''),
+            sunset: String(data.sunset),
+          })
+        : t('itinerary.check.polarNight', { name: name(0) })
+    case 'no-buffer':
+      return t('itinerary.check.noBuffer', {
+        finish: String(data.finish ?? ''),
+        buffer: Number(data.bufferMinutes ?? 0),
+        end: DEFAULT_DAY_END,
+      })
+  }
 }
