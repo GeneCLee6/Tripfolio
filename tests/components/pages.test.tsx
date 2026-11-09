@@ -9,7 +9,6 @@ import { TripLayout } from '../../src/app/TripLayout.tsx'
 import { TripContext, type TripContextValue } from '../../src/app/trip-context.ts'
 import { ColorSwatches, ToastProvider } from '../../src/components/index.ts'
 import NotFoundPage from '../../src/pages/NotFoundPage.tsx'
-import SectionPage from '../../src/pages/SectionPage.tsx'
 import TripHomePage from '../../src/pages/TripHomePage.tsx'
 import TripSettingsPage from '../../src/pages/TripSettingsPage.tsx'
 import { TripForm } from '../../src/pages/trip-form/TripForm.tsx'
@@ -134,14 +133,6 @@ describe('TripHomePage', () => {
     expect(html).toContain('Archived')
     expect(html).toContain('Dec 20')
     expect(html).not.toContain('Edit trip')
-  })
-})
-
-describe('SectionPage', () => {
-  it('is a designed empty state until its batch arrives', () => {
-    const html = render(<SectionPage section="picks" />)
-    expect(html).toContain('<h1')
-    expect(html).toContain('清單即將開放')
   })
 })
 

@@ -371,6 +371,10 @@ export const sharesApi = {
   revoke(tripId: string, shareId: string): Promise<Rev & { ok: true }> {
     return request('DELETE', `${tripPath(tripId)}/shares/${encodeURIComponent(shareId)}`, {
       token: tokenFor(tripId),
+    })
+  },
+}
+
 // ---- wishlist: must-eat / must-buy cards, votes, claims, scheduling (e5-t02..t04) ----
 
 import type { OgResponse } from '../../shared/api/geo.ts'
