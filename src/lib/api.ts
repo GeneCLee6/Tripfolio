@@ -347,3 +347,30 @@ export const itineraryApi = {
     })
   },
 }
+
+// ---- share links (e1-t05) ----
+
+import type { CreateShareResponse, Share } from '../../shared/api/types.ts'
+import type { ShareOptions } from '../../shared/schema/share.ts'
+
+export const sharesApi = {
+  /** GET /api/trips/:id/shares (owner): the active share links, without their tokens */
+  list(tripId: string, signal?: AbortSignal): Promise<{ shares: Share[] }> {
+    return request('GET', `${tripPath(tripId)}/shares`, { token: tokenFor(tripId), signal })
+  },
+
+  /** POST /api/trips/:id/shares (owner): the only response that carries the share token */
+  create(tripId: string, options: ShareOptions): Promise<CreateShareResponse> {
+    return request('POST', `${tripPath(tripId)}/shares`, {
+      token: tokenFor(tripId),
+      body: { options },
+    })
+  },
+
+  /** DELETE /api/trips/:id/shares/:sid (owner): the link stops working at once */
+  revoke(tripId: string, shareId: string): Promise<Rev & { ok: true }> {
+    return request('DELETE', `${tripPath(tripId)}/shares/${encodeURIComponent(shareId)}`, {
+      token: tokenFor(tripId),
+    })
+  },
+}

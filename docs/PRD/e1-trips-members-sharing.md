@@ -55,8 +55,7 @@ depends_on: [E10, E11]
 
 - [x] AC-1.1 — 建立旅程：名稱、目的地、日期、時區、幣別、封面、型態；清單頁分「即將出發／進行中／過去」。 · #A3f（Playwright 對本機 Worker＋D1：建立（目的地預填時區與當地幣別、欄位錯誤）→ 進旅程首頁 → 清單出現在「即將出發」含倒數／天數／人數 → 編輯 → 封存後移到「過去的旅程」→ 取消封存；分組與倒數依旅程時區的單元測試含「進行中」）
 - [x] AC-1.2 — 成員與邀請：建立成員、邀請連結進來選「我是誰」並記住；owner 可改名、移除、重發連結；沒有帳號也能用。 · #B3m（Playwright `e2e/members.spec.ts` 375／1440 px 對本機 Worker＋D1：owner 產生邀請 → 連結只顯示一次、可複製 → 第二個瀏覽器 context 開 `/join/<token>` 建立 Mia → 進旅程、token 記住；「這不是我」一鍵回到選人畫面；owner 看到 Mia 改成檢視者；owner 手動新增 Leo → 改名 Leon → 移除；撤銷邀請 → 連結顯示「邀請連結無效」）
-- [ ] AC-1.3 — 權限與分享：owner／editor／viewer 在 API 層生效；分享連結唯讀、可選隱藏金額／地址／訂位代號、可撤銷。
-      _進度（#B3m）：角色已在 API（#A3b）與介面（`useCan()`）兩邊生效；Playwright 驗證 Mia 被改成檢視者後 `PATCH /api/trips/:id` 回 403、舊頁面送出顯示「你沒有權限做這件事。」、重新載入後編輯控制全部隱藏。分享連結介面待 e1-t05。_
+- [x] AC-1.3 — 權限與分享：owner／editor／viewer 在 API 層生效；分享連結唯讀、可選隱藏金額／地址／訂位代號、可撤銷。 · #B3m、#share、#C1s（角色：#B3m Playwright 驗證檢視者 `PATCH` 回 403、介面依 `useCan()` 隱藏；伺服器端隱藏：#share `worker/share.ts` 依 `hideMoney`／`hideAddresses` 直接不送欄位、Playwright 看過；分享介面：#C1s `e2e/shares.spec.ts` 375／1440 px 對本機 Worker＋D1：owner 建立分享（預設隱藏金額＋地址、回顧預設關）→ 網址只顯示一次、可複製、可在新分頁開啟 → 關閉後頁面不再有 token、清單只列日期與選項 chip → 無 token 的瀏覽器開 `/s/<token>` 看到旅程名稱 → 經邀請加入的編輯者看不到建立按鈕、`GET /shares` 回 403 → owner 確認後撤銷 → `/s/<token>` 顯示「這個連結已失效或不存在」）
 - [ ] AC-1.4 — 選用 Google 登入：跨裝置看到自己的旅程清單；可綁定既有成員。
 - [ ] AC-1.5 — 生命週期：封存、複製為範本（可清空）、軟刪除 30 天可還原。
 
@@ -68,7 +67,7 @@ depends_on: [E10, E11]
 - [x] `e1-t02` 旅程清單頁與建立／編輯表單（名稱、目的地、日期、時區、幣別、封面色塊、型態） · AC-1.1 · M · ← e1-t01, e10-t03 · #A3f
 - [x] `e1-t03` 成員模型、邀請連結產生與 `/join` 頁、「我是誰」裝置綁定（memberToken）、設定頁換人 · AC-1.2 · M · ← e1-t01 · #B3m
 - [x] `e1-t04` 角色中介層（owner／editor／viewer）與前端依角色隱藏編輯 UI · AC-1.3 · S · ← e1-t03 · #B3m
-- [ ] `e1-t05` 分享連結：shareToken、`/s/<token>` 路由接 E8 唯讀頁、隱藏選項、撤銷重發、noindex · AC-1.3 · M · ← e1-t04, e8-t01a
+- [x] `e1-t05` 分享連結：shareToken、`/s/<token>` 路由接 E8 唯讀頁、隱藏選項、撤銷重發、noindex · AC-1.3 · M · ← e1-t04, e8-t01a · #C1s
 
 ### M1–M2
 

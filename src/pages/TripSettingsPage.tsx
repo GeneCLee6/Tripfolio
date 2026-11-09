@@ -14,9 +14,11 @@ import { IdentitySection } from './members/IdentitySection.tsx'
 import { InvitesSection } from './members/InvitesSection.tsx'
 import { MembersSection } from './members/MembersSection.tsx'
 import { PageHeading, SectionTitle, Stack } from './parts.tsx'
+import { SharesSection } from './shares/SharesSection.tsx'
 import { TripFormDialog } from './trip-form/TripFormDialog.tsx'
 
-// /trips/:id/settings — the trip's details (edit), the travellers and invite links (e1-t03),
+// /trips/:id/settings — the trip's details (edit), the travellers and invite links (e1-t03), share
+// links (e1-t05),
 // "who am I" on this device, and archiving (owner only). What shows follows useCan() (e1-t04).
 
 const Facts = styled.dl`
@@ -124,6 +126,7 @@ export default function TripSettingsPage() {
 
       <MembersSection />
       <InvitesSection />
+      <SharesSection />
       <IdentitySection />
 
       <Card as="section" aria-labelledby="settings-archive">
