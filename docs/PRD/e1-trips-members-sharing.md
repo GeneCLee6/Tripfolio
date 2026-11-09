@@ -43,6 +43,7 @@ depends_on: [E10, E11]
   - `POST /api/trips/:id/members`、`PATCH/DELETE /api/trips/:id/members/:mid`（owner；成員可改自己的名字／顏色；移除＝標記 removedAt 並撤銷其 token）。
   - `GET/POST /api/trips/:id/invites`、`DELETE /api/trips/:id/invites/:iid`（owner）；`GET /api/join/:token`（「我是誰」預覽，不列 owner）、`POST /api/join/:token`（`{ memberId }` 或 `{ name, color }`，回 `memberToken`；不能認領 owner）。
   - `GET/POST /api/trips/:id/shares`、`DELETE /api/trips/:id/shares/:sid`（owner，`options`：hideMoney／hideAddresses／showRecap）；`GET /api/share/:token`（免驗證，#share `e8-t01a`；型別 `SharePayload` 在 `shared/api/share.ts`）回 `{ trip, days, options, generatedAt }`：`trip` 有名稱、目的地、日期、時區、封面色、簡介、型態、`memberCount`、`dayCount`、`baseCurrency?`、`estimatedPerPersonMinor?`（E9 前不出現）；`days` 只含已分配的天（`idx` 不為 null），每天有 `index`、`date`、`title`、`color`、`note`、`lodgingName`（E4 前為 null）、`stops[]`（`order`、`type`、`name`／`nameEn?`、`lat?`／`lng?`、`address?`、`startAt?`／`endAt?`、`durationMin?`、`note`、`costMinor?`／`currency?`、`booking`、`isBackup`）、`legs[]`（依 legOverrides 與 routeCache 推算，不呼叫外部服務；`source` 為 route／estimate／manual）、`driveMinutes`、`distanceM`。`hideMoney` 拿掉 `costMinor`／`currency`／`baseCurrency`／`estimatedPerPersonMinor`，`hideAddresses` 拿掉 `address`（欄位不存在，不是 null）；撤銷或不存在的 token 回 404 `{ error }`；回應帶 `Cache-Control: private, no-store` 與 `X-Robots-Tag: noindex`。
+  - 生命週期（#F3a，`e1-t07` 後端，`worker/trips/clone.ts`；型別在 `shared/api/export.ts`）：封存仍是 `PATCH archived`、刪除仍是 `DELETE /api/trips/:id`（設 `deletedAt`）。`POST /api/trips/:id/clone { name, startDate?, keep?: { members, expenses, photos } }`（editor 以上、封存的旅程也可）＝在記憶體裡「匯出 → 匯入」（與 E8 `e8-t03` 同一套），呼叫者成為新旅程 owner、回 `memberToken`；預設清空成員、花費、照片，`startDate` 平移全部日期；保留花費會連成員一起保留；保留照片會在 R2 複製物件（封面與關聯一起換新 id）。`POST /api/trips/:id/restore`（owner；刪除後 30 天內，逾期 410 `restore_expired`、未刪除 409 `not_deleted`）。`GET /api/trips/deleted`（`X-Member-Tokens`，同清單）回已軟刪的旅程＋`deletedAt`、`purgeAt`（＝deletedAt＋30 天）、`canRestore`（owner 且未逾期）。**清除排程（e11-t06）的約定**：`deletedAt` 早於現在減 30 天的旅程，刪掉所有列與 `<APP_ENV>/trips/<tripId>/` 下的 R2 物件；在那之前它會出現在 `/api/trips/deleted`（`canRestore: false`）。
   - 驗證：`Authorization: Bearer <memberToken>`；無效 401、別的旅程 404、角色不足 403、封存後寫入 403 `trip_archived`、驗證失敗 422；錯誤格式 `{ error: { code, message } }`。
 - **前端角色（e1-t04，#B3m）**：`src/lib/role.ts`。
   - `can(role, action, { archived? })`，`action` 是 `editContent`（editor 以上）、`manageMembers`／`manageShares`／`archive`／`delete`（owner）；封存的旅程 `editContent`、`manageMembers` 一律 false（API 回 `trip_archived`），`manageShares`／`archive`／`delete` 照角色。
@@ -58,6 +59,7 @@ depends_on: [E10, E11]
 - [x] AC-1.3 — 權限與分享：owner／editor／viewer 在 API 層生效；分享連結唯讀、可選隱藏金額／地址／訂位代號、可撤銷。 · #B3m、#share、#C1s（角色：#B3m Playwright 驗證檢視者 `PATCH` 回 403、介面依 `useCan()` 隱藏；伺服器端隱藏：#share `worker/share.ts` 依 `hideMoney`／`hideAddresses` 直接不送欄位、Playwright 看過；分享介面：#C1s `e2e/shares.spec.ts` 375／1440 px 對本機 Worker＋D1：owner 建立分享（預設隱藏金額＋地址、回顧預設關）→ 網址只顯示一次、可複製、可在新分頁開啟 → 關閉後頁面不再有 token、清單只列日期與選項 chip → 無 token 的瀏覽器開 `/s/<token>` 看到旅程名稱 → 經邀請加入的編輯者看不到建立按鈕、`GET /shares` 回 403 → owner 確認後撤銷 → `/s/<token>` 顯示「這個連結已失效或不存在」）
 - [ ] AC-1.4 — 選用 Google 登入：跨裝置看到自己的旅程清單；可綁定既有成員。
 - [ ] AC-1.5 — 生命週期：封存、複製為範本（可清空）、軟刪除 30 天可還原。
+  - 進度（#F3a）：封存（#A3b／#A3f）早已完成；複製為範本與還原的 API 完成並有測試（`tests/worker/clone.test.ts`：預設清空成員／花費／照片、可選保留、權限、30 天內還原、逾期 410、已刪清單）。設定頁的「複製為範本」「已刪除的旅程／還原」介面還沒做，所以不勾。
 
 ## Task 拆分
 
@@ -72,7 +74,7 @@ depends_on: [E10, E11]
 ### M1–M2
 
 - [ ] `e1-t06` Google 登入（Worker 端 OAuth code flow、HttpOnly session cookie）、「我的旅程」跨裝置、綁定成員 · AC-1.4 · M · ← e1-t03
-- [ ] `e1-t07` 封存、複製為範本（可選清空日期／花費／照片）、軟刪除與還原 · AC-1.5 · S · ← e1-t02
+- [x] `e1-t07` 封存、複製為範本（可選清空日期／花費／照片）、軟刪除與還原 · AC-1.5 · S · ← e1-t02 · #F3a（後端；介面待前端）
 
 ## 風險與對策
 

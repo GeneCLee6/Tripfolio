@@ -19,6 +19,9 @@ import {
   patchBooking,
 } from './trips/bookings.ts'
 import { createLodging, deleteLodging, listLodgings, patchLodging } from './trips/lodging.ts'
+import { cloneTrip, listDeletedTrips, restoreTrip } from './trips/clone.ts'
+import { exportTrip, importTrip } from './trips/export.ts'
+import { memberCalendar, shareCalendar } from './trips/ics.ts'
 import { createShare, listShares, publicShare, revokeShare } from './share.ts'
 import {
   applyRate,
@@ -98,6 +101,15 @@ const api = new Router()
     const body: HealthResponse = { ok: true, version: c.env.APP_VERSION ?? 'local' }
     return json(body)
   })
+  // Export / import, clone, restore, calendars (e8-t03, e1-t07, e8-t05). Before /api/trips/:id so
+  // that /api/trips/deleted is not taken for a trip id
+  .add('GET', '/api/trips/deleted', listDeletedTrips)
+  .add('POST', '/api/import', importTrip)
+  .add('GET', '/api/trips/:id/export', exportTrip)
+  .add('POST', '/api/trips/:id/clone', cloneTrip)
+  .add('POST', '/api/trips/:id/restore', restoreTrip)
+  .add('GET', '/api/trips/:id/calendar.ics', memberCalendar)
+  .add('GET', '/api/share/:token/calendar.ics', shareCalendar)
   // Trips (e1-t01)
   .add('POST', '/api/trips', createTrip)
   .add('GET', '/api/trips', listTrips)
