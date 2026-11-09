@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
 import styled from 'styled-components'
 import type { TripDetailResponse } from '../../shared/api/types.ts'
@@ -11,6 +11,7 @@ import { safeColor } from '../lib/colors.ts'
 import { errorMessageKey, isAccessError } from '../lib/errors.ts'
 import { useMediaQuery, useResource } from '../lib/hooks.ts'
 import { useT } from '../lib/i18n.ts'
+import { useCan } from '../lib/role.ts'
 import { removeToken } from '../lib/tokens.ts'
 import { focusRing } from '../styles/mixins.ts'
 import {
@@ -308,15 +309,34 @@ function TripSummary({ data }: { data: TripDetailResponse }) {
   )
 }
 
+// The 記一筆 sheet loads on the first tap (e7-t02), so it costs the first screen nothing
+const ExpenseFormSheet = lazy(() => import('../pages/expenses/ExpenseFormSheet.tsx'))
+
 function BottomNav({ tripId }: { tripId: string }) {
   const t = useT()
   const toast = useToast()
+  const canEdit = useCan()('editContent')
+  const [expense, setExpense] = useState({ loaded: false, open: false })
   return (
     <BottomBar aria-label={t('nav.label')}>
-      <Fab type="button" aria-disabled="true" onClick={() => toast.show(t('nav.logExpenseSoon'))}>
+      <Fab
+        type="button"
+        aria-disabled={!canEdit}
+        onClick={() =>
+          canEdit ? setExpense({ loaded: true, open: true }) : toast.show(t('expenses.readOnly'))
+        }
+      >
         <PlusIcon size={18} />
         {t('term.logExpense')}
       </Fab>
+      {expense.loaded && (
+        <Suspense fallback={null}>
+          <ExpenseFormSheet
+            open={expense.open}
+            onClose={() => setExpense({ loaded: true, open: false })}
+          />
+        </Suspense>
+      )}
       <BottomList>
         {SECTIONS.filter((section) => section.inBottomNav).map((section) => (
           <li key={section.id}>
