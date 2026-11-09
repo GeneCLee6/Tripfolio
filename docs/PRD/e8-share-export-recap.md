@@ -40,6 +40,7 @@ depends_on: [E1, E2, E3, E5, E6, E7]
 ## 驗收條件
 
 - [ ] AC-8.1 — 唯讀總覽頁：封面、路線總圖、每日卡（可展開）、精選、概算、隱藏選項在伺服器端生效、zh／en 切換、noindex；Lighthouse 效能 ≥ 90（手機）。
+  - 進度（#share，`e8-t01a`）：基本版完成——封面（封面色漸層＋等高線、目的地、標題、簡介、天數／日期／人數／總里程統計）、每日卡（日色邊條、Day N · 標題、日期、駕駛合計、前 4 個行程點，可展開看完整行程＋移動段與「估」標記＋當日備註）、`GET /api/share/:token` 在伺服器端依 hideMoney／hideAddresses 過濾（欄位直接不存在）、zh／en 切換（`tripfolio.share.locale` 獨立記憶）、noindex（meta＋`X-Robots-Tag`）、404「連結已失效」狀態；分享頁首屏 94.0 kB gzip。路線總圖、必吃必買精選、概算表（每人預估等 E9 預算）、每日照片、Lighthouse 是 `e8-t01b`。
 - [ ] AC-8.2 — 列印：Chrome 列印成 PDF，A4 每日一頁含靜態地圖與預訂；無截斷。
 - [ ] AC-8.3 — 範本與匯出：匯出 JSON → 匯入成新旅程 → 內容一致（測試）。
 - [ ] AC-8.4 — 回顧模式：照片牆、實際 vs 預估、每日回顧文字；分享可選顯示。
@@ -49,7 +50,7 @@ depends_on: [E1, E2, E3, E5, E6, E7]
 
 ### M0
 
-- [ ] `e8-t01a` 唯讀頁基本版：獨立入口、Worker 端依 token 過濾資料、封面、每日卡（可展開）、語言切換、noindex · AC-8.1 · M · ← e2-t03, e3-t03
+- [x] `e8-t01a` 唯讀頁基本版：獨立入口、Worker 端依 token 過濾資料、封面、每日卡（可展開）、語言切換、noindex · AC-8.1 · M · ← e2-t03, e3-t03 · #share
 
 ### M1
 
