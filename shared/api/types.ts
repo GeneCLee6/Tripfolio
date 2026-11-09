@@ -3,6 +3,7 @@
 
 import type { Link, PlaceHours, Role, ShareOptions, TripStyle } from '../schema/index.ts'
 import type { BookingState, LegMode, PlaceSource, StopType } from '../schema/index.ts'
+import type { WishlistCategory, WishlistStatus } from '../schema/index.ts'
 
 /** Every /api/trips/:id/* request: `Authorization: Bearer <memberToken>` */
 export const AUTH_HEADER = 'authorization'
@@ -184,6 +185,8 @@ export interface DaysResponse extends Rev {
 
 export interface PlaceRefsResponse {
   stops: Pick<Stop, 'id' | 'dayId' | 'title'>[]
+  /** Wishlist items (not deleted) at this place */
+  wishlistItems: Pick<WishlistItem, 'id' | 'name' | 'status'>[]
 }
 
 /** POST /api/trips/:id/invites (201): the token is only ever returned here */
@@ -205,4 +208,85 @@ export interface PublicShareResponse {
     'name' | 'destination' | 'startDate' | 'endDate' | 'tz' | 'coverColor' | 'summary'
   >
   days: never[]
+}
+
+// ---- wishlist (e5-t01) ----
+
+export interface WishlistItem {
+  id: string
+  tripId: string
+  category: WishlistCategory
+  name: string
+  placeId: string | null
+  photoAttachmentId: string | null
+  /** Integer minor units of `currency` */
+  estMinor: number | null
+  currency: string | null
+  sourceUrl: string | null
+  sourceTitle: string | null
+  sourceImageUrl: string | null
+  recommenderMemberId: string | null
+  note: string
+  status: WishlistStatus
+  /** The stop it was scheduled as; that stop's wishlistItemId points back */
+  stopId: string | null
+  /** Fractional sort key within the trip's wishlist */
+  order: number
+  rev: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WishlistClaim {
+  id: string
+  itemId: string
+  buyerMemberId: string | null
+  forName: string
+  qty: number
+  done: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type WishlistPlaceSummary = Pick<Place, 'id' | 'nameLocal' | 'nameEn' | 'lat' | 'lng'>
+
+/** An item as the API returns it: who voted (current members only), claims, place summary */
+export interface WishlistItemView extends WishlistItem {
+  votes: string[]
+  claims: WishlistClaim[]
+  place: WishlistPlaceSummary | null
+}
+
+/** GET /api/trips/:id/wishlist?status=&category= : by order */
+export interface WishlistResponse extends Rev {
+  items: WishlistItemView[]
+}
+
+/** POST/PATCH …/wishlist(/:wid), POST/DELETE …/vote, POST …/unschedule */
+export interface WishlistItemResponse extends Rev {
+  item: WishlistItemView
+}
+
+/** POST/PATCH …/wishlist/:wid/claims(/:cid) */
+export interface WishlistClaimResponse extends Rev {
+  claim: WishlistClaim
+}
+
+/** POST …/wishlist/:wid/schedule (201): the new stop, linked both ways */
+export interface WishlistScheduleResponse extends Rev {
+  item: WishlistItemView
+  stop: Stop
+}
+
+/** POST …/wishlist/:wid/unschedule: the stop that was deleted (null if it was already gone) */
+export interface WishlistUnscheduleResponse extends WishlistItemResponse {
+  deletedStopId: string | null
+}
+
+/** GET /api/trips/:id/pocket: what the itinerary sidebar can drag into a day (E2) */
+export interface PocketResponse extends Rev {
+  /** Wishlist items with status wish, by order */
+  items: WishlistItemView[]
+  /** Places no stop and no (non-deleted) wishlist item points at */
+  places: Place[]
 }

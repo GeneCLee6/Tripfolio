@@ -178,7 +178,10 @@ export async function patchStop(c: RouteContext): Promise<Response> {
   return json({ stop: await loadStop(db, auth.trip.id, stop.id), rev })
 }
 
-/** DELETE /api/trips/:id/stops/:sid (editor): also drops leg overrides that touch it */
+/**
+ * DELETE /api/trips/:id/stops/:sid (editor): also drops leg overrides that touch it; a wishlist item
+ * scheduled as this stop goes back to the pocket list (scheduled → wish; done stays done)
+ */
 export async function deleteStop(c: RouteContext): Promise<Response> {
   const db = c.env.DB
   const auth = await authTrip(c.request, db, c.params.id, 'editor')
@@ -188,6 +191,14 @@ export async function deleteStop(c: RouteContext): Promise<Response> {
       .prepare('DELETE FROM legOverrides WHERE fromStopId = ? OR toStopId = ?')
       .bind(stop.id, stop.id),
     db.prepare('DELETE FROM stops WHERE id = ?').bind(stop.id),
+    db
+      .prepare(
+        `UPDATE wishlistItems SET stopId = NULL,
+                status = CASE status WHEN 'scheduled' THEN 'wish' ELSE status END,
+                rev = rev + 1, updatedAt = ?
+          WHERE tripId = ? AND stopId = ?`,
+      )
+      .bind(nowIso(), auth.trip.id, stop.id),
   ])
   return json({ ok: true, rev })
 }

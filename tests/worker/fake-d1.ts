@@ -1,9 +1,25 @@
 // A D1Database stand-in for router tests, backed by Node's built-in SQLite (node:sqlite, Node ≥ 22),
 // so the real migrations and SQL run unchanged. Only the parts of the D1 API the Worker uses are
 // implemented: prepare/bind/first/all/run and batch (as one transaction).
+//
+// Every migrations/*.sql is applied in file-name order, so a new migration needs no change here.
+// Tests that still exec a migration by hand (proxy/helpers.ts, share.test.ts with 0003) keep
+// working: `sqlite.exec` skips a script identical to one already applied.
 
-import migration0001 from '../../migrations/0001_init.sql?raw'
-import migration0002 from '../../migrations/0002_core.sql?raw'
+declare global {
+  interface ImportMeta {
+    glob(
+      pattern: string,
+      options: { query: '?raw'; import: 'default'; eager: true },
+    ): Record<string, string>
+  }
+}
+
+const migrations = Object.entries(
+  import.meta.glob('../../migrations/*.sql', { query: '?raw', import: 'default', eager: true }),
+)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, sql]) => sql)
 
 type Value = string | number | null
 
@@ -66,9 +82,14 @@ class FakeStatement {
 }
 
 export function createFakeD1(): { db: D1Database; sqlite: SqliteDatabase } {
-  const sqlite = new DatabaseSync(':memory:')
-  sqlite.exec(migration0001)
-  sqlite.exec(migration0002)
+  const raw = new DatabaseSync(':memory:')
+  for (const sql of migrations) raw.exec(sql)
+  const sqlite: SqliteDatabase = {
+    exec: (sql) => {
+      if (!migrations.includes(sql)) raw.exec(sql)
+    },
+    prepare: (sql) => raw.prepare(sql),
+  }
   const fake = {
     prepare: (sql: string) => new FakeStatement(sqlite, sql),
     batch: async (statements: FakeStatement[]) => {

@@ -35,6 +35,17 @@ depends_on: [E1, E3, E6]
 ## 設計方向
 
 - `wishlistItems`（tripId、category、name、placeId、photoId、estPrice、currency、sourceUrl、recommenderId、note、status、stopId）、`wishlistVotes`（itemId、memberId）、`wishlistClaims`（itemId、buyerId、forName、qty）。
+- **API 已有**（e5-t01，`#C1w`；`migrations/0004_wishlist.sql`、`worker/trips/wishlist.ts`、`shared/schema/wishlist.ts`）：成員 token；viewer 只能讀、editor 以上可寫；每次寫入都遞增旅程 `rev`。
+  - `GET /api/trips/:id/wishlist?status=&category=`：未刪除的項目依 `order`，每筆帶 `votes`（現任成員 id）、`claims[]`、`place`（id、nameLocal、nameEn、lat、lng）。
+  - `POST /api/trips/:id/wishlist`（新項目一律 `wish`，`order` 省略就排最後）、`PATCH`／`DELETE /api/trips/:id/wishlist/:wid`（軟刪除；已排入的行程點留著、`wishlistItemId` 清空）。
+  - `POST`／`DELETE /api/trips/:id/wishlist/:wid/vote`：呼叫者自己的「想去」，重複按不會重複算。
+  - `POST /api/trips/:id/wishlist/:wid/claims`、`PATCH`／`DELETE …/claims/:cid`：誰買（成員，可空）、幫誰帶（自由文字）、數量、買到了沒；目前不限類別。
+  - `POST /api/trips/:id/wishlist/:wid/schedule` `{ dayId, afterStopId? }`：建立行程點（名稱、地點、預估價、備註帶過去），`stops.wishlistItemId` 與 `wishlistItems.stopId` 互指，狀態變 `scheduled`。類別對行程點類型：必吃 eat→`food`、必買 buy→`shopping`、必看 see→`sight`、體驗 experience→`other`（`shared/schema/wishlist.ts` 的 `wishlistStopType`）。
+  - `POST /api/trips/:id/wishlist/:wid/unschedule`：直接刪掉那個行程點（在行程點上改過的內容一併丟掉）與相關的移動段覆寫，狀態回 `wish`。
+  - 從行程點 API 刪掉行程點（`DELETE /stops/:sid`）：項目的 `stopId` 清空，`scheduled` 回 `wish`，`done` 維持 `done`。
+  - 狀態規則：`wish`／`dropped` 沒有行程點；`scheduled` 一定有；`done` 可有可無。PATCH 不能直接改成 `scheduled`（走 /schedule），已排入時不能改成 `wish`／`dropped`（先 /unschedule）。
+  - `GET /api/trips/:id/pocket`：口袋名單＝狀態 `wish` 的項目，加上沒有任何行程點、也沒有任何（未刪除）項目引用的地點。
+  - 地點：`GET /places/:pid/refs` 多回 `wishlistItems`；`merge-into` 也會把項目的 `placeId` 改指過去（`repointed.wishlistItems`）；刪地點時項目的 `placeId` 清空。
 - 卡片牆的視覺是「旅遊雜誌」：大圖、襯線標題（E10 token），這一頁是分享頁（E8）的精選區來源。
 
 ## 驗收條件
@@ -48,7 +59,7 @@ depends_on: [E1, E3, E6]
 
 ### M0
 
-- [ ] `e5-t01` schema `wishlistItems`、`wishlistVotes`、`wishlistClaims`；API；口袋名單查詢 · AC-5.1 · S · ← e1-t01
+- [x] `e5-t01` schema `wishlistItems`、`wishlistVotes`、`wishlistClaims`；API；口袋名單查詢 · AC-5.1 · S · ← e1-t01
 
 ### M1
 

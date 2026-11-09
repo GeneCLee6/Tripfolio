@@ -1,7 +1,7 @@
-// Places (e3-t01): a referenced entity; stops (and later lodgings, wishlist, attachments) point at
+// Places (e3-t01): a referenced entity; stops, wishlist items (and later lodgings, attachments) point at
 // it by placeId, so renaming once changes it everywhere.
 
-import type { PlaceRefsResponse } from '../../shared/api/types.ts'
+import type { PlaceRefsResponse, WishlistItem } from '../../shared/api/types.ts'
 import { placeCreateSchema, placePatchSchema } from '../../shared/schema/place.ts'
 import { authTrip } from '../auth.ts'
 import { insertStatement, toPlace, updateStatement, writeWithRev, type Row } from '../db.ts'
@@ -73,7 +73,7 @@ export async function patchPlace(c: RouteContext): Promise<Response> {
   return json({ place: await loadPlace(db, auth.trip.id, place.id), rev })
 }
 
-/** DELETE /api/trips/:id/places/:pid (editor): stops that used it keep their title, lose placeId */
+/** DELETE /api/trips/:id/places/:pid (editor): stops and wishlist items that used it lose placeId */
 export async function deletePlace(c: RouteContext): Promise<Response> {
   const db = c.env.DB
   const auth = await authTrip(c.request, db, c.params.id, 'editor')
@@ -85,25 +85,44 @@ export async function deletePlace(c: RouteContext): Promise<Response> {
         'UPDATE stops SET placeId = NULL, rev = rev + 1, updatedAt = ? WHERE tripId = ? AND placeId = ?',
       )
       .bind(now, auth.trip.id, place.id),
+    db
+      .prepare(
+        'UPDATE wishlistItems SET placeId = NULL, rev = rev + 1, updatedAt = ? WHERE tripId = ? AND placeId = ?',
+      )
+      .bind(now, auth.trip.id, place.id),
     db.prepare('DELETE FROM places WHERE id = ?').bind(place.id),
   ])
   return json({ ok: true, rev })
 }
 
-/** GET /api/trips/:id/places/:pid/refs (viewer): what points at it (stops for now) */
+/** GET /api/trips/:id/places/:pid/refs (viewer): what points at it (stops, wishlist items) */
 export async function placeRefs(c: RouteContext): Promise<Response> {
   const db = c.env.DB
   const auth = await authTrip(c.request, db, c.params.id, 'viewer')
   const place = await loadPlace(db, auth.trip.id, c.params.pid)
-  const { results } = await db
-    .prepare('SELECT id, dayId, title FROM stops WHERE tripId = ? AND placeId = ? ORDER BY id')
-    .bind(auth.trip.id, place.id)
-    .all<Row>()
+  const [stops, items] = await Promise.all([
+    db
+      .prepare('SELECT id, dayId, title FROM stops WHERE tripId = ? AND placeId = ? ORDER BY id')
+      .bind(auth.trip.id, place.id)
+      .all<Row>(),
+    db
+      .prepare(
+        `SELECT id, name, status FROM wishlistItems
+          WHERE tripId = ? AND placeId = ? AND deletedAt IS NULL ORDER BY id`,
+      )
+      .bind(auth.trip.id, place.id)
+      .all<Row>(),
+  ])
   const body: PlaceRefsResponse = {
-    stops: results.map((r) => ({
+    stops: stops.results.map((r) => ({
       id: String(r.id),
       dayId: String(r.dayId),
       title: String(r.title),
+    })),
+    wishlistItems: items.results.map((r) => ({
+      id: String(r.id),
+      name: String(r.name),
+      status: String(r.status) as WishlistItem['status'],
     })),
   }
   return json(body)
@@ -120,6 +139,11 @@ export async function mergePlace(c: RouteContext): Promise<Response> {
     .prepare('SELECT COUNT(*) AS n FROM stops WHERE tripId = ? AND placeId = ?')
     .bind(auth.trip.id, duplicate.id)
     .first<number>('n')
+  // Soft-deleted items are re-pointed too: the duplicate row is about to go (foreign key)
+  const itemCount = await db
+    .prepare('SELECT COUNT(*) AS n FROM wishlistItems WHERE tripId = ? AND placeId = ?')
+    .bind(auth.trip.id, duplicate.id)
+    .first<number>('n')
   const now = nowIso()
   const rev = await writeWithRev(db, auth.trip.id, [
     db
@@ -127,7 +151,16 @@ export async function mergePlace(c: RouteContext): Promise<Response> {
         'UPDATE stops SET placeId = ?, rev = rev + 1, updatedAt = ? WHERE tripId = ? AND placeId = ?',
       )
       .bind(target.id, now, auth.trip.id, duplicate.id),
+    db
+      .prepare(
+        'UPDATE wishlistItems SET placeId = ?, rev = rev + 1, updatedAt = ? WHERE tripId = ? AND placeId = ?',
+      )
+      .bind(target.id, now, auth.trip.id, duplicate.id),
     db.prepare('DELETE FROM places WHERE id = ?').bind(duplicate.id),
   ])
-  return json({ place: target, repointed: { stops: Number(count ?? 0) }, rev })
+  return json({
+    place: target,
+    repointed: { stops: Number(count ?? 0), wishlistItems: Number(itemCount ?? 0) },
+    rev,
+  })
 }

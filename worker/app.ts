@@ -36,6 +36,20 @@ import {
   placeRefs,
 } from './trips/places.ts'
 import { createTrip, deleteTrip, getTrip, listTrips, patchTrip } from './trips/trips.ts'
+import {
+  createClaim,
+  createWishlistItem,
+  deleteClaim,
+  deleteWishlistItem,
+  listWishlist,
+  patchClaim,
+  patchWishlistItem,
+  pocketList,
+  scheduleWishlistItem,
+  unscheduleWishlistItem,
+  unvoteWishlistItem,
+  voteWishlistItem,
+} from './trips/wishlist.ts'
 
 // Auth and roles are checked inside each handler (worker/auth.ts authTrip); the router only maps
 // paths. ARCHITECTURE.md §2, §4.1.
@@ -80,6 +94,19 @@ const api = new Router()
   .add('DELETE', '/api/trips/:id/places/:pid', deletePlace)
   .add('GET', '/api/trips/:id/places/:pid/refs', placeRefs)
   .add('POST', '/api/trips/:id/places/:pid/merge-into/:targetId', mergePlace)
+  // Wishlist and the pocket list (e5-t01)
+  .add('GET', '/api/trips/:id/wishlist', listWishlist)
+  .add('POST', '/api/trips/:id/wishlist', createWishlistItem)
+  .add('PATCH', '/api/trips/:id/wishlist/:wid', patchWishlistItem)
+  .add('DELETE', '/api/trips/:id/wishlist/:wid', deleteWishlistItem)
+  .add('POST', '/api/trips/:id/wishlist/:wid/vote', voteWishlistItem)
+  .add('DELETE', '/api/trips/:id/wishlist/:wid/vote', unvoteWishlistItem)
+  .add('POST', '/api/trips/:id/wishlist/:wid/claims', createClaim)
+  .add('PATCH', '/api/trips/:id/wishlist/:wid/claims/:cid', patchClaim)
+  .add('DELETE', '/api/trips/:id/wishlist/:wid/claims/:cid', deleteClaim)
+  .add('POST', '/api/trips/:id/wishlist/:wid/schedule', scheduleWishlistItem)
+  .add('POST', '/api/trips/:id/wishlist/:wid/unschedule', unscheduleWishlistItem)
+  .add('GET', '/api/trips/:id/pocket', pocketList)
   // External API proxies (e3-t02, e3-t04): worker/proxy/*, never called from the browser
   .add('GET', '/api/trips/:id/geo/search', geoSearch)
   .add('POST', '/api/trips/:id/geo/parse', geoParse)
