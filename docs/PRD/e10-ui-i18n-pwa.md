@@ -40,20 +40,21 @@ depends_on: []
 
 ## 驗收條件
 
-- [ ] AC-10.1 — Token 與基礎元件：深淺色、字型、全部元件有 Storybook 式展示頁（`/dev/ui`，production 不含）。
+- [x] AC-10.1 — Token 與基礎元件：深淺色、字型、全部元件有 Storybook 式展示頁（`/dev/ui`，production 不含）。 · #A2（Playwright 開 `/dev/ui` 確認淺深兩欄並排、Sheet 開啟與 Esc 關閉；production build 不含展示頁 chunk）
 - [ ] AC-10.2 — i18n：zh-TW 來源、en 完整；偵測與切換；`check-i18n` 進 CI；英文與繁中走查各一次。
+      _進度（A2）：zh-TW 來源與 en 同步、`navigator.languages` 偵測（非 `zh*` → en）、切換並存 localStorage、`check-i18n` 在 CI 擋缺漏／多餘 key 與裸字串，皆已完成；剩兩語走查（C2，e10-t07）。_
 - [ ] AC-10.3 — 版面：375 px 全功能可用、底部導覽；桌機三欄；平板兩欄。
 - [ ] AC-10.4 — PWA：可安裝、離線開啟最近旅程、離線佇列重送、更新提示（實體手機實測）。
 - [ ] AC-10.5 — 無障礙：axe 無 serious／critical；鍵盤走查；reduced motion。
-- [ ] AC-10.6 — 格式：金額／日期／時長／距離／時區依語言正確（測試）。
+- [x] AC-10.6 — 格式：金額／日期／時長／距離／時區依語言正確（測試）。 · #A2（`tests/shared/i18n/format.test.ts`）
 
 ## Task 拆分
 
 ### M0
 
-- [ ] `e10-t01` token、字型子集、基礎元件、深淺色、`/dev/ui` 展示頁 · AC-10.1 · M
-- [ ] `e10-t02` i18n `t()`、zh-TW 來源與 en、語言偵測與切換、`check-i18n` 腳本 · AC-10.2 · S
-- [ ] `e10-t04` `Intl` 格式工具（金額、日期、時長、距離、時區）與測試 · AC-10.6 · S
+- [x] `e10-t01` token、字型子集、基礎元件、深淺色、`/dev/ui` 展示頁 · AC-10.1 · M · #A2
+- [x] `e10-t02` i18n `t()`、zh-TW 來源與 en、語言偵測與切換、`check-i18n` 腳本 · AC-10.2 · S · #A2
+- [x] `e10-t04` `Intl` 格式工具（金額、日期、時長、距離、時區）與測試 · AC-10.6 · S · #A2
 - [ ] `e10-t03` App 殼：路由、三欄／兩欄／單欄版面、底部導覽、頂欄、空狀態 · AC-10.3 · M · ← e10-t01
 
 ### M0 收尾

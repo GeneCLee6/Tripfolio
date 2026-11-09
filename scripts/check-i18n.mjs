@@ -40,10 +40,10 @@ const isEmpty = (message) => typeof message !== 'string' || message.trim() === '
 // `source` is the reference catalog (zh-TW); `other` must have exactly its keys and placeholders
 function checkParity(source, sourceLabel, other, otherLabel) {
   for (const key of Object.keys(source)) {
-    if (!(key in other)) problems.push(`${otherLabel}: missing key '${key}'`)
+    if (!(key in other)) problems.push(`${otherLabel}: missing key '${key}' (add it from ${sourceLabel})`)
   }
   for (const key of Object.keys(other)) {
-    if (!(key in source)) problems.push(`${otherLabel}: extra key '${key}'`)
+    if (!(key in source)) problems.push(`${otherLabel}: extra key '${key}' (not in ${sourceLabel}, the source)`)
   }
   for (const [catalog, label] of [[source, sourceLabel], [other, otherLabel]]) {
     for (const [key, message] of Object.entries(catalog)) {

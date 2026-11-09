@@ -52,7 +52,7 @@ depends_on: []
 ### M0
 
 - [x] `e11-t01` repo 骨架（Vite／React／TS、worker、shared、wrangler：D1＋R2＋DO、Vitest、oxlint、CLAUDE.md、RULES.md）、CI、PR 預覽、自動部署、`DEPLOY.md` · AC-11.1, 11.2 · M · #A1
-- [ ] `e11-t02` bundle 預算腳本（三個入口）與 `check-i18n` 進 CI · AC-11.2 · S · ← e10-t02
+- [x] `e11-t02` bundle 預算腳本（三個入口）與 `check-i18n` 進 CI · AC-11.2 · S · ← e10-t02 · #A2
 - [ ] `e11-t03` 每日備份 cron 與還原文件、實際還原一次 · AC-11.3 · S · ← e1-t01
 
 ### M1–M2
