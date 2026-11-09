@@ -110,7 +110,7 @@ test('phone: create a trip, find it in the list, edit it, archive it', async ({ 
   // Archive from settings (the top bar's settings link on phones)
   await page.getByRole('link', { name: '設定', exact: true }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Gene' })).toContainText('擁有者')
-  await expect(page.getByRole('button', { name: '產生邀請連結' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '產生邀請連結' })).toBeEnabled()
   await page.getByRole('button', { name: '封存旅程' }).click()
   await page.getByRole('dialog').getByRole('button', { name: '封存旅程' }).click()
   await expect(page.getByRole('button', { name: '取消封存' })).toBeVisible()

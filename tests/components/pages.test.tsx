@@ -152,8 +152,8 @@ describe('TripSettingsPage', () => {
     expect(html).toContain('擁有者')
     expect(html).toContain('編輯者')
     expect(html).toContain('Pacific/Auckland')
-    // Invites come with e1-t03: the button is there but disabled, with the note
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-describedby="settings-invite-note"/)
+    // e1-t03: the owner creates invite links (tests/components/members.test.tsx covers roles)
+    expect(html).toContain('產生邀請連結')
   })
 
   it('tells an editor that only the owner archives', () => {

@@ -44,12 +44,19 @@ depends_on: [E10, E11]
   - `GET/POST /api/trips/:id/invites`、`DELETE /api/trips/:id/invites/:iid`（owner）；`GET /api/join/:token`（「我是誰」預覽，不列 owner）、`POST /api/join/:token`（`{ memberId }` 或 `{ name, color }`，回 `memberToken`；不能認領 owner）。
   - `GET/POST /api/trips/:id/shares`、`DELETE /api/trips/:id/shares/:sid`（owner，`options`：hideMoney／hideAddresses／showRecap）；`GET /api/share/:token`（免驗證，#share `e8-t01a`；型別 `SharePayload` 在 `shared/api/share.ts`）回 `{ trip, days, options, generatedAt }`：`trip` 有名稱、目的地、日期、時區、封面色、簡介、型態、`memberCount`、`dayCount`、`baseCurrency?`、`estimatedPerPersonMinor?`（E9 前不出現）；`days` 只含已分配的天（`idx` 不為 null），每天有 `index`、`date`、`title`、`color`、`note`、`lodgingName`（E4 前為 null）、`stops[]`（`order`、`type`、`name`／`nameEn?`、`lat?`／`lng?`、`address?`、`startAt?`／`endAt?`、`durationMin?`、`note`、`costMinor?`／`currency?`、`booking`、`isBackup`）、`legs[]`（依 legOverrides 與 routeCache 推算，不呼叫外部服務；`source` 為 route／estimate／manual）、`driveMinutes`、`distanceM`。`hideMoney` 拿掉 `costMinor`／`currency`／`baseCurrency`／`estimatedPerPersonMinor`，`hideAddresses` 拿掉 `address`（欄位不存在，不是 null）；撤銷或不存在的 token 回 404 `{ error }`；回應帶 `Cache-Control: private, no-store` 與 `X-Robots-Tag: noindex`。
   - 驗證：`Authorization: Bearer <memberToken>`；無效 401、別的旅程 404、角色不足 403、封存後寫入 403 `trip_archived`、驗證失敗 422；錯誤格式 `{ error: { code, message } }`。
+- **前端角色（e1-t04，#B3m）**：`src/lib/role.ts`。
+  - `can(role, action, { archived? })`，`action` 是 `editContent`（editor 以上）、`manageMembers`／`manageShares`／`archive`／`delete`（owner）；封存的旅程 `editContent`、`manageMembers` 一律 false（API 回 `trip_archived`），`manageShares`／`archive`／`delete` 照角色。
+  - **給其他頁面用**：在 `TripLayout` 底下 `const can = useCan(); can('editContent')`（已套用封存狀態）就能決定要不要顯示或停用編輯控制；`useRole()` 取角色；`useApiErrorToast()` 回傳 `(error) => void`，把 `ApiError` 顯示成危險色 toast（403 是「你沒有權限做這件事。」），403 時順便 `reload()` 旅程，讓別處改掉的角色立刻反映到介面。`me`（含 `role`）本來就在 `useTripContext()`。
+  - 前端只是方便，把關在 Worker（`RULES.md` §4）。
+- **成員與邀請（e1-t03，#B3m）**：設定頁三張卡（`src/pages/members/`）：「旅伴」列出頭像色、名字、角色 chip、「· 你」，owner 可新增（未加入的人、可直接設檢視者）、改名改色、改 editor／viewer（owner 的角色不能改）、移除（不能移除 owner 或自己）；非 owner 只能改自己的名字與顏色。「邀請連結」（owner）：產生後連結只在對話框顯示一次（複製鈕先用 Clipboard API，失敗就選取欄位請人手動複製；沒做 QR），清單只顯示建立時間與「撤銷」。旅程首頁的旅伴改成疊放頭像＋人數（`MemberAvatarRow`），點了到設定頁。
+- **「我是誰」與換人**：`/join/:token` 預覽顯示旅程名稱、日期、目的地、名單人數，可認領的人用大頭像＋名字（檢視者加 chip）；加入後 `memberToken` 存 localStorage，同時把邀請 token 記在 **sessionStorage**（只在加入的那個分頁）。設定頁「我是誰」顯示這台裝置是誰；「這不是我」說明一台裝置每趟旅程只記一個身分、要換就再開一次邀請連結選對的人（`POST /api/join` 會換掉這台的 token，原身分不受影響）；同一分頁還留著邀請連結時給一鍵「用加入時的邀請連結重新選」，否則請 owner 再傳一次。owner 不提供換人（owner 不能經邀請認領）。DESIGN 說的「owner 會看到一條紀錄」還沒做（要活動紀錄，留給之後）。
 
 ## 驗收條件
 
 - [x] AC-1.1 — 建立旅程：名稱、目的地、日期、時區、幣別、封面、型態；清單頁分「即將出發／進行中／過去」。 · #A3f（Playwright 對本機 Worker＋D1：建立（目的地預填時區與當地幣別、欄位錯誤）→ 進旅程首頁 → 清單出現在「即將出發」含倒數／天數／人數 → 編輯 → 封存後移到「過去的旅程」→ 取消封存；分組與倒數依旅程時區的單元測試含「進行中」）
-- [ ] AC-1.2 — 成員與邀請：建立成員、邀請連結進來選「我是誰」並記住；owner 可改名、移除、重發連結；沒有帳號也能用。
+- [x] AC-1.2 — 成員與邀請：建立成員、邀請連結進來選「我是誰」並記住；owner 可改名、移除、重發連結；沒有帳號也能用。 · #B3m（Playwright `e2e/members.spec.ts` 375／1440 px 對本機 Worker＋D1：owner 產生邀請 → 連結只顯示一次、可複製 → 第二個瀏覽器 context 開 `/join/<token>` 建立 Mia → 進旅程、token 記住；「這不是我」一鍵回到選人畫面；owner 看到 Mia 改成檢視者；owner 手動新增 Leo → 改名 Leon → 移除；撤銷邀請 → 連結顯示「邀請連結無效」）
 - [ ] AC-1.3 — 權限與分享：owner／editor／viewer 在 API 層生效；分享連結唯讀、可選隱藏金額／地址／訂位代號、可撤銷。
+      _進度（#B3m）：角色已在 API（#A3b）與介面（`useCan()`）兩邊生效；Playwright 驗證 Mia 被改成檢視者後 `PATCH /api/trips/:id` 回 403、舊頁面送出顯示「你沒有權限做這件事。」、重新載入後編輯控制全部隱藏。分享連結介面待 e1-t05。_
 - [ ] AC-1.4 — 選用 Google 登入：跨裝置看到自己的旅程清單；可綁定既有成員。
 - [ ] AC-1.5 — 生命週期：封存、複製為範本（可清空）、軟刪除 30 天可還原。
 
@@ -59,8 +66,8 @@ depends_on: [E10, E11]
 
 - [x] `e1-t01` D1 schema：`trips`、`members`、`invites`、`shares`；`/api/trips` CRUD 與 token 中介層骨架 · AC-1.1 · M · ← e11-t01 · #A3b
 - [x] `e1-t02` 旅程清單頁與建立／編輯表單（名稱、目的地、日期、時區、幣別、封面色塊、型態） · AC-1.1 · M · ← e1-t01, e10-t03 · #A3f
-- [ ] `e1-t03` 成員模型、邀請連結產生與 `/join` 頁、「我是誰」裝置綁定（memberToken）、設定頁換人 · AC-1.2 · M · ← e1-t01
-- [ ] `e1-t04` 角色中介層（owner／editor／viewer）與前端依角色隱藏編輯 UI · AC-1.3 · S · ← e1-t03
+- [x] `e1-t03` 成員模型、邀請連結產生與 `/join` 頁、「我是誰」裝置綁定（memberToken）、設定頁換人 · AC-1.2 · M · ← e1-t01 · #B3m
+- [x] `e1-t04` 角色中介層（owner／editor／viewer）與前端依角色隱藏編輯 UI · AC-1.3 · S · ← e1-t03 · #B3m
 - [ ] `e1-t05` 分享連結：shareToken、`/s/<token>` 路由接 E8 唯讀頁、隱藏選項、撤銷重發、noindex · AC-1.3 · M · ← e1-t04, e8-t01a
 
 ### M1–M2

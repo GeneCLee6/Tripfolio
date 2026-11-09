@@ -6,6 +6,7 @@ import {
   Avatar,
   Button,
   Card,
+  Chip,
   ColorSwatches,
   EmptyState,
   Input,
@@ -20,6 +21,7 @@ import { paletteIndex, safeColor } from '../lib/colors.ts'
 import { errorMessageKey } from '../lib/errors.ts'
 import { useResource } from '../lib/hooks.ts'
 import { useT } from '../lib/i18n.ts'
+import { rememberInvite } from '../lib/members.ts'
 import { getToken } from '../lib/tokens.ts'
 import { focusRing } from '../styles/mixins.ts'
 import {
@@ -70,6 +72,12 @@ const Choice = styled.button<{ $active: boolean }>`
       background: ${color.glacier};
     `}
   ${focusRing}
+`
+
+const ChoiceName = styled.span`
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 `
 
 const Muted = styled.p`
@@ -139,6 +147,8 @@ export default function JoinPage() {
     setJoining(true)
     try {
       const response = await api.join(token, body)
+      // 「這不是我」 in settings can bring this tab back here (src/lib/members.ts)
+      rememberInvite(response.trip.id, token)
       toast.show(t('join.joined', { name: response.member.name }), { tone: 'success' })
       navigate(tripPath(response.trip.id), { replace: true })
     } catch (failure) {
@@ -160,6 +170,9 @@ export default function JoinPage() {
               {formatDateRange(trip.startDate, trip.endDate, t.locale)}
               {trip.destination && ` · ${trip.destination}`}
             </Muted>
+            {members.length > 0 && (
+              <Muted>{t('members.join.members', { count: members.length })}</Muted>
+            )}
           </Stack>
         </Card>
 
@@ -193,7 +206,8 @@ export default function JoinPage() {
                     colorIndex={paletteIndex(member.color, member.id)}
                     size="lg"
                   />
-                  {member.name}
+                  <ChoiceName>{member.name}</ChoiceName>
+                  {member.role === 'viewer' && <Chip tone="tussock">{t('role.viewer')}</Chip>}
                 </Choice>
               ))}
               <Choice

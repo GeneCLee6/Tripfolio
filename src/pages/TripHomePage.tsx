@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { formatDateRange } from '../../shared/i18n/format.ts'
-import { Button, Chip, EmptyState } from '../components/index.ts'
+import { Button, Chip, EmptyState, MemberAvatarRow } from '../components/index.ts'
 import { SECTIONS, tripPath } from '../app/sections.ts'
 import { useTripContext } from '../app/trip-context.ts'
 import { safeColor } from '../lib/colors.ts'
 import { useMediaQuery, useNow } from '../lib/hooks.ts'
 import { useT, type Translate } from '../lib/i18n.ts'
+import { sortMembers } from '../lib/members.ts'
+import { useCan } from '../lib/role.ts'
 import { countdown, tripLength, type Countdown } from '../lib/trip-groups.ts'
 import { focusRing } from '../styles/mixins.ts'
 import {
@@ -20,7 +22,7 @@ import {
   radius,
   space,
 } from '../styles/tokens.ts'
-import { Count, MemberChips, SectionTitle, Stack } from './parts.tsx'
+import { SectionTitle, Stack } from './parts.tsx'
 import { TripFormDialog } from './trip-form/TripFormDialog.tsx'
 
 // /trips/:id — the trip's overview until the itinerary and today card arrive: the cover, who is
@@ -107,6 +109,20 @@ const SectionLink = styled(Link)`
   ${focusRing}
 `
 
+const MembersLink = styled(Link)`
+  display: inline-flex;
+  padding: ${space.xs}px ${space.md}px ${space.xs}px ${space.xs}px;
+  border: 1px solid ${color.line};
+  border-radius: ${radius.pill}px;
+  background: ${color.card};
+  color: ${color.ink};
+  text-decoration: none;
+  &:hover {
+    border-color: ${color.muted};
+  }
+  ${focusRing}
+`
+
 const SectionName = styled.span`
   font-weight: ${fontWeight.semibold};
 `
@@ -126,10 +142,11 @@ export default function TripHomePage() {
   const t = useT()
   const navigate = useNavigate()
   const wide = useMediaQuery(media.tablet)
-  const { trip, me, members, setTrip } = useTripContext()
+  const { trip, members, setTrip } = useTripContext()
+  const can = useCan()
   const [editing, setEditing] = useState(false)
   const nowMs = useNow()
-  const canEdit = me.role !== 'viewer' && !trip.archivedAt
+  const canEdit = can('editContent')
 
   return (
     <Stack>
@@ -162,11 +179,12 @@ export default function TripHomePage() {
       </Row>
 
       <Stack as="section" $gap="md" aria-labelledby="home-members">
-        <SectionTitle id="home-members">
-          {t('tripHome.members')}
-          <Count>{members.length}</Count>
-        </SectionTitle>
-        <MemberChips members={members} meId={me.id} />
+        <SectionTitle id="home-members">{t('tripHome.members')}</SectionTitle>
+        <div>
+          <MembersLink to={tripPath(trip.id, 'settings')} title={t('members.manage')}>
+            <MemberAvatarRow members={sortMembers(members)} />
+          </MembersLink>
+        </div>
       </Stack>
 
       <Stack as="section" $gap="md" aria-labelledby="home-deadlines">

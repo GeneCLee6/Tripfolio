@@ -2,20 +2,22 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { formatDateRange } from '../../shared/i18n/format.ts'
-import { Avatar, Button, Card, Chip, Dialog, useToast } from '../components/index.ts'
+import { Button, Card, Dialog, useToast } from '../components/index.ts'
 import { tripPath } from '../app/sections.ts'
 import { useTripContext } from '../app/trip-context.ts'
 import { api } from '../lib/api.ts'
-import { paletteIndex } from '../lib/colors.ts'
-import { errorMessageKey } from '../lib/errors.ts'
 import { useMediaQuery } from '../lib/hooks.ts'
 import { useT } from '../lib/i18n.ts'
-import { color, font, fontSize, fontWeight, media, space } from '../styles/tokens.ts'
-import { Count, PageHeading, SectionTitle, Stack } from './parts.tsx'
+import { useApiErrorToast, useCan } from '../lib/role.ts'
+import { color, font, fontSize, media, space } from '../styles/tokens.ts'
+import { IdentitySection } from './members/IdentitySection.tsx'
+import { InvitesSection } from './members/InvitesSection.tsx'
+import { MembersSection } from './members/MembersSection.tsx'
+import { PageHeading, SectionTitle, Stack } from './parts.tsx'
 import { TripFormDialog } from './trip-form/TripFormDialog.tsx'
 
-// /trips/:id/settings — the trip's details (edit), the travellers (read-only until e1-t03 brings
-// invites and member management), and archiving (owner only).
+// /trips/:id/settings — the trip's details (edit), the travellers and invite links (e1-t03),
+// "who am I" on this device, and archiving (owner only). What shows follows useCan() (e1-t04).
 
 const Facts = styled.dl`
   display: grid;
@@ -37,30 +39,6 @@ const Mono = styled.span`
   font-family: ${font.mono};
 `
 
-const Members = styled.ul`
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  > li + li {
-    border-top: 1px solid ${color.line};
-  }
-`
-
-const MemberRow = styled.li`
-  display: flex;
-  align-items: center;
-  gap: ${space.md}px;
-  padding: ${space.md}px 0;
-`
-
-const MemberName = styled.span`
-  flex: 1;
-  min-width: 0;
-  font-weight: ${fontWeight.medium};
-  overflow-wrap: anywhere;
-`
-
 const Note = styled.p`
   margin: 0;
   color: ${color.muted};
@@ -80,11 +58,14 @@ export default function TripSettingsPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const wide = useMediaQuery(media.tablet)
-  const { trip, me, members, setTrip } = useTripContext()
+  const { trip, setTrip } = useTripContext()
+  const can = useCan()
+  const showError = useApiErrorToast()
   const [editing, setEditing] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
-  const isOwner = me.role === 'owner'
+  const isOwner = can('archive')
+  const canEdit = can('editContent')
   const archived = Boolean(trip.archivedAt)
 
   async function setArchived(next: boolean) {
@@ -95,8 +76,7 @@ export default function TripSettingsPage() {
       toast.show(next ? t('settings.archived') : t('settings.unarchived'), { tone: 'success' })
       setConfirming(false)
     } catch (error) {
-      const { key, code } = errorMessageKey(error)
-      toast.show(t(key, { code }), { tone: 'danger' })
+      showError(error)
     } finally {
       setBusy(false)
     }
@@ -111,10 +91,9 @@ export default function TripSettingsPage() {
         <Stack $gap="lg">
           <Row>
             <SectionTitle id="settings-details">{t('settings.details')}</SectionTitle>
-            {me.role !== 'viewer' && (
+            {canEdit && (
               <Button
                 size="sm"
-                disabled={archived}
                 onClick={() => (wide ? setEditing(true) : navigate(`${tripPath(trip.id)}/edit`))}
               >
                 {t('tripForm.editTitle')}
@@ -143,34 +122,9 @@ export default function TripSettingsPage() {
         </Stack>
       </Card>
 
-      <Card as="section" aria-labelledby="settings-members">
-        <Stack $gap="md">
-          <Row>
-            <SectionTitle id="settings-members">
-              {t('settings.members')}
-              <Count>{members.length}</Count>
-            </SectionTitle>
-            <Button size="sm" disabled aria-describedby="settings-invite-note">
-              {t('settings.invite')}
-            </Button>
-          </Row>
-          <Members>
-            {members.map((member) => (
-              <MemberRow key={member.id}>
-                <Avatar name={member.name} colorIndex={paletteIndex(member.color, member.id)} />
-                <MemberName>
-                  {member.name}
-                  {member.id === me.id && <Note as="span"> · {t('member.you')}</Note>}
-                </MemberName>
-                <Chip tone={member.role === 'owner' ? 'fjord' : 'neutral'}>
-                  {t(`role.${member.role}`)}
-                </Chip>
-              </MemberRow>
-            ))}
-          </Members>
-          <Note id="settings-invite-note">{t('settings.inviteSoon')}</Note>
-        </Stack>
-      </Card>
+      <MembersSection />
+      <InvitesSection />
+      <IdentitySection />
 
       <Card as="section" aria-labelledby="settings-archive">
         <Stack $gap="md">
@@ -214,7 +168,7 @@ export default function TripSettingsPage() {
         </Dialog>
       )}
 
-      {me.role !== 'viewer' && (
+      {canEdit && (
         <TripFormDialog
           open={editing}
           trip={trip}

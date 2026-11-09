@@ -1,15 +1,24 @@
 import {
   MEMBER_TOKENS_HEADER,
   type ApiErrorBody,
+  type CreateInviteResponse,
   type CreateTripResponse,
+  type Invite,
   type JoinPreviewResponse,
+  type Member,
   type MemberTokenResponse,
   type Rev,
   type Trip,
   type TripDetailResponse,
   type TripListResponse,
 } from '../../shared/api/types.ts'
-import type { JoinBody, TripCreate, TripPatch } from '../../shared/schema/index.ts'
+import type {
+  JoinBody,
+  MemberCreate,
+  MemberPatch,
+  TripCreate,
+  TripPatch,
+} from '../../shared/schema/index.ts'
 import { getToken, pruneTokens, setToken, tokensForList } from './tokens.ts'
 
 // The typed client for the Worker's REST API (worker/app.ts). Request bodies are the zod input
@@ -150,5 +159,47 @@ export const api = {
     )
     setToken(response.trip.id, response.memberToken)
     return response
+  },
+
+  // ---- members and invites (e1-t03) ----
+
+  /** POST /api/trips/:id/members (owner): someone not on the app yet, or a viewer */
+  createMember(
+    tripId: string,
+    body: Partial<MemberCreate> & Pick<MemberCreate, 'name' | 'color'>,
+  ): Promise<Rev & { member: Member }> {
+    return request('POST', `${tripPath(tripId)}/members`, { token: tokenFor(tripId), body })
+  },
+
+  /** PATCH /api/trips/:id/members/:mid: owner, or a member changing their own name/colour */
+  patchMember(tripId: string, memberId: string, patch: MemberPatch): Promise<Rev & { member: Member }> {
+    return request('PATCH', `${tripPath(tripId)}/members/${encodeURIComponent(memberId)}`, {
+      token: tokenFor(tripId),
+      body: patch,
+    })
+  },
+
+  /** DELETE /api/trips/:id/members/:mid (owner): also revokes that member's devices */
+  deleteMember(tripId: string, memberId: string): Promise<Rev & { ok: true }> {
+    return request('DELETE', `${tripPath(tripId)}/members/${encodeURIComponent(memberId)}`, {
+      token: tokenFor(tripId),
+    })
+  },
+
+  /** GET /api/trips/:id/invites (owner): the active invites, without their tokens */
+  listInvites(tripId: string, signal?: AbortSignal): Promise<{ invites: Invite[] }> {
+    return request('GET', `${tripPath(tripId)}/invites`, { token: tokenFor(tripId), signal })
+  },
+
+  /** POST /api/trips/:id/invites (owner): the only response that carries the invite token */
+  createInvite(tripId: string): Promise<CreateInviteResponse> {
+    return request('POST', `${tripPath(tripId)}/invites`, { token: tokenFor(tripId) })
+  },
+
+  /** DELETE /api/trips/:id/invites/:iid (owner) */
+  revokeInvite(tripId: string, inviteId: string): Promise<Rev & { ok: true }> {
+    return request('DELETE', `${tripPath(tripId)}/invites/${encodeURIComponent(inviteId)}`, {
+      token: tokenFor(tripId),
+    })
   },
 }
