@@ -43,6 +43,7 @@ depends_on: []
 - [ ] AC-11.2 — CI：lint／typecheck／test／build／check-i18n／bundle 預算全部在 CI 擋。
   - 進度（A1）：六個步驟都寫進 `ci.yml`，本機六個指令全部通過；**`ci.yml` 還沒在 GitHub Actions 跑過**，等 repo 建立、第一個 PR 跑綠才勾。
 - [ ] AC-11.3 — 備份：每日備份到 R2 並實際還原一次成功。
+  - 進度（#backup，e11-t03）：`worker/backup.ts`＋`scheduled`＋cron `0 17 * * *` 已實作，單元測試涵蓋全部表與筆數、gzip 還原、`APP_ENV` 前綴、30 天清理、失敗重拋。2026-11-09 在本機排練過：`wrangler dev --test-scheduled` 觸發 → 本機 R2 出現備份 → 取回、解壓 → `d1 execute --file` 進空的本機 staging D1 → 資料相同、`migrations apply` 回報無待套用（`DEPLOY.md` §10）。**正式站的每日執行與遠端還原要等第一次部署後確認**，所以不勾。
 - [ ] AC-11.4 — 安全：token 規格、速率限制、上傳限制、文件驗權、伺服器端過濾、noindex、CSP 都有測試或實測紀錄。
 - [ ] AC-11.5 — 成本：用量頁顯示六項指標與外部 API 配額；80% 警示。
 - [ ] AC-11.6 — 隱私：刪旅程連帶刪 R2（測試）；隱私頁上線。
@@ -53,7 +54,7 @@ depends_on: []
 
 - [x] `e11-t01` repo 骨架（Vite／React／TS、worker、shared、wrangler：D1＋R2＋DO、Vitest、oxlint、CLAUDE.md、RULES.md）、CI、PR 預覽、自動部署、`DEPLOY.md` · AC-11.1, 11.2 · M · #A1
 - [x] `e11-t02` bundle 預算腳本（三個入口）與 `check-i18n` 進 CI · AC-11.2 · S · ← e10-t02 · #A2
-- [ ] `e11-t03` 每日備份 cron 與還原文件、實際還原一次 · AC-11.3 · S · ← e1-t01
+- [x] `e11-t03` 每日備份 cron 與還原文件、實際還原一次 · AC-11.3 · S · ← e1-t01 · #backup
 
 ### M1–M2
 

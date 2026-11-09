@@ -7,7 +7,7 @@ Tripfolio 是**一個 Cloudflare Worker**（`tripfolio`）：同一個 Worker �
 - **兩個前端入口**：`index.html`（app）與 `share.html`（唯讀分享頁，獨立 bundle、不載編輯器）。`/s/<token>` 由 Worker 交給 `share.html`，並加 `x-robots-tag: noindex`。
 - **D1 `DB`**：全部結構化資料（A1 只有 `meta` 表；真正的 schema 在 A3）。
 - **R2 `MEDIA`**：照片（2048／400）、文件、收據；文件類只經 Worker 驗權讀取。**R2 `BACKUPS`**：D1 每日備份（e11-t03）。
-- **cron**：`wrangler.jsonc` 裡先註解掉，e11-t03 備份時打開。
+- **cron**：`0 17 * * *`（UTC，雪梨 03:00）跑 D1 每日備份（e11-t03，§10）；只在正式站，`env.preview` 的 `triggers.crons` 是空的。
 
 設定都在 `wrangler.jsonc`。一個 Worker 一次部署：前端與 API 永遠是同一個 commit。建置時 `APP_VERSION`（commit SHA）寫進兩個 HTML 的 `<meta name="app-version">`，部署時也以 `--var APP_VERSION:<sha>` 給 Worker（`GET /api/health` 回傳）；smoke test 就是查這個。
 
@@ -172,4 +172,72 @@ npx wrangler rollback <version-id> --message "rollback: <原因>"
 
 ## 10. D1 備份與還原
 
-e11-t03 實作（cron → `worker/backup.ts` → R2 `tripfolio-backups`），屆時補上本節（照 TKU Arcade `DEPLOY.md` §10 的做法：Time Travel 優先，R2 備份還原到新的空資料庫，並實際還原一次）。
+**備份**：`wrangler.jsonc` 頂層的 cron `0 17 * * *`（UTC，雪梨 AEST 03:00）觸發 `worker/index.ts` 的 `scheduled`，由 `worker/backup.ts` 透過 `DB` 綁定把整個資料庫匯出成 SQL（`CREATE TABLE`＋每列一行 `INSERT`＋索引），gzip 後寫到 R2 `tripfolio-backups`：
+
+```
+backups/<APP_ENV>/<UTC 日期 YYYY-MM-DD>/d1.sql.gz
+```
+
+- `<APP_ENV>` 來自 Worker 的 `APP_ENV` var，沒設就是 `production`。**R2 與預覽共用**（§2），所以預覽一定要設 `APP_ENV`（例如 `preview`），才不會寫進正式站的前綴；目前預覽的 `triggers.crons` 是空的，平常根本不會跑。
+- 一天一個檔，同一天再跑會覆蓋。`customMetadata`：`env`、`appVersion`（commit）、`rows`（總筆數）、`tables`（各表筆數的 JSON）。
+- 寫入成功後才刪除**同一前綴下**超過 30 天的備份；別的環境的前綴不會碰。
+- 包含 `d1_migrations`（還原後的遷移紀錄是對的），不包含 D1 自己的 `_cf_*` 表。每次 1000 筆分頁讀取。
+- 每次記一行 log：成功 `backup_done`（key、表數、筆數、位元組、刪掉幾個），失敗 `backup_failed` 並重新丟出錯誤，該次 cron 在儀表板顯示為 failed。不需要任何新 secret。
+
+限制（同 TKU Arcade）：
+
+- 分頁讀取、不是快照，備份途中的寫入可能在、也可能不在裡面（清晨跑、寫入很少，可接受）；精確的時間點用下面的 Time Travel。
+- 整份匯出放在記憶體裡。資料庫大到幾十 MB 時要改成串流或分檔。
+- 超過 2^53 的整數會失準（JavaScript 數字）；目前沒有這種欄位，新增時要注意。
+
+**確認有在跑**：儀表板 → R2 → `tripfolio-backups` → `backups/production/` 有沒有當天（UTC）的資料夾（`wrangler r2 object list` 不存在，只能看儀表板），或 Workers → `tripfolio` → Logs 搜尋 `backup_done`／`backup_failed`。
+
+### 10.1 還原（先選 A，只有超過 A 的時間窗才用 B）
+
+**A. Time Travel**（D1 內建，精確到分鐘；免費方案保留 7 天）：
+
+```sh
+npx wrangler d1 time-travel info tripfolio                                   # 看目前的 bookmark
+npx wrangler d1 time-travel restore tripfolio --timestamp=<ISO 8601 時間>    # 就地還原，會覆蓋現況
+```
+
+**B. 從 R2 的備份還原到一個新的空資料庫**。備份裡有 `CREATE TABLE`，所以**目標必須是空的**（不能直接倒進正在用的 `tripfolio` 或 `tripfolio-staging`）。以下指令都在 repo 根目錄跑：
+
+1. 取回並解壓（`<日期>` 是 UTC 日期）：
+
+   ```sh
+   npx wrangler r2 object get tripfolio-backups/backups/production/<日期>/d1.sql.gz --remote --file backup.sql.gz
+   gunzip backup.sql.gz                      # 得到 backup.sql；沒有 gunzip 就用下一行
+   node -e "require('fs').writeFileSync('backup.sql', require('zlib').gunzipSync(require('fs').readFileSync('backup.sql.gz')))"
+   ```
+
+2. **先排練**：建一個臨時的空資料庫，倒進去檢查。不要拿 `tripfolio-staging` 排練：它不是空的，而且所有預覽都讀它，正式資料（成員、token 雜湊）不該出現在預覽站。
+
+   ```sh
+   npx wrangler d1 create tripfolio-restore-<日期>                 # 在 repo 外的資料夾跑，避免改到 wrangler.jsonc
+   npx wrangler d1 execute tripfolio-restore-<日期> --remote --file backup.sql
+   npx wrangler d1 execute tripfolio-restore-<日期> --remote --command "SELECT (SELECT count(*) FROM trips) AS trips, (SELECT count(*) FROM members) AS members, (SELECT group_concat(name) FROM d1_migrations) AS migrations"
+   ```
+
+   筆數要和該備份 R2 物件的 `customMetadata.tables` 相同（儀表板點開物件可看）。
+
+3. 確認無誤後，開 PR 把 `wrangler.jsonc` **頂層**的 `database_name`、`database_id` 換成新的（§3.4 也要改），合併即生效；接著 `npx wrangler d1 migrations list DB --remote --config wrangler.jsonc` 應該只列出備份之後才加的遷移，由 `deploy.yml` 套用。舊資料庫留著，確定沒問題再由擁有者刪除。
+4. 若只是排練，`npx wrangler d1 delete tripfolio-restore-<日期>` 刪掉臨時資料庫，並刪掉本機的 `backup.sql*`（裡面有正式資料）。
+
+### 10.2 本機觸發與排練
+
+`/__scheduled` 會被靜態資產的 SPA fallback 接走（只有 `/api/*`、`/ws/*`、`/s/*` 先進 Worker），本機要用 `/cdn-cgi/handler/scheduled`。建置後的 `dist/tripfolio/wrangler.json` 預設把狀態放在 `dist/tripfolio/.wrangler`，加 `--persist-to .wrangler/state` 才會和 `d1 migrations apply --local` 用同一份本機 D1／R2：
+
+```sh
+npm run build
+npx wrangler d1 migrations apply DB --local --config wrangler.jsonc
+npx wrangler dev --config dist/tripfolio/wrangler.json --persist-to .wrangler/state --test-scheduled --port 8799
+curl "http://localhost:8799/cdn-cgi/handler/scheduled?cron=0+17+*+*+*"   # 另一個終端機；log 出現 backup_done
+# 停掉 wrangler dev 後：取回、倒進本機的空 staging D1（--env preview 是另一個本機資料庫）
+npx wrangler r2 object get tripfolio-backups/backups/production/<日期>/d1.sql.gz --local --config wrangler.jsonc --file .wrangler/restore/backup.sql.gz
+gunzip -k .wrangler/restore/backup.sql.gz
+npx wrangler d1 execute DB --local --env preview --config wrangler.jsonc --file .wrangler/restore/backup.sql
+npx wrangler d1 migrations apply DB --local --env preview --config wrangler.jsonc   # 應該回報 No migrations to apply
+```
+
+實測（2026-11-09，本機，不是正式站）：本機 D1 套用遷移並寫入一個旅程與一位成員 → 觸發 → `backup_done`（11 張表、5 筆、1348 bytes）→ 取回、解壓 → 倒進空的本機 staging D1 → 兩邊 trips／members／meta 筆數、旅程名稱（含單引號）、`d1_migrations`、23 個索引都相同，`migrations apply` 回報沒有待套用的遷移。**正式站的每日執行與遠端還原（10.1 B）要在第一次部署後由擁有者做一次**，再勾 AC-11.3。

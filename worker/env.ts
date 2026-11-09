@@ -13,4 +13,6 @@ export interface Env {
   BACKUPS: R2Bucket
   /** The deployed commit (wrangler deploy --var APP_VERSION:<sha>) */
   APP_VERSION?: string
+  /** Which environment this is; the daily backup writes under backups/<APP_ENV>/ (absent = production) */
+  APP_ENV?: string
 }

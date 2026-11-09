@@ -22,8 +22,8 @@
   // The free plan only offers SQLite-backed Durable Objects. Migrations only ever add: never edit
   // or remove one that was deployed (DEPLOY.md §7)
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TripDO"] }],
-  // The daily D1 backup to BACKUPS comes with e11-t03. 17:00 UTC is 03:00 in Sydney (AEST):
-  // "triggers": { "crons": ["0 17 * * *"] },
+  // The daily D1 backup to BACKUPS (e11-t03, DEPLOY.md §10). 17:00 UTC is 03:00 in Sydney (AEST)
+  "triggers": { "crons": ["0 17 * * *"] },
   // Production's own database (migrations/). Never give staging or previews this id
   "d1_databases": [
     {
