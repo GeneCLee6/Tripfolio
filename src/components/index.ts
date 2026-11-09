@@ -4,6 +4,7 @@
 // pipeline and zod (shared/schema), which must stay out of the app's first screen.
 export { amountText, initialOf, parseAmount } from './text.ts'
 export { Avatar, AvatarGroup } from './Avatar.tsx'
+export { BalanceRow, type BalanceRowProps, type BalanceTone } from './BalanceRow.tsx'
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button.tsx'
 export { Card, CardText, CardTitle } from './Card.tsx'
 export { Chip, type ChipTone } from './Chip.tsx'
@@ -19,7 +20,9 @@ export { MemberAvatarRow, type MemberAvatarRowProps } from './MemberAvatarRow.ts
 export { MoneyField } from './MoneyField.tsx'
 export { PhotoThumb, type PhotoThumbProps } from './PhotoThumb.tsx'
 export { PlacePicker, type PlacePick, type PlacePickerProps } from './PlacePicker.tsx'
+export { PoolCard, type PoolCardProps } from './PoolCard.tsx'
 export { SegmentedControl } from './SegmentedControl.tsx'
+export { SettleCard, type SettleCardProps, type SettlePerson } from './SettleCard.tsx'
 export { Skeleton } from './Skeleton.tsx'
 export { StorageMeter, StorageMeterView, type StorageMeterProps } from './StorageMeter.tsx'
 export { StopTypeIcon } from './StopTypeIcon.tsx'
