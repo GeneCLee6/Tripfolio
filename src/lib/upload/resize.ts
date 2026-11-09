@@ -2,7 +2,7 @@
 // re-encode drops every EXIF field (location, camera, time), so only exif.ts ever sees them.
 // Falls back to JPEG where the canvas cannot encode WebP (Safari before 16 returns a PNG instead).
 // DOM-only and deliberately thin: the size math is `fitWithin`, which is tested; the rest needs a
-// real browser (covered by e6-t02's Playwright run).
+// real browser (covered by e6-t02's Playwright run). Memory: see decodeAtMost.
 
 export interface ResizedImage {
   blob: Blob
@@ -45,13 +45,79 @@ async function encode(canvas: AnyCanvas, type: string, quality: number): Promise
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality))
 }
 
+/**
+ * The displayed (EXIF-oriented) size of an image without decoding its pixels: an <img> fires
+ * `load` once the header is parsed, and Chromium and Safari only decode the bitmap when it is
+ * painted, so this costs the encoded bytes, not width × height × 4. null where there is no DOM or
+ * the browser cannot read the format (the caller then decodes at full size, which fails the same
+ * way for HEIC outside Safari and is reported as such).
+ */
+export function probeSize(file: Blob): Promise<{ width: number; height: number } | null> {
+  if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function')
+    return Promise.resolve(null)
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    const done = (size: { width: number; height: number } | null) => {
+      img.onload = null
+      img.onerror = null
+      img.removeAttribute('src')
+      URL.revokeObjectURL(url)
+      resolve(size)
+    }
+    img.onload = () =>
+      done(img.naturalWidth > 0 ? { width: img.naturalWidth, height: img.naturalHeight } : null)
+    img.onerror = () => done(null)
+    img.decoding = 'async'
+    img.src = url
+  })
+}
+
+/** Whether a decoded bitmap kept the aspect ratio we asked for (to within rounding) */
+export function sameAspect(a: { width: number; height: number }, b: { width: number; height: number }): boolean {
+  return Math.abs(a.width / a.height - b.width / b.height) <= 0.02 * (b.width / b.height)
+}
+
+/**
+ * Decodes `file` straight to the target size where the browser can, so a 12 MP phone photo never
+ * exists as a 48 MB full-size bitmap:
+ * 1. `probeSize` reads the displayed size from the header (no pixel decode);
+ * 2. `createImageBitmap(file, { resizeWidth, resizeHeight, resizeQuality: 'high' })` decodes at
+ *    (or close to) the 2048 size; Chromium scales while decoding JPEG/WebP;
+ * 3. if the browser ignored the resize options or returned the other orientation (the spec once
+ *    resized before applying EXIF orientation), we still draw onto a canvas sized from the bitmap's
+ *    own aspect ratio, so the output is never stretched; at worst it costs one full decode, released
+ *    in `finally`. Safari without resize support lands here and behaves like before.
+ */
+async function decodeAtMost(file: Blob, maxEdge: number): Promise<ImageBitmap> {
+  const size = await probeSize(file)
+  if (size) {
+    const target = fitWithin(size.width, size.height, maxEdge)
+    if (target.width < size.width) {
+      try {
+        const bitmap = await createImageBitmap(file, {
+          imageOrientation: 'from-image',
+          resizeWidth: target.width,
+          resizeHeight: target.height,
+          resizeQuality: 'high',
+        })
+        if (sameAspect(bitmap, target)) return bitmap
+        bitmap.close()
+      } catch {
+        // Fall through to a plain decode (it throws the real error if the format is unreadable)
+      }
+    }
+  }
+  // Orientation from EXIF is applied by the decoder, so width/height are as displayed
+  return createImageBitmap(file, { imageOrientation: 'from-image' })
+}
+
 /** Decodes `file`, draws it at most `maxEdge` on its long side, and encodes WebP (else JPEG) */
 export async function resizeImage(
   file: Blob,
   { maxEdge = 2048, quality = 0.82 }: ResizeOptions = {},
 ): Promise<ResizedImage> {
-  // Orientation from EXIF is applied by the decoder, so width/height are as displayed
-  const source = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  const source = await decodeAtMost(file, maxEdge)
   try {
     const { width, height } = fitWithin(source.width, source.height, maxEdge)
     const canvas = makeCanvas(width, height)

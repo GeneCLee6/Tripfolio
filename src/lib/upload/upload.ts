@@ -70,6 +70,8 @@ export interface UploadDeps {
 /** Retries after the first PUT attempt */
 export const PUT_RETRIES = 3
 const BACKOFF_MS = 800
+/** How much of a photo exif.ts gets to see */
+export const EXIF_SCAN_BYTES = 256 * 1024
 
 /** A file the pipeline refuses before any network call */
 export class UploadRejected extends Error {
@@ -191,7 +193,8 @@ export async function uploadAttachment(
   let height: number | null = null
   let exif: ExifInfo | null = null
   if (isPhoto) {
-    exif = deps.readExif(await file.arrayBuffer())
+    // EXIF sits in APP1 near the start of a JPEG (≤ 64 KB): never read a 50 MB file whole
+    exif = deps.readExif(await file.slice(0, EXIF_SCAN_BYTES).arrayBuffer())
     const resized = await deps.resize(file)
     main = resized.blob
     width = resized.width

@@ -2,7 +2,15 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { formatDateRange } from '../../shared/i18n/format.ts'
-import { Button, Chip, EmptyState, MemberAvatarRow } from '../components/index.ts'
+import {
+  Button,
+  Chip,
+  EmptyState,
+  MemberAvatarRow,
+  PhotoThumb,
+  StorageMeter,
+} from '../components/index.ts'
+import { ButtonLink } from '../components/ButtonLink.tsx'
 import { SECTIONS, tripPath } from '../app/sections.ts'
 import { useTripContext } from '../app/trip-context.ts'
 import { safeColor } from '../lib/colors.ts'
@@ -37,6 +45,22 @@ const Hero = styled.header<{ $color: string }>`
   border-radius: ${radius.cover}px;
   background: ${({ $color }) => $color};
   color: ${onDayColor};
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+`
+
+/** The cover photo behind the hero text, darkened at the bottom so the text stays readable */
+const HeroPhoto = styled.div`
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, ${color.scrim}, transparent 75%);
+  }
 `
 
 const HeroTitle = styled.h1`
@@ -151,6 +175,16 @@ export default function TripHomePage() {
   return (
     <Stack>
       <Hero $color={safeColor(trip.coverColor, trip.id)}>
+        {trip.coverAttachmentId && (
+          <HeroPhoto>
+            <PhotoThumb
+              attachmentId={trip.coverAttachmentId}
+              tripId={trip.id}
+              variant="full"
+              alt={t('photos.cover.alt', { name: trip.name })}
+            />
+          </HeroPhoto>
+        )}
         <HeroMeta>
           <span>{countdownText(t, countdown(trip, nowMs))}</span>
           <span>{formatDateRange(trip.startDate, trip.endDate, t.locale)}</span>
@@ -168,15 +202,22 @@ export default function TripHomePage() {
           <Chip tone="fjord">{t(`tripStyle.${trip.style}`)}</Chip>{' '}
           {trip.archivedAt && <Chip tone="warning">{t('trips.archived')}</Chip>}
         </div>
-        {canEdit && (
-          <Button
-            size="sm"
-            onClick={() => (wide ? setEditing(true) : navigate(`${tripPath(trip.id)}/edit`))}
-          >
-            {t('tripForm.editTitle')}
-          </Button>
-        )}
+        <Row>
+          <ButtonLink to={tripPath(trip.id, 'photos')}>
+            {canEdit && !trip.coverAttachmentId ? t('photos.cover.homeSet') : t('photos.title')}
+          </ButtonLink>
+          {canEdit && (
+            <Button
+              size="sm"
+              onClick={() => (wide ? setEditing(true) : navigate(`${tripPath(trip.id)}/edit`))}
+            >
+              {t('tripForm.editTitle')}
+            </Button>
+          )}
+        </Row>
       </Row>
+
+      <StorageMeter tripId={trip.id} compact showFrom={0.5} />
 
       <Stack as="section" $gap="md" aria-labelledby="home-members">
         <SectionTitle id="home-members">{t('tripHome.members')}</SectionTitle>

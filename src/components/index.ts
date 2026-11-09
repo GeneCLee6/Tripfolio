@@ -1,6 +1,7 @@
 // The base components (docs/DESIGN.md §3, e10-t01). Every one is shown on /dev/ui.
 // ButtonLink (router link drawn as a button) is imported from its own file: it pulls in
-// react-router-dom, which the share page must not load.
+// react-router-dom, which the share page must not load. PhotoUploader too: it pulls in the upload
+// pipeline and zod (shared/schema), which must stay out of the app's first screen.
 export { amountText, initialOf, parseAmount } from './text.ts'
 export { Avatar, AvatarGroup } from './Avatar.tsx'
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button.tsx'
@@ -16,9 +17,11 @@ export { IconButton } from './IconButton.tsx'
 export { LanguageSwitch } from './LanguageSwitch.tsx'
 export { MemberAvatarRow, type MemberAvatarRowProps } from './MemberAvatarRow.tsx'
 export { MoneyField } from './MoneyField.tsx'
+export { PhotoThumb, type PhotoThumbProps } from './PhotoThumb.tsx'
 export { PlacePicker, type PlacePick, type PlacePickerProps } from './PlacePicker.tsx'
 export { SegmentedControl } from './SegmentedControl.tsx'
 export { Skeleton } from './Skeleton.tsx'
+export { StorageMeter, StorageMeterView, type StorageMeterProps } from './StorageMeter.tsx'
 export { StopTypeIcon } from './StopTypeIcon.tsx'
 export { Tabs } from './Tabs.tsx'
 export { ThemeSwitch } from './ThemeSwitch.tsx'
