@@ -34,7 +34,7 @@ worktree 開分支、只讀需要的段落、lint+typecheck+test+build 只看最
 | 批 | Task | 內容 | 前提 |
 | --- | --- | --- | --- |
 | [x] B1（#B1，local；`e3-t02` 後端 #proxy） | `e2-t02` `e3-t02` `e2-t03` | 日程頁骨架（Day 導覽、每日欄位、重排）；地點搜尋（Photon／Nominatim 代理、Google Maps 連結、放針）；行程點卡片與編輯抽屜 | A3 |
-| [ ] B2（`e3-t04` 後端 #proxy、`e3-t03` 元件 #map 已完成） | `e3-t03` `e3-t04` `e2-t05` | MapLibre 地圖（OpenFreeMap、圖示、日色、叢集、點卡、全螢幕）；路線服務（ORS 代理、快取、直線後備）；移動段與每日駕駛合計、上限警示 | B1；總 PRD Q3 與 ORS 金鑰 |
+| [~] B2（`e3-t03` #map、`e3-t04` #proxy＋#B2m 完成；`e2-t05` 在 #B3i 進行中） | `e3-t03` `e3-t04` `e2-t05` | MapLibre 地圖（OpenFreeMap、圖示、日色、叢集、點卡、全螢幕）；路線服務（ORS 代理、快取、直線後備）；移動段與每日駕駛合計、上限警示 | B1；總 PRD Q3 與 ORS 金鑰 |
 | [ ] B3（`e1-t03` `e1-t04` 已完成 #B3m） | `e2-t04` `e2-t06` `e1-t03` `e1-t04` | 拖曳排序與跨日（含鍵盤、手機）；時間檢查（營業、重疊、日落）；成員、邀請連結、「我是誰」；角色中介層 | B2 |
 
 ## Phase C · M0 收尾
