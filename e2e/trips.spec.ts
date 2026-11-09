@@ -86,7 +86,7 @@ test('phone: create a trip, find it in the list, edit it, archive it', async ({ 
   await shot(page, 'phone-trip-home')
 
   await nav.getByRole('link', { name: '地圖' }).click()
-  await expect(page.getByRole('heading', { name: '地圖即將開放' })).toBeVisible()
+  await expect(page.getByText('還沒有地點，去日程加行程點')).toBeVisible()
   await nav.getByRole('link', { name: '總覽' }).click()
 
   // The list: the new trip is coming up
