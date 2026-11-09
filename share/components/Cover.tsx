@@ -19,6 +19,7 @@ import {
   radius,
   space,
 } from '../../src/styles/tokens.ts'
+import { mediaUrl } from '../api.ts'
 import { colorOfCover } from '../colors.ts'
 
 // The cover (docs/design/mockup.html Screen 1): the trip's colour as a deep gradient with contour
@@ -52,6 +53,16 @@ const Topo = styled.svg`
   width: 100%;
   height: 100%;
   opacity: 0.5;
+`
+
+// The trip's cover photo, when it has a shareable one, over the colour and under the shade
+const Photo = styled.img`
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 `
 
 const Shade = styled.div`
@@ -151,7 +162,7 @@ function Contours() {
   )
 }
 
-export function Cover({ payload }: { payload: SharePayload }) {
+export function Cover({ payload, token }: { payload: SharePayload; token: string }) {
   const t = useT()
   const { trip, days } = payload
   const locale = t.locale
@@ -165,6 +176,15 @@ export function Cover({ payload }: { payload: SharePayload }) {
   return (
     <Hero style={style} aria-label={t('share.cover.label')}>
       <Contours />
+      {trip.coverAttachmentId && (
+        <Photo
+          src={mediaUrl(trip.coverAttachmentId, token, 'full')}
+          srcSet={`${mediaUrl(trip.coverAttachmentId, token)} 400w, ${mediaUrl(trip.coverAttachmentId, token, 'full')} 2048w`}
+          sizes="(max-width: 767px) 100vw, 880px"
+          alt=""
+          decoding="async"
+        />
+      )}
       <Shade />
       <Inner>
         {trip.destination && <Eyebrow>{trip.destination}</Eyebrow>}

@@ -21,6 +21,7 @@ import {
   space,
   touchTarget,
 } from '../../src/styles/tokens.ts'
+import { mediaUrl } from '../api.ts'
 import { colorOfDay } from '../colors.ts'
 import { modeGlyph, stopGlyph } from '../glyphs.ts'
 
@@ -199,6 +200,24 @@ const DayNote = styled.div`
   }
 `
 
+const Photos = styled.ul`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: ${space.xs}px;
+  max-width: 480px;
+  margin: ${space.xs}px 0 0;
+  padding: 0;
+  list-style: none;
+  img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: ${radius.control}px;
+    background: ${color.paper};
+  }
+`
+
 const Hidden = styled.span`
   ${visuallyHidden}
 `
@@ -272,7 +291,7 @@ function StopItem({ stop, trip, t }: { stop: ShareStop; trip: ShareTrip; t: Tran
   )
 }
 
-export function DayCard({ day, trip }: { day: ShareDay; trip: ShareTrip }) {
+export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; token: string }) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const listId = useId()
@@ -293,12 +312,18 @@ export function DayCard({ day, trip }: { day: ShareDay; trip: ShareTrip }) {
           <Heading>{heading}</Heading>
           {day.date && <DateText>{formatDate(day.date, t.locale)}</DateText>}
         </Top>
-        {(day.lodgingName || day.driveMinutes > 0) && (
+        {(day.lodgingName || day.checkoutTime || day.driveMinutes > 0) && (
           <Meta>
             {day.lodgingName && (
               <span>
                 <Glyph>{stopGlyph.lodging}</Glyph>{' '}
                 {t('share.day.lodging', { name: day.lodgingName })}
+                {day.campType && <> · {t(`share.campType.${day.campType}`)}</>}
+              </span>
+            )}
+            {day.checkoutTime && (
+              <span>
+                <Num>{t('share.day.checkout', { time: day.checkoutTime })}</Num>
               </span>
             )}
             {day.driveMinutes > 0 && (
@@ -313,6 +338,20 @@ export function DayCard({ day, trip }: { day: ShareDay; trip: ShareTrip }) {
               </span>
             )}
           </Meta>
+        )}
+        {day.photoIds.length > 0 && (
+          <Photos aria-label={t('share.day.photos', { day: dayLabel })}>
+            {day.photoIds.map((id, i) => (
+              <li key={id}>
+                <img
+                  src={mediaUrl(id, token)}
+                  alt={t('share.day.photoAlt', { day: dayLabel, n: i + 1 })}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </li>
+            ))}
+          </Photos>
         )}
         {preview.length === 0 ? (
           <Preview>{t('share.day.empty')}</Preview>

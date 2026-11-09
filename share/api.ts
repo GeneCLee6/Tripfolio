@@ -28,3 +28,9 @@ export async function loadShare(token: string | null, signal?: AbortSignal): Pro
     return { kind: 'error' }
   }
 }
+
+/** A shareable photo read with the share token (GET /api/media/:id[/thumb]?s=; worker/media.ts) */
+export function mediaUrl(id: string, token: string, size: 'thumb' | 'full' = 'thumb'): string {
+  const path = size === 'thumb' ? `${encodeURIComponent(id)}/thumb` : encodeURIComponent(id)
+  return `/api/media/${path}?s=${encodeURIComponent(token)}`
+}

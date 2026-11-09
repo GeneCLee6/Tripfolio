@@ -1,9 +1,22 @@
-// Share links (e1-t01) and the public share payload (e8-t01a). Hiding happens here, on the server:
-// the public endpoint builds its answer field by field from an allow-list, so nothing hidden ever
-// leaves the Worker (CLAUDE.md rule 4).
+// Share links (e1-t01) and the public share payload (e8-t01a, e8-t01b). Hiding happens here, on the
+// server: the public endpoint builds its answer field by field from an allow-list, so nothing
+// hidden ever leaves the Worker (CLAUDE.md rule 4).
 
 import type { RouteMode } from '../shared/api/geo.ts'
-import type { ShareDay, ShareLeg, SharePayload, ShareStop, ShareTrip } from '../shared/api/share.ts'
+import {
+  ESTIMATE_CATEGORIES,
+  type EstimateCategory,
+  type EstimateCurrency,
+  type ShareDay,
+  type ShareEstimate,
+  type ShareLeg,
+  type ShareOvernight,
+  type SharePayload,
+  type SharePick,
+  type SharePoint,
+  type ShareStop,
+  type ShareTrip,
+} from '../shared/api/share.ts'
 import type { ApiErrorBody, CreateShareResponse, Place, Stop } from '../shared/api/types.ts'
 import {
   deriveLegs,
@@ -14,6 +27,8 @@ import {
   type RouteResult,
 } from '../shared/itinerary/legs.ts'
 import type { ItineraryStop, LegMode } from '../shared/itinerary/types.ts'
+import type { StopType } from '../shared/schema/stop.ts'
+import type { WishlistCategory } from '../shared/schema/wishlist.ts'
 import { shareCreateSchema, type ShareOptions } from '../shared/schema/share.ts'
 import { authTrip, generateToken, hashToken, isTokenShaped } from './auth.ts'
 import {
@@ -30,6 +45,7 @@ import {
 import { json, notFound, nowIso, readBody } from './http.ts'
 import { routeKey } from './proxy/route.ts'
 import type { RouteContext } from './router.ts'
+import { toLodging } from './trips/lodging.ts'
 
 /** GET /api/trips/:id/shares (owner): active share links, without tokens */
 export async function listShares(c: RouteContext): Promise<Response> {
@@ -153,6 +169,128 @@ function shareStop(stop: Stop, place: Place | undefined, options: ShareOptions):
   return out
 }
 
+/** Photos a day card shows */
+const DAY_PHOTOS = 3
+/** Picks the share page lists */
+const MAX_PICKS = 24
+/** Overnight lines shorter than this are not drawn (the same campsite two nights) */
+const MIN_OVERNIGHT_M = 50
+
+/** Which estimate row a stop's cost goes to */
+const STOP_CATEGORY: Record<StopType, EstimateCategory> = {
+  sight: 'activity',
+  food: 'food',
+  shopping: 'shopping',
+  supplies: 'shopping',
+  lodging: 'lodging',
+  transport: 'transport',
+  fuel: 'transport',
+  rest: 'other',
+  other: 'other',
+}
+
+export interface PricedItem {
+  category: EstimateCategory
+  minor: number
+  currency: string
+}
+
+/** Sums priced items per currency (no exchange rates): the base currency on top, others listed */
+export function buildEstimate(
+  items: readonly PricedItem[],
+  baseCurrency: string,
+  memberCount: number,
+): ShareEstimate | undefined {
+  const byCurrency = new Map<string, Map<EstimateCategory, number>>()
+  for (const item of items) {
+    const sums = byCurrency.get(item.currency) ?? new Map<EstimateCategory, number>()
+    sums.set(item.category, (sums.get(item.category) ?? 0) + item.minor)
+    byCurrency.set(item.currency, sums)
+  }
+  if (byCurrency.size === 0) return undefined
+  const people = Math.max(1, memberCount)
+  const sumsOf = (currency: string, sums: Map<EstimateCategory, number>): EstimateCurrency => {
+    const breakdown = ESTIMATE_CATEGORIES.filter((c) => (sums.get(c) ?? 0) > 0).map((category) => ({
+      category,
+      minor: sums.get(category) ?? 0,
+    }))
+    const totalMinor = breakdown.reduce((sum, line) => sum + line.minor, 0)
+    return { currency, totalMinor, perPersonMinor: Math.round(totalMinor / people), breakdown }
+  }
+  const estimate: ShareEstimate = { currency: baseCurrency, breakdown: [], others: [] }
+  const base = byCurrency.get(baseCurrency)
+  if (base) {
+    const own = sumsOf(baseCurrency, base)
+    estimate.totalMinor = own.totalMinor
+    estimate.perPersonMinor = own.perPersonMinor
+    estimate.breakdown = own.breakdown
+  }
+  estimate.others = [...byCurrency.entries()]
+    .filter(([currency]) => currency !== baseCurrency)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, sums]) => sumsOf(currency, sums))
+  return estimate
+}
+
+/** Great-circle metres, enough to drop zero-length lines */
+function distanceM(a: SharePoint, b: SharePoint): number {
+  const rad = Math.PI / 180
+  const dLat = (b.lat - a.lat) * rad
+  const dLng = (b.lng - a.lng) * rad
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+type NamedPoint = SharePoint & { name: string }
+
+export interface DayEnds {
+  /** 1-based */
+  dayIndex: number
+  /** First and last located stops (not rainy-day backups) */
+  first?: NamedPoint
+  last?: NamedPoint
+  /** Tonight's lodging, when it has a place */
+  lodging?: NamedPoint
+}
+
+/**
+ * Day N's line runs from where it starts (where the previous day slept, or Day 1's first stop) to
+ * where it sleeps (tonight's lodging, else its last stop). Days without any point are skipped, so
+ * the line stays continuous.
+ */
+export function overnightLines(days: readonly DayEnds[]): ShareOvernight[] {
+  const lines: ShareOvernight[] = []
+  let previous: SharePoint | undefined
+  for (const day of [...days].sort((a, b) => a.dayIndex - b.dayIndex)) {
+    const sleep = day.lodging ?? day.last
+    if (!sleep) continue
+    const start = previous ?? day.first
+    if (start && distanceM(start, sleep) >= MIN_OVERNIGHT_M) {
+      lines.push({
+        dayIndex: day.dayIndex,
+        from: { lat: start.lat, lng: start.lng },
+        to: { lat: sleep.lat, lng: sleep.lng },
+        toName: sleep.name,
+        toLodging: !!day.lodging,
+      })
+    }
+    previous = sleep
+  }
+  return lines
+}
+
+/** Images a pick may show from another site: https only */
+function httpsUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value) return undefined
+  try {
+    return new URL(value).protocol === 'https:' ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** GET /api/share/:token: public, read-only, filtered on the server by the share's options */
 export async function publicShare(c: RouteContext): Promise<Response> {
   const db = c.env.DB
@@ -177,7 +315,18 @@ export async function publicShare(c: RouteContext): Promise<Response> {
     ...toShare({ options: row.shareOptions }).options,
   }
 
-  const [dayRows, stopRows, placeRows, legRows, memberCount] = await Promise.all([
+  const [
+    dayRows,
+    stopRows,
+    placeRows,
+    legRows,
+    memberCount,
+    lodgingRows,
+    bookingRows,
+    itemRows,
+    voteRows,
+    photoRows,
+  ] = await Promise.all([
     db
       .prepare('SELECT * FROM days WHERE tripId = ? AND idx IS NOT NULL ORDER BY idx, date, id')
       .bind(trip.id)
@@ -192,6 +341,43 @@ export async function publicShare(c: RouteContext): Promise<Response> {
       .prepare('SELECT COUNT(*) AS n FROM members WHERE tripId = ? AND removedAt IS NULL')
       .bind(trip.id)
       .first<number>('n'),
+    db
+      .prepare('SELECT * FROM lodgings WHERE tripId = ? AND deletedAt IS NULL ORDER BY checkIn, id')
+      .bind(trip.id)
+      .all<Row>(),
+    db
+      .prepare(
+        `SELECT id, type, priceMinor, currency FROM bookings
+          WHERE tripId = ? AND deletedAt IS NULL AND priceMinor IS NOT NULL AND currency IS NOT NULL`,
+      )
+      .bind(trip.id)
+      .all<Row>(),
+    db
+      .prepare(
+        `SELECT * FROM wishlistItems WHERE tripId = ? AND deletedAt IS NULL AND status != 'dropped'
+          ORDER BY "order", id`,
+      )
+      .bind(trip.id)
+      .all<Row>(),
+    db
+      .prepare(
+        `SELECT v.itemId AS itemId, COUNT(*) AS n FROM wishlistVotes v
+           JOIN wishlistItems i ON i.id = v.itemId
+           JOIN members m ON m.id = v.memberId AND m.removedAt IS NULL
+          WHERE i.tripId = ? GROUP BY v.itemId`,
+      )
+      .bind(trip.id)
+      .all<Row>(),
+    // Only photos meant for share pages (CLAUDE.md rule 5); GET /api/media checks it again
+    db
+      .prepare(
+        `SELECT id, dayId, stopId FROM attachments
+          WHERE tripId = ? AND kind = 'photo' AND status = 'ready' AND deletedAt IS NULL
+            AND visibility = 'trip'
+          ORDER BY takenAt IS NULL, takenAt, createdAt, id`,
+      )
+      .bind(trip.id)
+      .all<Row>(),
   ])
 
   const places = new Map(placeRows.results.map((r) => [String(r.id), toPlace(r)]))
@@ -200,13 +386,31 @@ export async function publicShare(c: RouteContext): Promise<Response> {
     overrides[legKey(leg.fromStopId, leg.toStopId)] =
       leg.minutes === null ? { mode: leg.mode } : { mode: leg.mode, minutes: leg.minutes }
   }
+  const allStops = stopRows.results.map(toStop)
   const stopsByDay = new Map<string, Stop[]>()
-  for (const stop of stopRows.results.map(toStop)) {
+  for (const stop of allStops) {
     const list = stopsByDay.get(stop.dayId) ?? []
     list.push(stop)
     stopsByDay.set(stop.dayId, list)
   }
   const days = dayRows.results.map(toDay)
+  const dayIndexById = new Map(days.map((d) => [d.id, d.idx ?? 0]))
+  const dayOfStop = new Map(allStops.map((s) => [s.id, s.dayId]))
+  const lodgings = lodgingRows.results.map(toLodging)
+  const lodgingById = new Map(lodgings.map((l) => [l.id, l]))
+
+  // Shareable photos per day (the day's own and its stops'), already in takenAt order
+  const photoIds = new Set<string>()
+  const photosByDay = new Map<string, string[]>()
+  for (const r of photoRows.results) {
+    const id = String(r.id)
+    photoIds.add(id)
+    const dayId = r.dayId ? String(r.dayId) : r.stopId ? dayOfStop.get(String(r.stopId)) : undefined
+    if (!dayId) continue
+    const list = photosByDay.get(dayId) ?? []
+    if (list.length < DAY_PHOTOS) list.push(id)
+    photosByDay.set(dayId, list)
+  }
   const placeOf = (s: Stop) => (s.placeId ? places.get(s.placeId) : undefined)
   const itineraryStops = (stops: Stop[]): ItineraryStop[] =>
     stops.map((s) => ({
@@ -248,13 +452,16 @@ export async function publicShare(c: RouteContext): Promise<Response> {
         : { style: trip.style, limitMinutes: trip.driveLimitMin },
     )
     const orderOf = new Map(stops.map((s) => [s.id, s.order]))
-    return {
+    const tonight = day.lodgingId ? lodgingById.get(day.lodgingId) : undefined
+    const leaving = day.date ? lodgings.find((l) => l.checkOut === day.date) : undefined
+    const out: ShareDay = {
       index: day.idx ?? 0,
       date: day.date,
       title: day.title,
       color: day.color,
       note: day.note,
-      lodgingName: null,
+      lodgingName: tonight?.name ?? null,
+      photoIds: photosByDay.get(day.id) ?? [],
       stops: stops.map((s) => shareStop(s, placeOf(s), options)),
       legs: legs.map((leg): ShareLeg => ({
         fromOrder: orderOf.get(leg.fromStopId) ?? 0,
@@ -267,7 +474,82 @@ export async function publicShare(c: RouteContext): Promise<Response> {
       driveMinutes: summary.driveMinutes,
       distanceM: summary.distanceM,
     }
+    if (leaving?.checkOutTime) out.checkoutTime = leaving.checkOutTime
+    if (tonight?.campType) out.campType = tonight.campType
+    return out
   })
+
+  // Whole-trip route: lodgings where they have a place, else the day's first and last stops
+  const located = (s: Stop): NamedPoint | undefined => {
+    const place = placeOf(s)
+    return place && !s.isBackup
+      ? { lat: place.lat, lng: place.lng, name: s.title || place.nameLocal || place.nameEn }
+      : undefined
+  }
+  const overnight = overnightLines(
+    days.map((day): DayEnds => {
+      const points = (stopsByDay.get(day.id) ?? [])
+        .map(located)
+        .filter((p): p is NamedPoint => !!p)
+      const tonight = day.lodgingId ? lodgingById.get(day.lodgingId) : undefined
+      const lodgingPlace = tonight?.placeId ? places.get(tonight.placeId) : undefined
+      const ends: DayEnds = { dayIndex: day.idx ?? 0 }
+      if (points.length > 0) {
+        ends.first = points[0]
+        ends.last = points[points.length - 1]
+      }
+      if (tonight && lodgingPlace) {
+        ends.lodging = { lat: lodgingPlace.lat, lng: lodgingPlace.lng, name: tonight.name }
+      }
+      return ends
+    }),
+  )
+
+  // Picks: not dropped; with an image first, then the most wanted; photos only if shareable
+  const votes = new Map(voteRows.results.map((r) => [String(r.itemId), Number(r.n)]))
+  const hasImage = (p: SharePick) => (p.photoAttachmentId || p.sourceImageUrl ? 0 : 1)
+  const picks = itemRows.results
+    .map((r, position) => {
+      const place = r.placeId ? places.get(String(r.placeId)) : undefined
+      const pick: SharePick = {
+        category: String(r.category) as WishlistCategory,
+        name: String(r.name),
+        votes: votes.get(String(r.id)) ?? 0,
+      }
+      // The item's own name wins; the place's English name only stands in for its local name
+      if (place?.nameEn && pick.name === place.nameLocal && place.nameEn !== pick.name) {
+        pick.nameEn = place.nameEn
+      }
+      if (!options.hideMoney && r.estMinor !== null && r.estMinor !== undefined && r.currency) {
+        pick.estMinor = Number(r.estMinor)
+        pick.currency = String(r.currency)
+      }
+      if (r.photoAttachmentId && photoIds.has(String(r.photoAttachmentId))) {
+        pick.photoAttachmentId = String(r.photoAttachmentId)
+      }
+      const imageUrl = httpsUrl(r.sourceImageUrl)
+      if (imageUrl) pick.sourceImageUrl = imageUrl
+      if (place) {
+        pick.place = {
+          lat: place.lat,
+          lng: place.lng,
+          nameLocal: place.nameLocal,
+          nameEn: place.nameEn,
+        }
+      }
+      const dayId = r.stopId ? dayOfStop.get(String(r.stopId)) : undefined
+      const dayIndex = dayId ? dayIndexById.get(dayId) : undefined
+      if (dayIndex) pick.dayIndex = dayIndex
+      return { pick, position }
+    })
+    .sort(
+      (a, b) =>
+        hasImage(a.pick) - hasImage(b.pick) ||
+        b.pick.votes - a.pick.votes ||
+        a.position - b.position,
+    )
+    .slice(0, MAX_PICKS)
+    .map(({ pick }) => pick)
 
   const shareTrip: ShareTrip = {
     name: trip.name,
@@ -281,8 +563,63 @@ export async function publicShare(c: RouteContext): Promise<Response> {
     memberCount: Number(memberCount ?? 0),
     dayCount: shareDays.length,
   }
-  if (!options.hideMoney) shareTrip.baseCurrency = trip.baseCurrency
+  if (trip.coverAttachmentId && photoIds.has(trip.coverAttachmentId)) {
+    shareTrip.coverAttachmentId = trip.coverAttachmentId
+  }
 
-  const body: SharePayload = { trip: shareTrip, days: shareDays, options, generatedAt: nowIso() }
+  const body: SharePayload = {
+    trip: shareTrip,
+    days: shareDays,
+    overnight,
+    picks,
+    options,
+    generatedAt: nowIso(),
+  }
+
+  if (!options.hideMoney) {
+    shareTrip.baseCurrency = trip.baseCurrency
+    // A stop made from a priced booking or lodging would count that price twice
+    const pricedBookings = new Set(bookingRows.results.map((r) => String(r.id)))
+    const pricedLodgings = new Set(
+      lodgings.filter((l) => l.priceMinor !== null && l.currency).map((l) => l.id),
+    )
+    const lodgingOfStop = new Map(
+      stopRows.results.map((r) => [String(r.id), r.lodgingId ? String(r.lodgingId) : null]),
+    )
+    const items: PricedItem[] = []
+    for (const stop of allStops) {
+      if (!dayIndexById.has(stop.dayId) || stop.isBackup) continue
+      if (stop.costMinor === null || !stop.currency || stop.costMinor <= 0) continue
+      if (stop.bookingId && pricedBookings.has(stop.bookingId)) continue
+      const lodgingId = lodgingOfStop.get(stop.id)
+      if (lodgingId && pricedLodgings.has(lodgingId)) continue
+      items.push({
+        category: STOP_CATEGORY[stop.type],
+        minor: stop.costMinor,
+        currency: stop.currency,
+      })
+    }
+    for (const l of lodgings) {
+      if (l.priceMinor !== null && l.currency && l.priceMinor > 0) {
+        items.push({ category: 'lodging', minor: l.priceMinor, currency: l.currency })
+      }
+    }
+    for (const r of bookingRows.results) {
+      const minor = Number(r.priceMinor)
+      if (minor <= 0) continue
+      items.push({
+        category: r.type === 'activity' ? 'activity' : 'transport',
+        minor,
+        currency: String(r.currency),
+      })
+    }
+    const estimate = buildEstimate(items, trip.baseCurrency, shareTrip.memberCount)
+    if (estimate) {
+      body.estimate = estimate
+      if (estimate.perPersonMinor !== undefined) {
+        shareTrip.estimatedPerPersonMinor = estimate.perPersonMinor
+      }
+    }
+  }
   return Response.json(body, { headers: SHARE_HEADERS })
 }

@@ -9,11 +9,15 @@ import { color, font, fontSize, fontWeight, media, radius, space } from '../src/
 import { loadShare, tokenFromPath, type ShareResult } from './api.ts'
 import { Cover } from './components/Cover.tsx'
 import { DayCard } from './components/DayCard.tsx'
+import { Estimate } from './components/Estimate.tsx'
+import { Picks } from './components/Picks.tsx'
+import { RouteOverview } from './components/RouteOverview.tsx'
 import { setShareLocale } from './locale.ts'
 
-// The read-only share page (/s/<token>, e8-t01a): cover, then one card per day. Its own bundle: it
-// never loads the editor or the router. The data comes already filtered by the Worker
-// (CLAUDE.md rule 4); the route map, picks and estimate table are e8-t01b.
+// The read-only share page (/s/<token>, e8-t01a, e8-t01b): cover, route overview, one card per day,
+// the picks wall and the cost estimate. Its own bundle: it never loads the editor or the router,
+// and MapLibre only lazily. The data comes already filtered by the Worker (CLAUDE.md rule 4): a
+// section whose data is absent (no estimate with hideMoney) is simply not drawn.
 
 const Page = styled.div`
   max-width: 880px;
@@ -42,6 +46,14 @@ const Brand = styled.a`
 
 const Section = styled.section`
   margin-top: ${space.xl}px;
+`
+
+// Spacing around the sections that bring their own <section>
+const Block = styled.div`
+  margin-top: ${space.xl}px;
+  &:empty {
+    display: none;
+  }
 `
 
 const SectionTitle = styled.h2`
@@ -121,6 +133,7 @@ function LoadingView({ label }: { label: string }) {
 
 export function SharePage() {
   const t = useT()
+  const [token] = useState(() => tokenFromPath(window.location.pathname) ?? '')
   const [state, setState] = useState<State>({ kind: 'loading' })
   const [attempt, setAttempt] = useState(0)
   const retry = useCallback(() => {
@@ -130,12 +143,12 @@ export function SharePage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    loadShare(tokenFromPath(window.location.pathname), controller.signal).then(
+    loadShare(token || null, controller.signal).then(
       setState,
       () => {}, // aborted: the page is going away or loading again
     )
     return () => controller.abort()
-  }, [attempt])
+  }, [attempt, token])
 
   const tripName = state.kind === 'ok' ? state.payload.trip.name : null
   useEffect(() => {
@@ -173,15 +186,31 @@ export function SharePage() {
         )}
         {state.kind === 'ok' && (
           <>
-            <Cover payload={state.payload} />
+            <Cover payload={state.payload} token={token} />
+            <Block>
+              <RouteOverview payload={state.payload} />
+            </Block>
             <Section aria-labelledby="share-days">
               <SectionTitle id="share-days">{t('share.days.heading')}</SectionTitle>
               <Days>
                 {state.payload.days.map((day) => (
-                  <DayCard key={day.index} day={day} trip={state.payload.trip} />
+                  <DayCard key={day.index} day={day} trip={state.payload.trip} token={token} />
                 ))}
               </Days>
             </Section>
+            {state.payload.picks.length > 0 && (
+              <Block>
+                <Picks picks={state.payload.picks} token={token} />
+              </Block>
+            )}
+            {state.payload.estimate && (
+              <Block>
+                <Estimate
+                  estimate={state.payload.estimate}
+                  people={state.payload.trip.memberCount}
+                />
+              </Block>
+            )}
           </>
         )}
       </main>

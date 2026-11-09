@@ -663,14 +663,17 @@ function PinCard({
         <Chip>{t(typeLabelKey(item.type))}</Chip>
         <Mono>{meta}</Mono>
       </Meta>
-      <Actions>
-        <Button size="sm" variant="primary" onClick={() => onAction?.(item.id, 'schedule')}>
-          {t('map.action.schedule')}
-        </Button>
-        <Button size="sm" onClick={() => onAction?.(item.id, 'openGoogleMaps')}>
-          {t('map.action.openGoogleMaps')}
-        </Button>
-      </Actions>
+      {/* Without a handler (the read-only share page) the buttons would do nothing */}
+      {onAction && (
+        <Actions>
+          <Button size="sm" variant="primary" onClick={() => onAction(item.id, 'schedule')}>
+            {t('map.action.schedule')}
+          </Button>
+          <Button size="sm" onClick={() => onAction(item.id, 'openGoogleMaps')}>
+            {t('map.action.openGoogleMaps')}
+          </Button>
+        </Actions>
+      )}
     </Card>
   )
 }
