@@ -110,11 +110,14 @@ sw/                     Service Worker（Workbox 或手寫）：shell、資料�
 - 匯率：`fxRates(date, base=TWD, quote)`；每筆存 `fxRate`（quote→base，6 位小數）與 `baseMinor`；手動覆寫只改該筆或批次改同幣別未結清的。
 - 結算：`settle(balances)` 貪婪法，複雜度 O(n log n)，n ≤ 20。
 
-### 4.4 照片
+### 4.4 照片（e6-t01 實作版，2026-11-09）
 
-- 瀏覽器：`createImageBitmap(file, { resizeWidth })` → canvas → `toBlob('image/webp', 0.82)`；EXIF 用小型 parser 只讀 `DateTimeOriginal` 與 GPS；輸出不含 EXIF。
-- 直傳：Worker 簽 R2 presigned PUT（5 分鐘、限 content-type 與大小）；完成後 `POST /attachments` 登記。
-- 讀取：`photo` 經 Worker `/media/<key>` 帶 `Cache-Control: public, max-age=31536000, immutable`（key 含 uuid）；`document`／`receipt` 走 `/files/<id>` 驗 memberToken、`private, no-store`。
+- 瀏覽器（`src/lib/upload/`）：`exif.ts` 小型 parser 只讀 `DateTimeOriginal` 與 GPS（可關閉）；`resize.ts` `createImageBitmap` → canvas → WebP 0.82（不支援時 JPEG），長邊 2048 ＋ 400 縮圖，重新編碼即去掉 EXIF；`upload.ts` 串起 sign → PUT（XHR 進度、重試 3 次退避）→ complete，`uploadQueue` 併發 3。
+- **上傳走 Worker 代理，不用 presigned PUT**：免費方案沒有另外設 R2 S3 金鑰；代理讓驗權、型別、大小檢查集中一處；照片 ≤ 8 MB 成本可接受；同源所以不需要 R2 CORS。流程：`POST /api/trips/:id/attachments/sign`（建 `pending` 列、回 `uploadUrl`／`thumbUploadUrl`、15 分鐘內要完成）→ `PUT …/attachments/:aid/content`（Content-Length 必須等於宣告 bytes、Content-Type 相符、超過上限 413）→ `PUT …/thumb` → `POST …/complete`（head 確認物件存在、轉 `ready`）。
+- Key：`<APP_ENV ?? production>/trips/<tripId>/<kind>/<uuid>.<ext>`，縮圖 `<uuid>.thumb`。
+- 讀取：`GET /api/media/:aid`（與 `/thumb`）。**照片**：member Bearer 或同旅程的 `?s=<shareToken>`（且 visibility 為 `trip`），`Cache-Control: private, max-age=86400`＋ETag／304（因為要驗 token，不能 public immutable）；`<img>` 送不了 Bearer，app 內用 `mediaApi.fetchBlob` ＋ object URL，分享頁直接帶 `?s=`。**文件／收據**：只限成員、`private, no-store`、share token 一律 403、visibility 強制 `members-only`。
+- 路徑是 `/api/media/*` 而非 `/media/*`，因為 `run_worker_first` 只涵蓋 `/api/*`、`/ws/*`、`/s/*`。
+- `attachments` 對 placeId／stopId／dayId／wishlistItemId／bookingId／lodgingId **沒有外鍵**（避免刪地點／行程點時被照片擋住）；讀取端忽略指向不存在列的 id，清理交給 e6-t03 或 e11-t06。軟刪除的 R2 物件與逾時的 `pending` 列由 e11-t06 清。
 
 ### 4.5 地圖
 
