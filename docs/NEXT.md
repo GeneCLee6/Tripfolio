@@ -1,12 +1,13 @@
 # NEXT — 接下來怎麼做（給 AI 協作者與自己的交接手冊）
 
-最後更新 2026-11-09（規劃完成，尚無程式碼）。**完整順序在 [`ROADMAP.md`](ROADMAP.md)**（一批一個 PR）；這份只記「現在的位置」與工作方式。每完成一批就更新「現在的位置」；每個 AI session 開頭只需要讀 `CLAUDE.md` 和這一份。
+最後更新 2026-11-09（A1 骨架完成，在本機分支 `feat/e11-t01-skeleton`，尚未合併、尚無 remote）。**完整順序在 [`ROADMAP.md`](ROADMAP.md)**（一批一個 PR）；這份只記「現在的位置」與工作方式。每完成一批就更新「現在的位置」；每個 AI session 開頭只需要讀 `CLAUDE.md` 和這一份。
 
 ## 1. 現在的位置
 
 - **2026-11-09 規劃完成，尚未有程式碼。** 名稱拍板 **Tripfolio · 旅誌**；GitHub `GeneCLee6/Tripfolio`（私人）。主幣預設 **AUD**、第二幣別 TWD。擁有者接下來要規劃：紐西蘭露營車、峇里島包車、泰國、斐濟、帛琉、歐洲（型態範本與幣別見 `01-travel-domain-notes.md` §9b）。總 PRD `docs/PRD/00-prd.md`、旅遊領域筆記 `docs/PRD/01-travel-domain-notes.md`、11 個 epic（71 個 task、57 條 AC）、`ROADMAP.md` Phase A–J（跳過 E、M）、`ARCHITECTURE.md`、`DESIGN.md`、`PLANNING-METHOD.md`、視覺稿 `docs/design/mockup.html`、標誌 `docs/design/logo/logo.svg`。
 - **平行開發（2026-11-09 擁有者要求）**：A1 之後，互不碰同一個資料夾的批次可以由多個 agent 各自在 worktree 平行做、各開 PR、依序合併（後合併的先 rebase）。分工規則：`shared/**` 純函式一組、`worker/**`＋`migrations/**` 一組、`src/**` 一組；共用的設定檔（`package.json`、`tsconfig*`、`vite.config.ts`、`wrangler.jsonc`）只有 A1 和明確被指定的批次可以改。ROADMAP 的批次內容不變，只是幾批同時進行。
-- **下一步：A1（repo 骨架）由單一 agent 先做完並合併；接著 A2（`src/`）、A3 後端（`worker/`＋`shared/schema`）、以及提前的純函式批（`shared/money`、`shared/time`、`shared/itinerary`，對應 e7-t01 的 split／balances、e2-t06 的日出日落、e2-t05 的移動段計算）三個 agent 平行。**
+- **2026-11-09 A1 完成（`e11-t01`，#A1，本機分支 `feat/e11-t01-skeleton`，尚無 remote）。** 有什麼：Vite＋React 19＋TS strict＋styled-components 骨架，兩個入口（`index.html` app、`share.html` 分享頁獨立 bundle）；`worker/`（`app.ts` 路由：`GET /api/health`、其他 `/api/*` JSON 404、`/s/*` 交給 `share.html` 並加 noindex、其餘 SPA fallback；`trip-do.ts` 只回 ping 的 `TripDO`，SQLite migration `v1`）；`migrations/0001_init.sql`（只有 `meta`）；`shared/i18n/`（`t()` 雛形、`zh-TW.ts` 來源、`en.ts`）；`src/styles/tokens.ts`（DESIGN §2 的色票，A2 補完）；`scripts/check-budget.mjs`（app 180、share 120、MapLibre 250 kB gzip）、`scripts/check-i18n.mjs`；`.github/workflows/ci.yml`、`deploy.yml`、`preview.yml`（沒有 secret 時 notice 跳過）；`DEPLOY.md`、`RULES.md`；Playwright 只有設定。**Cloudflare 資源已建**：D1 `tripfolio`（`3a5cba15-…`）、`tripfolio-staging`（`2565701d-…`）、R2 `tripfolio-media`、`tripfolio-backups`，id 已填進 `wrangler.jsonc`。驗證過：本機 lint／typecheck／test（9 個）／build／check-i18n／budget 全過（app 94.2 kB、share 80.6 kB）；`npm run dev` 實測 `/api/health`、JSON 404、SPA fallback、`/s/<token>`；本機 D1 套用 0001；正式與預覽設定 `wrangler deploy --dry-run` 綁定正確。**還沒做**：沒有部署過（沒跑 `wrangler deploy`）、GitHub repo 與 remote 未建、`CLOUDFLARE_API_TOKEN`／`CLOUDFLARE_ACCOUNT_ID` 未設、workflow 沒在 GitHub 跑過（所以 AC-11.1、11.2 未勾）、分支保護未設；cron 留註解（e11-t03）。注意：分享頁首屏已有 80.6 kB（React＋styled-components），離 120 kB 預算只剩約 40 kB；預覽與正式共用 R2 bucket，之後寫 R2 的批次要分前綴（`DEPLOY.md` §2）。
+- **下一步：合併 A1（擁有者先依 `DEPLOY.md` §3.2 建 repo、設 secret）；接著 A2（`src/`）、A3 後端（`worker/`＋`shared/schema`）、以及提前的純函式批（`shared/money`、`shared/time`、`shared/itinerary`，對應 e7-t01 的 split／balances、e2-t06 的日出日落、e2-t05 的移動段計算）三個 agent 平行。**
 
 ## 2. 待擁有者決定（開工前）
 

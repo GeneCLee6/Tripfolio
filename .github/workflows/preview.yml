@@ -1,0 +1,156 @@
+name: Preview
+
+# Every pull request from this repository gets its own Worker, tripfolio-pr-<number>, built with
+# CLOUDFLARE_ENV=preview: its own Durable Object storage (never production's trips) and the shared
+# staging D1 database. The link is left as a comment on the pull request, and the Worker is deleted
+# when the pull request closes (DEPLOY.md §2).
+#
+# Why a Worker per pull request and not `wrangler versions upload`: a version of the production
+# Worker shares production's Durable Object namespace and database, Cloudflare gives no preview
+# URLs to Workers that implement a Durable Object, and Durable Object migrations cannot be applied
+# through `versions upload` at all.
+#
+# Skipped (with a notice, never a failure) when the secrets are not set, and for pull requests from
+# forks and Dependabot, which GitHub gives no secrets.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  # A newer push replaces a running deploy; the clean-up after closing waits for it instead
+  cancel-in-progress: ${{ github.event.action != 'closed' }}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  WORKER: tripfolio-pr-${{ github.event.pull_request.number }}
+  PR: ${{ github.event.pull_request.number }}
+
+jobs:
+  deploy:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      FROM_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+    steps:
+      - name: Check for Cloudflare credentials
+        id: creds
+        run: |
+          if [ "$FROM_FORK" = "true" ]; then
+            echo "::notice::Pull request from a fork: no preview (forks never get the deploy secrets)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare secrets are not set; skipping the preview (see DEPLOY.md §3)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.creds.outputs.ready == 'true'
+        with:
+          ref: ${{ env.HEAD_SHA }}
+
+      - uses: actions/setup-node@v7
+        if: steps.creds.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.creds.outputs.ready == 'true'
+        run: npm ci
+
+      # Before the build: once built, the Vite plugin redirects wrangler to dist/'s config, which
+      # refuses --env. Staging is shared by every preview: a migration applied here stays applied
+      # even if this pull request never merges (DEPLOY.md §6)
+      - name: Apply D1 migrations (staging)
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          if ! ls migrations/*.sql > /dev/null 2>&1; then
+            echo "::notice::No migrations/*.sql yet; nothing to apply"
+            exit 0
+          fi
+          npx wrangler d1 migrations apply DB --remote --env preview --config wrangler.jsonc
+
+      - name: Build and deploy the preview Worker
+        if: steps.creds.outputs.ready == 'true'
+        id: deploy
+        run: |
+          CLOUDFLARE_ENV=preview APP_VERSION="$HEAD_SHA" npm run build
+          npx wrangler deploy --name "$WORKER" --var "APP_VERSION:$HEAD_SHA" --message "PR #$PR $HEAD_SHA" | tee deploy.log
+          url=$(grep -o 'https://[^ ]*workers.dev' deploy.log | head -1)
+          [ -n "$url" ] || { echo "::error::wrangler deploy printed no workers.dev URL"; exit 1; }
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          SITE_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          # The home page carries <meta name="app-version" content="<sha>"> (vite.config.ts)
+          for i in $(seq 1 12); do
+            meta=$(curl -fsS "$SITE_URL/" | grep -o '<meta name="app-version"[^>]*>' || true)
+            if printf '%s' "$meta" | grep -qF "$HEAD_SHA"; then
+              echo "Serving $HEAD_SHA"
+              break
+            fi
+            [ "$i" = 12 ] && { echo "::error::$SITE_URL does not serve $HEAD_SHA (got: ${meta:-nothing})"; exit 1; }
+            sleep 5
+          done
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/smoke/spa-fallback")
+          [ "$code" = 200 ] || { echo "::error::SPA fallback answered $code"; exit 1; }
+          # The Worker answers the health check, and /s/<token> serves the share page's own entry
+          curl -fsS "$SITE_URL/api/health" | grep -q '"ok":true' || { echo "::error::/api/health is not ok"; exit 1; }
+          curl -fsS "$SITE_URL/s/smoke" | grep -q '/assets/share-' || { echo "::error::/s/ does not serve share.html"; exit 1; }
+
+      - name: Comment the link on the pull request
+        if: steps.creds.outputs.ready == 'true' && steps.deploy.outputs.url != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          marker='<!-- tripfolio-preview -->'
+          {
+            echo "$marker"
+            echo "**Preview**: $SITE_URL"
+            echo
+            echo "- commit: \`$HEAD_SHA\`"
+            echo "- Its own Worker (\`$WORKER\`) and TripDO data, on the shared staging D1; production is untouched. Deleted when this PR closes."
+          } > comment.md
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@comment.md > /dev/null
+          else
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file comment.md
+          fi
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete the preview Worker and its Durable Object data
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare secrets are not set; nothing to delete"
+            exit 0
+          fi
+          # Only ever a PR Worker: the name is built from the pull request number above
+          case "$WORKER" in tripfolio-pr-[0-9]*) ;; *) echo "::error::Refusing to delete $WORKER"; exit 1 ;; esac
+          # Outside the repository, so wrangler reads no config and deletes exactly this name
+          cd "$RUNNER_TEMP"
+          if npx --yes wrangler@4 delete --name "$WORKER" --force; then
+            echo "Deleted $WORKER"
+          else
+            echo "::notice::$WORKER could not be deleted (it may never have been deployed)"
+          fi

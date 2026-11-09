@@ -39,7 +39,9 @@ depends_on: []
 ## 驗收條件
 
 - [ ] AC-11.1 — 部署：PR 預覽與 `main` 自動上線可用；`DEPLOY.md`。
+  - 進度（A1）：`DEPLOY.md`、`deploy.yml`、`preview.yml` 已有；正式與預覽設定以 `wrangler deploy --dry-run` 確認綁定正確（正式 D1 `tripfolio`、預覽 `tripfolio-staging`）。**workflow 還沒在 GitHub 跑過**（尚無 remote、未設 `CLOUDFLARE_API_TOKEN`），也還沒部署過，所以不勾。
 - [ ] AC-11.2 — CI：lint／typecheck／test／build／check-i18n／bundle 預算全部在 CI 擋。
+  - 進度（A1）：六個步驟都寫進 `ci.yml`，本機六個指令全部通過；**`ci.yml` 還沒在 GitHub Actions 跑過**，等 repo 建立、第一個 PR 跑綠才勾。
 - [ ] AC-11.3 — 備份：每日備份到 R2 並實際還原一次成功。
 - [ ] AC-11.4 — 安全：token 規格、速率限制、上傳限制、文件驗權、伺服器端過濾、noindex、CSP 都有測試或實測紀錄。
 - [ ] AC-11.5 — 成本：用量頁顯示六項指標與外部 API 配額；80% 警示。
@@ -49,7 +51,7 @@ depends_on: []
 
 ### M0
 
-- [ ] `e11-t01` repo 骨架（Vite／React／TS、worker、shared、wrangler：D1＋R2＋DO、Vitest、oxlint、CLAUDE.md、RULES.md）、CI、PR 預覽、自動部署、`DEPLOY.md` · AC-11.1, 11.2 · M
+- [x] `e11-t01` repo 骨架（Vite／React／TS、worker、shared、wrangler：D1＋R2＋DO、Vitest、oxlint、CLAUDE.md、RULES.md）、CI、PR 預覽、自動部署、`DEPLOY.md` · AC-11.1, 11.2 · M · #A1
 - [ ] `e11-t02` bundle 預算腳本（三個入口）與 `check-i18n` 進 CI · AC-11.2 · S · ← e10-t02
 - [ ] `e11-t03` 每日備份 cron 與還原文件、實際還原一次 · AC-11.3 · S · ← e1-t01
 

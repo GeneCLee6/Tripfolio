@@ -1,0 +1,55 @@
+name: CI
+
+# Runs on pull requests targeting main and on every push to main: install -> lint -> translations ->
+# typecheck -> test -> build -> JS budgets (AC-11.2). All must pass before a pull request can merge;
+# production deploys run in deploy.yml after this workflow succeeds on main (DEPLOY.md §4).
+#
+# Steps still to come, each added by the batch that adds its npm script (don't call them before):
+#   - Playwright (`npm run test:browser`) against the PR preview, once e2e/ has tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Translations (check-i18n)
+        run: npm run check-i18n
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Production build
+        env:
+          APP_VERSION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npm run build
+
+      - name: JS budgets
+        run: npm run budget

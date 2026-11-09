@@ -1,0 +1,97 @@
+name: Deploy
+
+# Merging to main goes live: after CI passes on main, apply pending D1 migrations to the production
+# database, build and deploy the tripfolio Worker (API, TripDO, the app and the share page), then
+# check that the site serves this commit. Skipped, with a notice, until the CLOUDFLARE_API_TOKEN
+# and CLOUDFLARE_ACCOUNT_ID secrets are set (DEPLOY.md §3).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# One production deploy at a time, in order; never cancel one halfway
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://tripfolio.genelee-pro.workers.dev
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # The merged commit (GitHub's own GITHUB_SHA cannot be overridden)
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SITE_URL: https://tripfolio.genelee-pro.workers.dev
+    steps:
+      - name: Check for Cloudflare credentials
+        id: creds
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare secrets are not set; skipping deployment (see DEPLOY.md §3)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.creds.outputs.ready == 'true'
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - uses: actions/setup-node@v7
+        if: steps.creds.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.creds.outputs.ready == 'true'
+        run: npm ci
+
+      # Before the build: once built, the Vite plugin redirects wrangler to dist/'s config. Runs
+      # before the new code goes live, so every migration must keep the old code working (DEPLOY.md §6)
+      - name: Apply D1 migrations (production)
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          if ! ls migrations/*.sql > /dev/null 2>&1; then
+            echo "::notice::No migrations/*.sql yet; nothing to apply"
+            exit 0
+          fi
+          npx wrangler d1 migrations apply DB --remote --config wrangler.jsonc
+
+      - name: Build and deploy
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          APP_VERSION="$DEPLOY_SHA" npm run build
+          npx wrangler deploy --var "APP_VERSION:$DEPLOY_SHA" --message "$DEPLOY_SHA"
+
+      - name: Smoke test
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          # The home page carries <meta name="app-version" content="<sha>"> (vite.config.ts)
+          for i in $(seq 1 12); do
+            meta=$(curl -fsS "$SITE_URL/" | grep -o '<meta name="app-version"[^>]*>' || true)
+            if printf '%s' "$meta" | grep -qF "$DEPLOY_SHA"; then
+              echo "Serving $DEPLOY_SHA"
+              break
+            fi
+            [ "$i" = 12 ] && { echo "::error::$SITE_URL does not serve $DEPLOY_SHA (got: ${meta:-nothing})"; exit 1; }
+            sleep 5
+          done
+          # Any unknown path falls back to the React app
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/smoke/spa-fallback")
+          [ "$code" = 200 ] || { echo "::error::SPA fallback answered $code"; exit 1; }
+          # The Worker answers the health check, and /s/<token> serves the share page's own entry
+          curl -fsS "$SITE_URL/api/health" | grep -q '"ok":true' || { echo "::error::/api/health is not ok"; exit 1; }
+          curl -fsS "$SITE_URL/s/smoke" | grep -q '/assets/share-' || { echo "::error::/s/ does not serve share.html"; exit 1; }

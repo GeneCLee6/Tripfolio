@@ -1,0 +1,74 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // One Worker serves /api, /ws, /s, the TripDO Durable Objects and the React app's static assets
+  // (ARCHITECTURE.md §1)
+  "name": "tripfolio",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // /s/* is the share page: the Worker hands it share.html instead of the app's index.html
+    "run_worker_first": ["/api/*", "/ws/*", "/s/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      // One object per trip: WebSocket, patch broadcast, rev (ARCHITECTURE.md §1). A placeholder
+      // that only answers a ping until the sync batch
+      { "name": "TRIP", "class_name": "TripDO" }
+    ]
+  },
+  // The free plan only offers SQLite-backed Durable Objects. Migrations only ever add: never edit
+  // or remove one that was deployed (DEPLOY.md §7)
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TripDO"] }],
+  // The daily D1 backup to BACKUPS comes with e11-t03. 17:00 UTC is 03:00 in Sydney (AEST):
+  // "triggers": { "crons": ["0 17 * * *"] },
+  // Production's own database (migrations/). Never give staging or previews this id
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tripfolio",
+      "database_id": "3a5cba15-7516-409d-adad-e548a43cae34",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    // Photos (2048/400), documents, receipts (E6); documents are only ever read through the Worker
+    { "binding": "MEDIA", "bucket_name": "tripfolio-media" },
+    // Daily D1 backups (e11-t03)
+    { "binding": "BACKUPS", "bucket_name": "tripfolio-backups" }
+  ],
+  // The deployed commit; the deploy workflows override it with --var APP_VERSION:<sha>
+  "vars": { "APP_VERSION": "local" },
+  // Staging and pull request previews (DEPLOY.md §2): separate Workers, so each has its own Durable
+  // Object storage and never touches production's. Bindings and vars are not inherited from the
+  // top level: repeat each one here. Selected at build time with CLOUDFLARE_ENV=preview (the Vite
+  // plugin bakes it into dist/)
+  "env": {
+    "preview": {
+      "name": "tripfolio-preview",
+      // No cron here: previews have no backups, and many Workers would use up the account's cron limit
+      "triggers": { "crons": [] },
+      "durable_objects": {
+        "bindings": [{ "name": "TRIP", "class_name": "TripDO" }]
+      },
+      // One staging database shared by every preview; it never holds anything that matters
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "tripfolio-staging",
+          "database_id": "2565701d-fb58-406f-9e86-91728e858240",
+          "migrations_dir": "migrations"
+        }
+      ],
+      // Same buckets as production (decided in A1). Later batches must keep preview writes under a
+      // separate key prefix so they never mix with real trips
+      "r2_buckets": [
+        { "binding": "MEDIA", "bucket_name": "tripfolio-media" },
+        { "binding": "BACKUPS", "bucket_name": "tripfolio-backups" }
+      ],
+      "vars": { "APP_VERSION": "local" }
+    }
+  }
+}
