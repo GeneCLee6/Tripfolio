@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tripfolio 旅誌 視覺稿</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: one long page with four "screens" (share page, itinerary+map, picks, ledger); each a band with its own inner wrapper. Subject vernacular: topographic contours, route legs in km/h, NZD amounts in mono. */
+:root{
+  --paper:#EDEFEA; --card:#F8F9F6; --ink:#17262B; --muted:#5F6E72; --line:#D5DCD6;
+  --fjord:#0F6E74; --fjord-ink:#0A4F54; --glacier:#CDE7EA; --tussock:#B88A1E; --tussock-soft:#F1E7C8;
+  --good:#3C8C5A; --warn:#C9892B; --bad:#B9483A;
+  --d1:#0F6E74; --d2:#B5654A; --d3:#5B7B4A; --d4:#4C6A92; --d5:#8B5E83; --d6:#3F8F8A; --d7:#A64B4B;
+  --display:"Bricolage Grotesque","Noto Sans TC",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#121A1D; --card:#1A2427; --ink:#E6ECE8; --muted:#97A6A9; --line:#2A373B;
+  --fjord:#5FB6BC; --fjord-ink:#9ADCE0; --glacier:#173B40; --tussock:#D9AE4A; --tussock-soft:#3A3217;
+  --good:#6BC08A; --warn:#E0A552; --bad:#E07A6C; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --paper:#121A1D; --card:#1A2427; --ink:#E6ECE8; --muted:#97A6A9; --line:#2A373B;
+  --fjord:#5FB6BC; --fjord-ink:#9ADCE0; --glacier:#173B40; --tussock:#D9AE4A; --tussock-soft:#3A3217;
+  --good:#6BC08A; --warn:#E0A552; --bad:#E07A6C; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;margin:0}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.band{border-top:1px solid var(--line)}
+.band-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 20px;margin-bottom:22px}
+.band-head h2{font-size:26px;font-weight:700}
+.band-head p{margin:0;color:var(--muted);max-width:60ch}
+
+/* top nav */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.nav .wrap{padding-block:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:-.01em}
+.brand svg{width:28px;height:28px}
+.nav a{color:var(--muted);text-decoration:none;font-size:14px;padding:6px 10px;border-radius:999px}
+.nav a:hover,.nav a:focus-visible{color:var(--ink);background:var(--card);outline:none}
+.nav .spacer{flex:1}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;font-size:13px}
+.lang span{padding:4px 10px}.lang .on{background:var(--ink);color:var(--paper)}
+
+/* hero */
+.hero{position:relative;border-radius:22px;overflow:hidden;color:#F2F7F6;background:var(--fjord-ink);min-height:360px;display:flex;align-items:flex-end;isolation:isolate}
+.hero svg.topo{position:absolute;inset:0;width:100%;height:100%;opacity:.55;z-index:-1}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,79,84,.1),rgba(10,40,44,.85));z-index:-1}
+.hero-in{padding:32px;display:grid;gap:14px;width:100%}
+.hero h1{font-size:clamp(32px,6vw,58px);font-weight:800;letter-spacing:-.02em;color:#F8FBFA}
+.hero .sub{font-size:17px;max-width:60ch;color:#D7E7E6}
+.stats{display:flex;flex-wrap:wrap;gap:10px}
+.stat{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:12px;padding:8px 12px;min-width:110px}
+.stat b{display:block;font-family:var(--mono);font-size:20px;font-weight:500}
+.stat span{font-size:12px;color:#CFE0DF}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+
+/* route map + day cards */
+.grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;margin-top:22px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+.map{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;position:relative;min-height:320px}
+.map svg{display:block;width:100%;height:auto}
+.map .legend{position:absolute;left:12px;bottom:12px;display:flex;flex-wrap:wrap;gap:6px}
+.dot{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.dot i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.days{display:grid;gap:10px}
+.day{display:grid;grid-template-columns:6px 1fr;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.day .bar{background:var(--c)}
+.day .in{padding:12px 14px;display:grid;gap:4px}
+.day .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.day .top b{font-family:var(--display);font-size:16px;font-weight:700}
+.day .meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.day .meta .num{color:var(--ink)}
+
+/* itinerary + map screen */
+.app{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.appbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chip{flex:none;border-radius:999px;padding:5px 11px;font-size:13px;border:1px solid var(--line);background:var(--paper);color:var(--muted);white-space:nowrap}
+.chip.on{background:var(--c);border-color:var(--c);color:#fff}
+.chip .num{margin-right:4px}
+.cols{display:grid;grid-template-columns:380px 1fr;min-height:560px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}.cols .pane-map{min-height:300px}}
+.pane{padding:16px;min-width:0}
+.pane-map{border-left:1px solid var(--line);position:relative;background:var(--glacier)}
+@media (max-width:900px){.pane-map{border-left:0;border-top:1px solid var(--line)}}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.dayhead h3{font-size:20px;font-weight:700}
+.dayhead .drive{font-size:13px;color:var(--muted)}
+.lodge{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin:8px 0 14px;padding:8px 10px;background:var(--paper);border-radius:10px}
+.tl{display:grid;grid-template-columns:18px 1fr;gap:0 12px}
+.tl .rail{display:flex;flex-direction:column;align-items:center}
+.tl .rail i{width:12px;height:12px;border-radius:50%;background:var(--c,var(--fjord));border:2px solid var(--card);box-shadow:0 0 0 2px var(--c,var(--fjord));margin-top:14px;flex:none}
+.tl .rail s{flex:1;width:2px;background:var(--line);text-decoration:none;display:block}
+.stop{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:4px;margin-bottom:8px}
+.stop .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.stop .t b{font-weight:600}
+.stop .t .num{font-size:12px;color:var(--muted)}
+.stop .d{font-size:13px;color:var(--muted)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--muted)}
+.tag.warn{border-color:var(--warn);color:var(--warn)}
+.tag.book{border-color:var(--fjord);color:var(--fjord)}
+.leg{font-size:12px;color:var(--muted);padding:2px 0 10px 2px;display:flex;gap:8px;align-items:center}
+.leg .num{color:var(--ink)}
+.addstop{border:1px dashed var(--line);border-radius:12px;padding:10px;text-align:center;color:var(--muted);font-size:13px}
+.seg{position:absolute;top:12px;left:12px;display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px;font-size:13px}
+.seg span{padding:4px 12px;border-radius:999px;color:var(--muted)}.seg .on{background:var(--ink);color:var(--paper)}
+.popcard{position:absolute;right:12px;bottom:12px;left:12px;max-width:340px;margin-left:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:4px;font-size:13px}
+.popcard b{font-family:var(--display);font-size:15px}
+.btnrow{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap}
+.btn{font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--fjord);border-color:var(--fjord);color:#fff}
+.btn:focus-visible{outline:2px solid var(--fjord);outline-offset:2px}
+
+/* picks */
+.masonry{columns:3;column-gap:14px}
+@media (max-width:900px){.masonry{columns:2}}
+@media (max-width:520px){.masonry{columns:1}}
+.pick{break-inside:avoid;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
+.pick .ph{aspect-ratio:4/3;max-width:100%;background:var(--bg);position:relative}
+.pick .ph svg{position:absolute;inset:0;width:100%;height:100%}
+.pick .ph .cat{position:absolute;left:10px;top:10px;font-size:11px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.9);color:#17262B;font-weight:600}
+.pick .in{padding:12px 14px;display:grid;gap:6px}
+.pick h3{font-size:17px;font-weight:700}
+.pick .d{font-size:13px;color:var(--muted)}
+.pick .foot{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.price{font-family:var(--mono);color:var(--tussock);font-weight:500}
+.avs{display:inline-flex}
+.av{width:22px;height:22px;border-radius:50%;background:var(--c);color:#fff;font-size:11px;display:inline-grid;place-items:center;border:2px solid var(--card);margin-left:-6px;font-weight:600}
+.av:first-child{margin-left:0}
+
+/* ledger */
+.ledger{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:900px){.ledger{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.panel h3{font-size:17px;font-weight:700;margin-bottom:10px}
+.mybal{display:grid;gap:4px;padding:16px;border-radius:12px;background:var(--glacier);margin-bottom:14px}
+.mybal .big{font-family:var(--mono);font-size:34px;font-weight:500;color:var(--fjord-ink)}
+.mybal small{color:var(--muted)}
+.row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:center}
+.row:first-of-type{border-top:0}
+.row .who{display:flex;align-items:center;gap:10px}
+.row .av{width:30px;height:30px;font-size:13px;margin:0}
+.row .sub{font-size:12px;color:var(--muted)}
+.amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500}
+.amt.pos{color:var(--good)}.amt.neg{color:var(--bad)}
+.exp{display:grid;grid-template-columns:36px 1fr auto;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:center}
+.exp .ic{width:36px;height:36px;border-radius:10px;background:var(--paper);display:grid;place-items:center;font-size:16px;border:1px solid var(--line)}
+.exp .n{font-weight:500}.exp .s{font-size:12px;color:var(--muted)}
+.exp .a{text-align:right}.exp .a .sub{font-size:11px;color:var(--muted)}
+.datehead{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.06em;margin-top:8px}
+.settle{display:grid;gap:8px}
+.scard{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);flex-wrap:wrap}
+.scard .arrow{color:var(--muted)}
+.scard .amt{margin-left:auto}
+.pool{display:flex;justify-content:space-between;gap:10px;padding:12px;border-radius:12px;background:var(--tussock-soft);border:1px solid var(--line);margin-top:12px;flex-wrap:wrap}
+.pool b{font-family:var(--mono);font-weight:500}
+.fab{position:sticky;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;justify-content:flex-end;pointer-events:none;margin-top:-10px}
+.fab button{pointer-events:auto;font:inherit;font-weight:600;background:var(--fjord);color:#fff;border:0;border-radius:999px;padding:12px 18px;box-shadow:0 8px 24px rgba(15,110,116,.35);cursor:pointer}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+@media (prefers-reduced-motion:no-preference){.pick,.day{transition:transform .15s}.pick:hover,.day:hover{transform:translateY(-2px)}}
+</style>
+
+<nav class="nav"><div class="wrap">
+  <div class="brand">
+    <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="24" y="24" width="208" height="208" rx="44" fill="#CDE7EA"/><path d="M64 176C92 150 100 120 128 112s48-16 64-40" fill="none" stroke="#0F6E74" stroke-width="12" stroke-linecap="round" stroke-dasharray="1 22"/><circle cx="64" cy="176" r="13" fill="#0F6E74"/><path d="M192 44c-17.7 0-32 14.3-32 32 0 24 32 56 32 56s32-32 32-56c0-17.7-14.3-32-32-32z" fill="#B88A1E"/><circle cx="192" cy="76" r="12" fill="#F8F9F6"/></svg>
+    Tripfolio <span style="font-weight:500;color:var(--muted)">旅誌</span>
+  </div>
+  <a href="#share">分享頁</a><a href="#itinerary">日程與地圖</a><a href="#picks">必吃必買</a><a href="#ledger">記帳</a>
+  <span class="spacer"></span>
+  <span class="lang" aria-label="語言"><span class="on">繁中</span><span>EN</span></span>
+</div></nav>
+
+<!-- ================= 1. 分享頁 ================= -->
+<section id="share"><div class="wrap">
+  <div class="band-head"><span class="eyebrow">Screen 1 · /s/&lt;token&gt;</span><h2>分享頁：旅行社風格的總覽</h2><p>朋友與家人點連結看到的第一頁。金額、住宿地址、訂位代號可依分享設定在伺服器端隱藏。</p></div>
+
+  <div class="hero">
+    <svg class="topo" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g fill="none" stroke="#9ED6D9" stroke-width="1.2" opacity=".7">
+        <path d="M-20 300C120 240 200 340 340 290S560 200 700 260 900 240 900 240"/>
+        <path d="M-20 330C120 270 210 370 350 320S570 230 710 290 900 270 900 270"/>
+        <path d="M-20 360C120 300 220 400 360 350S580 260 720 320 900 300 900 300"/>
+        <path d="M-20 270C110 210 190 310 330 260S550 170 690 230 900 210 900 210"/>
+        <path d="M-20 240C100 180 180 280 320 230S540 140 680 200 900 180 900 180"/>
+        <path d="M-20 210C90 150 170 250 310 200S530 110 670 170 900 150 900 150"/>
+        <path d="M100 60C200 20 300 90 400 60S600 10 700 50 900 40 900 40"/>
+        <path d="M60 90C180 50 280 120 400 90S620 40 720 80 900 70 900 70"/>
+        <path d="M20 120C160 80 260 150 400 120S640 70 740 110 900 100 900 100"/>
+      </g>
+    </svg>
+    <div class="shade"></div>
+    <div class="hero-in">
+      <span class="eyebrow" style="color:#BFE0E0">New Zealand · South Island · Campervan</span>
+      <h1>紐西蘭南島露營車環島 14 天</h1>
+      <p class="sub">基督城進、皇后鎮出。沿西岸冰河南下，穿過瓦納卡與皇后鎮，繞進峽灣，最後從蒂卡波的星空回到坎特伯里平原。</p>
+      <div class="stats">
+        <div class="stat"><b>14</b><span>天 · 13 晚</span></div>
+        <div class="stat"><b>2027.02.06</b><span>— 02.19（NZDT）</span></div>
+        <div class="stat"><b>4</b><span>人 · 1 台露營車</span></div>
+        <div class="stat"><b>2,180 km</b><span>總里程 · 日均 2.9 h</span></div>
+        <div class="stat"><b>NZD 2,450</b><span>每人預估（可隱藏）</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="map">
+      <svg viewBox="0 0 560 480" role="img" aria-label="南島過夜地路線總圖">
+        <defs><pattern id="topo2" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M0 20Q10 10 20 20T40 20" fill="none" stroke="currentColor" stroke-width=".6" opacity=".18"/></pattern></defs>
+        <rect width="560" height="480" fill="var(--glacier)"/>
+        <rect width="560" height="480" fill="url(#topo2)" style="color:var(--fjord)"/>
+        <!-- stylised South Island -->
+        <path d="M330 40 C 400 70, 470 120, 480 200 C 490 270, 420 330, 360 380 C 300 420, 230 450, 170 420 C 110 390, 90 330, 110 270 C 130 210, 190 160, 240 110 C 270 80, 300 50, 330 40 Z" fill="var(--card)" stroke="var(--line)" stroke-width="2"/>
+        <!-- overnight route (dashed, day colours) -->
+        <polyline points="430,200 380,230 320,250 250,290 200,330" fill="none" stroke="var(--d1)" stroke-width="3" stroke-dasharray="6 5" stroke-linecap="round"/>
+        <polyline points="200,330 260,350 300,330" fill="none" stroke="var(--d2)" stroke-width="3" stroke-dasharray="6 5"/>
+        <polyline points="300,330 270,390 310,400" fill="none" stroke="var(--d3)" stroke-width="3" stroke-dasharray="6 5"/>
+        <polyline points="310,400 360,360 400,320 430,200" fill="none" stroke="var(--d4)" stroke-width="3" stroke-dasharray="6 5"/>
+        <g font-family="IBM Plex Mono,monospace" font-size="11" fill="var(--ink)">
+          <circle cx="430" cy="200" r="7" fill="var(--d1)" stroke="var(--card)" stroke-width="2"/><text x="442" y="196">基督城 Christchurch</text>
+          <circle cx="320" cy="250" r="7" fill="var(--d1)" stroke="var(--card)" stroke-width="2"/><text x="332" y="246">福克斯冰河 Fox Glacier</text>
+          <circle cx="200" cy="330" r="7" fill="var(--d2)" stroke="var(--card)" stroke-width="2"/><text x="120" y="356">瓦納卡 Wānaka</text>
+          <circle cx="300" cy="330" r="7" fill="var(--d2)" stroke="var(--card)" stroke-width="2"/><text x="312" y="326">皇后鎮 Queenstown</text>
+          <circle cx="270" cy="390" r="7" fill="var(--d3)" stroke="var(--card)" stroke-width="2"/><text x="170" y="412">蒂阿瑙 Te Anau</text>
+          <circle cx="400" cy="320" r="7" fill="var(--d4)" stroke="var(--card)" stroke-width="2"/><text x="412" y="316">蒂卡波 Tekapo</text>
+        </g>
+        <text x="20" y="464" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--muted)">示意圖 · 正式版為 MapLibre 向量地圖，過夜地連線依日色</text>
+      </svg>
+      <div class="legend"><span class="dot"><i style="background:var(--d1)"></i>D1–4 西岸</span><span class="dot"><i style="background:var(--d2)"></i>D5–8 湖區</span><span class="dot"><i style="background:var(--d3)"></i>D9–11 峽灣</span><span class="dot"><i style="background:var(--d4)"></i>D12–14 麥肯錫</span></div>
+    </div>
+
+    <div class="days">
+      <article class="day" style="--c:var(--d1)"><div class="bar"></div><div class="in">
+        <div class="top"><b>Day 1 · 基督城取車</b><span class="num" style="font-size:12px;color:var(--muted)">02.06 六</span></div>
+        <div class="meta"><span>🏕 今晚：North South Holiday Park（有電）</span><span>🚐 <span class="num">0.4 h</span> · <span class="num">18 km</span></span></div>
+        <div class="meta"><span>露營車取車 14:00 · 超市補給 · 傾倒站位置確認</span></div>
+      </div></article>
+      <article class="day" style="--c:var(--d1)"><div class="bar"></div><div class="in">
+        <div class="top"><b>Day 2 · 亞瑟隘口 → 西岸</b><span class="num" style="font-size:12px;color:var(--muted)">02.07 日</span></div>
+        <div class="meta"><span>🏕 今晚：Punakaiki Beach Camp</span><span>🚐 <span class="num">4.1 h</span> · <span class="num">312 km</span> <span class="tag warn">超過 3.5 h</span></span></div>
+        <div class="meta"><span>Castle Hill 巨石 · 薄餅岩漲潮 16:40 · 日落 20:52</span></div>
+      </div></article>
+      <article class="day" style="--c:var(--d2)"><div class="bar"></div><div class="in">
+        <div class="top"><b>Day 6 · 瓦納卡停留日</b><span class="num" style="font-size:12px;color:var(--muted)">02.11 四</span></div>
+        <div class="meta"><span>🏕 今晚：Wānaka Lakeview（連住第 2 晚）</span><span>🚐 <span class="num">0.6 h</span></span></div>
+        <div class="meta"><span>Roys Peak 日出（6 h 來回）<span class="tag book">需預訂：Puzzling World</span> · 雨天備案：電影院 Cinema Paradiso</span></div>
+      </div></article>
+      <article class="day" style="--c:var(--d3)"><div class="bar"></div><div class="in">
+        <div class="top"><b>Day 10 · 米佛峽灣</b><span class="num" style="font-size:12px;color:var(--muted)">02.15 一</span></div>
+        <div class="meta"><span>🏕 今晚：Te Anau Lakeview</span><span>🚐 <span class="num">2.6 h</span> · <span class="num">240 km</span></span></div>
+        <div class="meta"><span>遊船 10:30（報到 10:00）<span class="tag book">已預訂 · 取消期限 02.08</span> · 鏡湖 · 荷馬隧道單向燈號</span></div>
+      </div></article>
+      <div class="note" style="margin:0">… 每日卡點開展開完整行程；共 14 張。</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= 2. 日程＋地圖 ================= -->
+<section id="itinerary" class="band"><div class="wrap">
+  <div class="band-head"><span class="eyebrow">Screen 2 · /trip/nz-2027/itinerary</span><h2>日程與地圖：排行程的主畫面</h2><p>桌機左欄日程、右欄地圖；手機單欄＋底部導覽。移動段自動算距離與時間，超過每日駕駛上限會提示。</p></div>
+  <div class="app">
+    <div class="appbar">
+      <div class="chips" aria-label="選擇日期">
+        <span class="chip" style="--c:var(--d1)"><span class="num">D1</span>基督城</span>
+        <span class="chip on" style="--c:var(--d1)"><span class="num">D2</span>亞瑟隘口 → 西岸</span>
+        <span class="chip" style="--c:var(--d1)"><span class="num">D3</span>Hokitika</span>
+        <span class="chip" style="--c:var(--d1)"><span class="num">D4</span>Fox Glacier</span>
+        <span class="chip" style="--c:var(--d2)"><span class="num">D5</span>Wānaka</span>
+        <span class="chip" style="--c:var(--d2)"><span class="num">D6</span>Wānaka</span>
+        <span class="chip" style="--c:var(--d2)"><span class="num">D7</span>Queenstown</span>
+        <span class="chip" style="--c:var(--d3)"><span class="num">D9</span>Te Anau</span>
+      </div>
+      <span class="spacer" style="flex:1"></span>
+      <span class="pill">👥 4 人 · 2 人在線</span>
+    </div>
+    <div class="cols">
+      <div class="pane" style="--c:var(--d1)">
+        <div class="dayhead"><h3>Day 2 · 亞瑟隘口 → 西岸</h3><span class="drive num">02.07 日 · 🚐 4.1 h · 312 km</span></div>
+        <div class="lodge">🏕 今晚：Punakaiki Beach Camp · 入住 14:00 起 · 有電 · 傾倒站 · <span class="tag" style="margin-left:auto">NZD 68</span></div>
+        <div class="tl">
+          <div class="rail"><i></i><s></s></div>
+          <div>
+            <div class="stop"><div class="t"><b>Castle Hill / Kura Tāwhiti 巨石區</b><span class="num">09:30 · 1 h</span></div><div class="d">步道好走，露營車可停；石灰岩巨石散落草坡。</div><div class="tags"><span class="tag">景點</span><span class="tag">免費</span></div></div>
+            <div class="leg">🚐 <span class="num">1 h 05</span> · <span class="num">82 km</span> · SH73 亞瑟隘口</div>
+          </div>
+          <div class="rail"><i></i><s></s></div>
+          <div>
+            <div class="stop"><div class="t"><b>Arthur's Pass Village · 午餐與加油</b><span class="num">11:00 · 45 min</span></div><div class="d">Wobbly Kea Café。之後到西岸前沒有加油站。</div><div class="tags"><span class="tag">餐廳</span><span class="tag">⛽ 加油</span><span class="tag">NZD 60</span></div></div>
+            <div class="leg">🚐 <span class="num">1 h 40</span> · <span class="num">128 km</span> · Otira 峽谷，陡坡慢行</div>
+          </div>
+          <div class="rail"><i></i><s></s></div>
+          <div>
+            <div class="stop"><div class="t"><b>Hokitika Gorge 藍色河谷</b><span class="num">14:00 · 1 h</span></div><div class="d">吊橋與冰河藍的河水；雨後濁，備案跳過。</div><div class="tags"><span class="tag">景點</span><span class="tag warn">到達後總駕駛 2.8 h</span></div></div>
+            <div class="leg">🚐 <span class="num">1 h 25</span> · <span class="num">102 km</span> · 回 SH6 北上</div>
+          </div>
+          <div class="rail"><i></i><s></s></div>
+          <div>
+            <div class="stop"><div class="t"><b>Punakaiki 薄餅岩與噴水孔</b><span class="num">16:30 · 45 min</span></div><div class="d">漲潮 16:40 噴水孔最壯觀；步道 20 分鐘環形。</div><div class="tags"><span class="tag">景點</span><span class="tag book">依潮汐</span></div></div>
+            <div class="leg">🚐 <span class="num">5 min</span> · <span class="num">2 km</span></div>
+          </div>
+          <div class="rail"><i></i></div>
+          <div>
+            <div class="stop"><div class="t"><b>抵達營地 · 接電、加水、晚餐</b><span class="num">17:30</span></div><div class="d">日落 20:52，餘裕 3 h。</div></div>
+            <div class="addstop">＋ 加行程點 · 從口袋名單拖進來</div>
+          </div>
+        </div>
+      </div>
+      <div class="pane pane-map">
+        <svg viewBox="0 0 700 560" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+          <defs><pattern id="topo3" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M0 30Q15 15 30 30T60 30M0 10Q15-5 30 10T60 10M0 50Q15 35 30 50T60 50" fill="none" stroke="var(--fjord)" stroke-width=".7" opacity=".22"/></pattern></defs>
+          <rect width="700" height="560" fill="url(#topo3)"/>
+          <path d="M80 420 L160 300 L260 330 L420 160 L560 120" fill="none" stroke="var(--card)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M80 420 L160 300 L260 330 L420 160 L560 120" fill="none" stroke="var(--d1)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <g font-family="IBM Plex Mono,monospace" font-size="12" font-weight="500" fill="#fff" text-anchor="middle">
+            <circle cx="560" cy="120" r="13" fill="var(--d1)" stroke="var(--card)" stroke-width="3"/><text x="560" y="124">1</text>
+            <circle cx="420" cy="160" r="13" fill="var(--d1)" stroke="var(--card)" stroke-width="3"/><text x="420" y="164">2</text>
+            <circle cx="260" cy="330" r="13" fill="var(--d1)" stroke="var(--card)" stroke-width="3"/><text x="260" y="334">3</text>
+            <circle cx="160" cy="300" r="13" fill="var(--d1)" stroke="var(--card)" stroke-width="3"/><text x="160" y="304">4</text>
+            <circle cx="80" cy="420" r="13" fill="var(--d1)" stroke="var(--card)" stroke-width="3"/><text x="80" y="424">5</text>
+          </g>
+          <g font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--muted)"><text x="20" y="20">-42.94, 171.56</text><text x="640" y="548" text-anchor="end">© OpenFreeMap · OSM</text></g>
+        </svg>
+        <div class="seg"><span>全程</span><span class="on">Day 2</span></div>
+        <div class="popcard" style="--c:var(--d1)">
+          <span class="eyebrow">Stop 3 · 景點</span><b>Hokitika Gorge 藍色河谷</b>
+          <span class="num" style="color:var(--muted)">-42.954, 171.019 · 14:00 · 1 h</span>
+          <div class="btnrow"><button class="btn primary" type="button">編輯</button><button class="btn" type="button">用 Google Maps 開啟</button><button class="btn" type="button">移到別天</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">手機版：Day chip 橫向捲、日程單欄、地圖是底部導覽的第三格；「＋記一筆」是底部導覽中央的浮動鈕。</p>
+</div></section>
+
+<!-- ================= 3. 必吃必買 ================= -->
+<section id="picks" class="band"><div class="wrap">
+  <div class="band-head"><span class="eyebrow">Screen 3 · /trip/nz-2027/picks</span><h2>必吃必買：卡片牆</h2><p>一張圖、一句話、一個價，加上誰推薦、誰想去。拖進某一天就變成行程點，買到了可一鍵記帳。</p></div>
+  <div class="masonry">
+    <article class="pick"><div class="ph" style="--bg:#C8DDD3"><svg viewBox="0 0 400 300" aria-hidden="true"><rect width="400" height="300" fill="#C8DDD3"/><circle cx="200" cy="160" r="90" fill="#F3EBDD"/><circle cx="200" cy="160" r="60" fill="#E7B86B"/><path d="M150 150q50 40 100 0" stroke="#8A4B2F" stroke-width="10" fill="none" stroke-linecap="round"/></svg><span class="cat">必吃</span></div><div class="in"><h3>Fergburger</h3><p class="d">皇后鎮排隊漢堡。避開 12–14 點，晚上 21 點後人少。</p><div class="foot"><span class="price">NZD 18–22</span><span class="avs"><span class="av" style="--c:var(--d1)">小</span><span class="av" style="--c:var(--d4)">E</span><span class="av" style="--c:var(--d5)">J</span></span></div><div class="tags"><span class="tag">Day 7</span><span class="tag">3 人想去</span></div></div></article>
+    <article class="pick"><div class="ph" style="--bg:#D9D3E8"><svg viewBox="0 0 400 300" aria-hidden="true"><rect width="400" height="300" fill="#D9D3E8"/><rect x="130" y="60" width="140" height="190" rx="14" fill="#F8F9F6"/><rect x="150" y="90" width="100" height="60" rx="6" fill="#4C6A92"/><text x="200" y="200" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="20" fill="#17262B">MANUKA</text></svg><span class="cat">必買</span></div><div class="in"><h3>麥蘆卡蜂蜜 UMF 10+</h3><p class="d">超市比機場便宜三成。幫媽媽帶 2 罐、幫阿姨帶 1 罐。</p><div class="foot"><span class="price">NZD 45 / 250 g</span><span class="avs"><span class="av" style="--c:var(--d2)">M</span></span></div><div class="tags"><span class="tag">購物 · 3 罐</span><span class="tag">誰買：M</span></div></div></article>
+    <article class="pick"><div class="ph" style="--bg:#1E2A3A"><svg viewBox="0 0 400 300" aria-hidden="true"><rect width="400" height="300" fill="#1E2A3A"/><g fill="#F8F9F6"><circle cx="60" cy="50" r="1.5"/><circle cx="120" cy="90" r="1"/><circle cx="200" cy="40" r="2"/><circle cx="260" cy="110" r="1.2"/><circle cx="330" cy="60" r="1.8"/><circle cx="370" cy="130" r="1"/><circle cx="150" cy="150" r="1.4"/><circle cx="300" cy="170" r="1"/></g><path d="M0 230Q100 190 200 230T400 230V300H0Z" fill="#0F6E74"/></svg><span class="cat">必看</span></div><div class="in"><h3>蒂卡波暗空保護區觀星</h3><p class="d">新月前後最佳；2 月 14 日新月。牧羊人教堂人多，營地旁就很暗。</p><div class="foot"><span class="price">免費</span><span class="avs"><span class="av" style="--c:var(--d1)">小</span><span class="av" style="--c:var(--d2)">M</span><span class="av" style="--c:var(--d4)">E</span><span class="av" style="--c:var(--d5)">J</span></span></div><div class="tags"><span class="tag">Day 12</span><span class="tag">4 人想去</span></div></div></article>
+    <article class="pick"><div class="ph" style="--bg:#E6D9C3"><svg viewBox="0 0 400 300" aria-hidden="true"><rect width="400" height="300" fill="#E6D9C3"/><path d="M60 240h280l-30-120H90z" fill="#B88A1E"/><circle cx="200" cy="110" r="40" fill="#F8F9F6"/></svg><span class="cat">體驗</span></div><div class="in"><h3>Milford Sound 遊船</h3><p class="d">Day 10 · 10:30 班。已訂 4 人，取消期限 02.08。</p><div class="foot"><span class="price">NZD 99 / 人</span><span class="avs"><span class="av" style="--c:var(--d1)">小</span></span></div><div class="tags"><span class="tag book">已預訂</span><span class="tag">Day 10</span></div></div></article>
+    <article class="pick"><div class="ph" style="--bg:#D5E3D1"><svg viewBox="0 0 400 300" aria-hidden="true"><rect width="400" height="300" fill="#D5E3D1"/><ellipse cx="200" cy="170" rx="110" ry="60" fill="#F8F9F6"/><ellipse cx="200" cy="160" rx="90" ry="40" fill="#5B7B4A"/></svg><span class="cat">必吃</span></div><div class="in"><h3>Whitebait 魚苗煎蛋</h3><p class="d">西岸限定，季節 9–11 月；2 月只有冷凍的，Hokitika 的小店還是有。</p><div class="foot"><span class="price">NZD 25</span><span class="avs"><span class="av" style="--c:var(--d4)">E</span></span></div><div class="tags"><span class="tag">口袋名單</span></div></div></article>
+    <article class="pick"><div class="ph" style="--bg:#F1E7C8"><svg viewBox="0 0 400 300" aria-hidden="true"><rect width="400" height="300" fill="#F1E7C8"/><rect x="110" y="80" width="180" height="150" rx="20" fill="#B5654A"/><rect x="140" y="110" width="120" height="30" rx="6" fill="#F8F9F6"/></svg><span class="cat">必買</span></div><div class="in"><h3>Whittaker's 巧克力</h3><p class="d">超市特價時 NZD 4.5；伴手禮主力，買 10 片。</p><div class="foot"><span class="price">NZD 4.5–6</span><span class="avs"><span class="av" style="--c:var(--d5)">J</span></span></div><div class="tags"><span class="tag">購物 · 10 片</span><span class="tag">已完成 ✓ 記帳</span></div></div></article>
+  </div>
+</div></section>
+
+<!-- ================= 4. 記帳 ================= -->
+<section id="ledger" class="band"><div class="wrap">
+  <div class="band-head"><span class="eyebrow">Screen 4 · /trip/nz-2027/expenses</span><h2>記帳與結算：共同錢包</h2><p>原幣記、主幣（TWD）算。公基金是一個付款人。最少轉帳次數的結算建議，勾了就結清。</p></div>
+  <div class="ledger">
+    <div class="panel">
+      <div class="mybal"><small>我的餘額 · 小高</small><span class="big">+ NZD 312.40</span><small>≈ TWD 5,940 · 匯率 19.02（刷卡實際 19.31 可套用）</small></div>
+      <h3>每個人</h3>
+      <div class="row"><span class="who"><span class="av" style="--c:var(--d1)">小</span><span>小高<div class="sub">付了 NZD 1,842 · 應分攤 1,529.60</div></span></span><span class="amt pos">+312.40</span></div>
+      <div class="row"><span class="who"><span class="av" style="--c:var(--d2)">M</span><span>Mei<div class="sub">付了 NZD 1,410 · 應分攤 1,529.60</div></span></span><span class="amt neg">−119.60</span></div>
+      <div class="row"><span class="who"><span class="av" style="--c:var(--d4)">E</span><span>Eric<div class="sub">付了 NZD 1,680.40 · 應分攤 1,529.60</div></span></span><span class="amt pos">+150.80</span></div>
+      <div class="row"><span class="who"><span class="av" style="--c:var(--d5)">J</span><span>Jo<div class="sub">付了 NZD 1,186 · 應分攤 1,529.60</div></span></span><span class="amt neg">−343.60</span></div>
+      <div class="pool"><span>🪙 公基金結餘</span><b>NZD 236.00</b><span style="width:100%;font-size:12px;color:var(--muted)">4 人各出 NZD 500 · 池付 1,764 · 結束按出資比例退還，併入結算</span></div>
+      <h3 style="margin-top:18px">結算建議 · 2 筆</h3>
+      <div class="settle">
+        <div class="scard"><span class="av" style="--c:var(--d5)">J</span>Jo<span class="arrow">→</span><span class="av" style="--c:var(--d1)">小</span>小高<span class="amt">NZD 312.40</span><button class="btn" type="button">已結清</button></div>
+        <div class="scard"><span class="av" style="--c:var(--d2)">M</span>Mei<span class="arrow">→</span><span class="av" style="--c:var(--d4)">E</span>Eric<span class="amt">NZD 119.60</span><button class="btn" type="button">已結清</button></div>
+        <div class="scard"><span class="av" style="--c:var(--d5)">J</span>Jo<span class="arrow">→</span><span class="av" style="--c:var(--d4)">E</span>Eric<span class="amt">NZD 31.20</span><button class="btn" type="button">已結清</button></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>花費 · Day 2 · 02.07</h3>
+      <div class="exp"><span class="ic">⛽</span><span><div class="n">加油 Arthur's Pass</div><div class="s">公基金付 · 全員平分 · 連 Day 2 第 2 站</div></span><span class="a"><div class="amt">NZD 118.40</div><div class="sub">TWD 2,252</div></span></div>
+      <div class="exp"><span class="ic">🍔</span><span><div class="n">Wobbly Kea 午餐</div><div class="s">Eric 付 · 3 人分（Jo 自備）</div></span><span class="a"><div class="amt">NZD 64.50</div><div class="sub">TWD 1,227</div></span></div>
+      <div class="exp"><span class="ic">🏕</span><span><div class="n">Punakaiki Beach Camp · 有電營位</div><div class="s">小高付 · 全員平分 · 收據 📎</div></span><span class="a"><div class="amt">NZD 68.00</div><div class="sub">TWD 1,293</div></span></div>
+      <div class="exp"><span class="ic">🛒</span><span><div class="n">New World 補給</div><div class="s">公基金付 · 全員平分 · 份數：Mei 2 份（含小孩）</div></span><span class="a"><div class="amt">NZD 92.30</div><div class="sub">TWD 1,756</div></span></div>
+      <div class="datehead">DAY 1 · 02.06</div>
+      <div class="exp"><span class="ic">🚐</span><span><div class="n">露營車租金尾款</div><div class="s">小高付 · 全員平分 · 從預訂總覽建立</div></span><span class="a"><div class="amt">NZD 1,540.00</div><div class="sub">TWD 29,291</div></span></div>
+      <div class="exp"><span class="ic">🪙</span><span><div class="n">公基金出資</div><div class="s">4 人 × NZD 500 · 現金</div></span><span class="a"><div class="amt">NZD 2,000.00</div><div class="sub">TWD 38,040</div></span></div>
+      <p class="note">離線時也能記，右上角會顯示「3 筆待同步」；餘數規則：先每人無條件捨去到分，剩的分從付款人起各加 1 分。</p>
+    </div>
+  </div>
+  <div class="fab"><button type="button">＋ 記一筆</button></div>
+</div></section>
+
+<footer><div class="wrap" style="padding-block:20px;display:flex;flex-wrap:wrap;gap:8px 20px">
+  <span>Tripfolio · 旅誌 視覺稿 · 2026-11-09</span><span>字型：Bricolage Grotesque / IBM Plex Sans / IBM Plex Mono / Noto Sans TC</span><span>底圖示意；正式版 MapLibre + OpenFreeMap</span>
+</div></footer>
