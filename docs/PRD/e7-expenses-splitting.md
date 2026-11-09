@@ -38,6 +38,7 @@ depends_on: [E1, E10]
 - 餘額 = Σ 代付 − Σ 分攤 ± 公基金出資／退還 ± 已結清轉帳；全部在前端由完整明細重算（旅程花費不會超過幾千筆），伺服器也算一次對帳。
 - `expenses`（tripId、payerMemberId|pool、amountMinor、currency、fxRate、baseMinor、date、category、note、stopId、receiptId、splitMethod、deletedAt）、`expenseShares`（expenseId、memberId、weight|amountMinor、shareMinor）、`poolContributions`、`settlements`（from、to、amountMinor、method、note）、`expenseHistory`（expenseId、memberId、at、diff JSON）。
 - 匯率：`fxRates`（date、base、quote、rate、source）；來源見總 PRD Q4；一律允許手動覆寫。
+- 純函式已先行實作於 `shared/money/`（分支 feat/shared-pure-core），schema 部分留給 G1。
 
 ## 驗收條件
 

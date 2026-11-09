@@ -39,6 +39,7 @@ depends_on: [E1, E3, E10]
 - 拖曳用 dnd-kit：滑鼠、觸控長按、鍵盤（空白鍵抓起、方向鍵移動）。
 - 即時同步：每旅程一個 `TripDO`，WebSocket 廣播 `patch`（實體、id、欄位、值、rev）；前端的 `useTrip()` 維護本機快取與離線佇列（IndexedDB）。D1 仍是真相來源，DO 只做廣播與短期緩衝。
 - 日出日落用 NOAA 公式本機算（純函式，有測試），不打 API。
+- 純函式已先行實作於 `shared/itinerary/`（移動段、每日合計、時間檢查）與 `shared/time/`（日出日落、時區）（分支 feat/shared-pure-core），schema 與畫面部分留給對應批次。
 
 ## 驗收條件
 
