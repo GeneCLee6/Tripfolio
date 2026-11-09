@@ -19,6 +19,30 @@ import type {
   TripCreate,
   TripPatch,
 } from '../../shared/schema/index.ts'
+import type {
+  DayPatch,
+  LegOverrideInput,
+  PlaceCreate,
+  StopCreate,
+  StopMove,
+  StopPatch,
+} from '../../shared/schema/index.ts'
+import type {
+  Day,
+  DaysResponse,
+  LegOverride,
+  Place,
+  Stop,
+} from '../../shared/api/types.ts'
+import type {
+  GeoParseRequest,
+  GeoParseResponse,
+  GeoPoint,
+  GeoSearchResponse,
+  RouteRequest,
+  RoutesRequest,
+  RoutesResponse,
+} from '../../shared/api/geo.ts'
 import { getToken, pruneTokens, setToken, tokensForList } from './tokens.ts'
 
 // The typed client for the Worker's REST API (worker/app.ts). Request bodies are the zod input
@@ -200,6 +224,126 @@ export const api = {
   revokeInvite(tripId: string, inviteId: string): Promise<Rev & { ok: true }> {
     return request('DELETE', `${tripPath(tripId)}/invites/${encodeURIComponent(inviteId)}`, {
       token: tokenFor(tripId),
+    })
+  },
+}
+
+// ---- itinerary, places and geo (B1: e2-t02, e2-t03, e3-t02) ----
+
+/** The stop create body: the schema's input, so the defaults stay optional */
+export type StopCreateBody = Partial<StopCreate> & Pick<StopCreate, 'dayId'>
+/** The place create body: the schema's input, so the defaults stay optional */
+export type PlaceCreateBody = Partial<PlaceCreate> &
+  Pick<PlaceCreate, 'nameLocal' | 'lat' | 'lng'>
+
+export interface GeoSearchParams {
+  q: string
+  lang: string
+  bias?: GeoPoint | null
+}
+
+export const itineraryApi = {
+  /** GET /api/trips/:id/days: days with nested stops (assigned by idx, unassigned last) and leg overrides */
+  listDays(tripId: string, signal?: AbortSignal): Promise<DaysResponse> {
+    return request('GET', `${tripPath(tripId)}/days`, { token: tokenFor(tripId), signal })
+  },
+
+  patchDay(tripId: string, dayId: string, patch: DayPatch): Promise<Rev & { day: Day }> {
+    return request('PATCH', `${tripPath(tripId)}/days/${encodeURIComponent(dayId)}`, {
+      token: tokenFor(tripId),
+      body: patch,
+    })
+  },
+
+  createStop(tripId: string, body: StopCreateBody): Promise<Rev & { stop: Stop }> {
+    return request('POST', `${tripPath(tripId)}/stops`, { token: tokenFor(tripId), body })
+  },
+
+  patchStop(tripId: string, stopId: string, patch: StopPatch): Promise<Rev & { stop: Stop }> {
+    return request('PATCH', `${tripPath(tripId)}/stops/${encodeURIComponent(stopId)}`, {
+      token: tokenFor(tripId),
+      body: patch,
+    })
+  },
+
+  deleteStop(tripId: string, stopId: string): Promise<Rev & { ok: true }> {
+    return request('DELETE', `${tripPath(tripId)}/stops/${encodeURIComponent(stopId)}`, {
+      token: tokenFor(tripId),
+    })
+  },
+
+  /** POST /stops/:sid/move: the only way to reorder or change day */
+  moveStop(
+    tripId: string,
+    stopId: string,
+    body: StopMove,
+  ): Promise<Rev & { stop: Stop; renumbered: { id: string; order: number }[] }> {
+    return request('POST', `${tripPath(tripId)}/stops/${encodeURIComponent(stopId)}/move`, {
+      token: tokenFor(tripId),
+      body,
+    })
+  },
+
+  putLeg(
+    tripId: string,
+    fromStopId: string,
+    toStopId: string,
+    body: LegOverrideInput,
+  ): Promise<Rev & { leg: LegOverride | null }> {
+    return request(
+      'PUT',
+      `${tripPath(tripId)}/legs/${encodeURIComponent(fromStopId)}/${encodeURIComponent(toStopId)}`,
+      { token: tokenFor(tripId), body },
+    )
+  },
+
+  deleteLeg(tripId: string, fromStopId: string, toStopId: string): Promise<Rev & { ok: true }> {
+    return request(
+      'DELETE',
+      `${tripPath(tripId)}/legs/${encodeURIComponent(fromStopId)}/${encodeURIComponent(toStopId)}`,
+      { token: tokenFor(tripId) },
+    )
+  },
+
+  listPlaces(tripId: string, signal?: AbortSignal): Promise<Rev & { places: Place[] }> {
+    return request('GET', `${tripPath(tripId)}/places`, { token: tokenFor(tripId), signal })
+  },
+
+  createPlace(tripId: string, body: PlaceCreateBody): Promise<Rev & { place: Place }> {
+    return request('POST', `${tripPath(tripId)}/places`, { token: tokenFor(tripId), body })
+  },
+
+  /** GET /geo/search (Photon, then Nominatim); 429 rate_limited carries details.retryAfterS */
+  geoSearch(
+    tripId: string,
+    { q, lang, bias }: GeoSearchParams,
+    signal?: AbortSignal,
+  ): Promise<GeoSearchResponse> {
+    const params = new URLSearchParams({ q, lang })
+    if (bias) {
+      params.set('lat', String(bias.lat))
+      params.set('lng', String(bias.lng))
+    }
+    return request('GET', `${tripPath(tripId)}/geo/search?${params}`, {
+      token: tokenFor(tripId),
+      signal,
+    })
+  },
+
+  /** POST /geo/parse: coordinates or a Google Maps link; 422 no_coordinates when there are none */
+  geoParse(tripId: string, text: string): Promise<GeoParseResponse> {
+    return request('POST', `${tripPath(tripId)}/geo/parse`, {
+      token: tokenFor(tripId),
+      body: { text } satisfies GeoParseRequest,
+    })
+  },
+
+  /** POST /geo/routes: at most 30 drive / walk / cycle legs, answered in order */
+  geoRoutes(tripId: string, legs: RouteRequest[], signal?: AbortSignal): Promise<RoutesResponse> {
+    return request('POST', `${tripPath(tripId)}/geo/routes`, {
+      token: tokenFor(tripId),
+      body: { legs } satisfies RoutesRequest,
+      signal,
     })
   },
 }

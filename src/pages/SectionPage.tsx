@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import styled from 'styled-components'
 import { EmptyState } from '../components/index.ts'
 import { useT } from '../lib/i18n.ts'
@@ -17,8 +18,16 @@ const Wrapper = styled.div`
   gap: ${space.lg}px;
 `
 
-/** Itinerary, map, lists and expenses until their batches fill them: a designed empty state */
+// Sections that have a real page load it as its own chunk (B1: the itinerary)
+const ItineraryPage = lazy(() => import('./itinerary/ItineraryPage.tsx'))
+
+/** Map, lists and expenses until their batches fill them: a designed empty state */
 export default function SectionPage({ section }: { section: PlaceholderSectionId }) {
+  if (section === 'itinerary') return <ItineraryPage />
+  return <Placeholder section={section} />
+}
+
+function Placeholder({ section }: { section: PlaceholderSectionId }) {
   const t = useT()
   const meta = SECTIONS.find((item) => item.id === section)!
   const label = t(meta.label)

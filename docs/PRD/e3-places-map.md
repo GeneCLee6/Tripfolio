@@ -52,6 +52,7 @@ depends_on: [E10, E11]
 ## 驗收條件
 
 - [ ] AC-3.1 — 地點搜尋：名稱搜尋、Google Maps 連結與座標解析、手動放針三種方式都能建立地點（含中英名、座標、地址、類別）。
+  - 進度（#B1）：名稱搜尋（Playwright 以 mock 的 `/geo/search` 驗證，結果建立 `places` 並以 OSM 連結去重）與貼座標／連結（真的 `/geo/parse`）都能建立地點。**未勾**：「手動放針」目前只交出 `{ manual: true }` 回呼，地圖長按放針在 B2 接上後再勾。
 - [ ] AC-3.2 — 地圖：全程／單日切換、類型圖示與日色、點卡、叢集、手機全螢幕；地圖頁 JS gzip ≤ 300 kB（MapLibre 獨立 chunk；2026-11-09 由 250 調高，安全版本優先）。
   - **#map 驗證（元件層，`/dev/ui` 的「地圖」區，Playwright chromium）**：OpenFreeMap style 與瓦片請求皆 200；全程檢視顯示叢集（數字圈）與依日色虛線的過夜連線；切到 Day 8 會重新框到皇后鎮、日色編號針與路線；點畫布上的針與鍵盤（隱藏清單＋Enter）都會開點卡（名稱、Day／第幾站、類型、座標與時間、「排進這天」「用 Google Maps 開啟」），Esc 關閉；全螢幕在 1280 與 375 px（手機模擬）都鋪滿視窗；深色主題底圖與針環即時換色。
   - **尚未達成、所以不勾**：MapLibre chunk 實測 **287.7 kB gzip > 250 kB**（maplibre-gl 6.16.0 主執行緒 ESM；另有 worker 檔 ≈147 kB gzip 以資產載入，預算腳本不計）；5.x 較小但有 critical XSS 公告（GHSA-jrc7-96c5-q579，≤ 6.4.0），不能用。要調預算上限或接受差額，待擁有者決定。另外地圖頁本身（e2-t05／B1）尚未接上元件，全程／單日切換的頁面版與實機手機也還沒驗。
@@ -64,6 +65,7 @@ depends_on: [E10, E11]
 ### M0
 
 - [x] `e3-t01` schema `places`（nameLocal、nameEn、lat、lng、address、category、source、hours JSON、links）與引用；`/api/places` · AC-3.1, 3.4 · S · ← e1-t01 · #A3b
+
 - [ ] `e3-t02` 地點搜尋元件：Worker 代理 Photon／Nominatim（快取、速率、UA）、Google Maps 連結與座標解析、手動放針 · AC-3.1 · M · ← e3-t01 · 後端部分完成（#proxy）
 - [x] `e3-t03` 地圖元件：MapLibre＋OpenFreeMap style 客製、類型圖示、日色、叢集、點卡、手機全螢幕、獨立 chunk · AC-3.2 · M · ← e10-t01 · #map（元件與 `/dev/ui` 展示；真正的地圖頁由 `e2-t05`／B1 接上）
 - [ ] `e3-t04` 路線服務：Worker 代理 OpenRouteService（自駕／步行／單車）、D1 快取、直線後備；每日線與全程過夜連線 · AC-3.3 · M · ← e3-t03 · 後端部分完成（#proxy）
