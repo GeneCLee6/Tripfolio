@@ -1,9 +1,12 @@
 // The base components (docs/DESIGN.md §3, e10-t01). Every one is shown on /dev/ui.
+// ButtonLink (router link drawn as a button) is imported from its own file: it pulls in
+// react-router-dom, which the share page must not load.
 export { amountText, initialOf, parseAmount } from './text.ts'
 export { Avatar, AvatarGroup } from './Avatar.tsx'
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button.tsx'
 export { Card, CardText, CardTitle } from './Card.tsx'
 export { Chip, type ChipTone } from './Chip.tsx'
+export { ColorSwatches } from './ColorSwatches.tsx'
 export { DayChip } from './DayChip.tsx'
 export { Dialog, Sheet, type DialogProps } from './Dialog.tsx'
 export { EmptyState } from './EmptyState.tsx'
