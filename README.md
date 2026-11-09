@@ -1,4 +1,4 @@
-# Tripfolio · 旅誌 (working title)
+# Tripfolio · 旅誌
 
 A trip planner and shared wallet for one group of friends (friends-only app; this repository is public).
 
@@ -11,7 +11,7 @@ Plan a trip the way a travel agency presents one: day-by-day itinerary, stops on
 
 ## Status
 
-Planning complete (2026-11-09), no code yet. Everything is under `docs/`:
+Planning complete and implementation under way (2026-11-09): Phases A–B done, parts of C–H merged; see `docs/NEXT.md` for the exact position. Planning docs are under `docs/`:
 
 | Doc | Purpose |
 | --- | --- |
