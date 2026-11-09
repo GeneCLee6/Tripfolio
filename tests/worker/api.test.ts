@@ -333,7 +333,8 @@ describe('shares', () => {
       env,
     )
     expect(response.headers.get('x-robots-tag')).toBe('noindex')
-    expect(await response.json()).toEqual({
+    // The full payload and the hide options are covered in share.test.ts
+    expect(await response.json()).toMatchObject({
       trip: {
         name: 'NZ South Island',
         destination: 'New Zealand',
@@ -343,7 +344,7 @@ describe('shares', () => {
         coverColor: null,
         summary: '',
       },
-      days: [],
+      options: { hideMoney: true },
     })
     // The share token is not a member token
     expect(
@@ -352,7 +353,11 @@ describe('shares', () => {
     await call('DELETE', `/api/trips/${t.trip.id}/shares/${share.body.share.id}`, {
       token: t.memberToken,
     })
-    expect((await call('GET', `/api/share/${share.body.shareToken}`)).status).toBe(404)
+    const revoked = await handleRequest(
+      new Request(`https://x.test/api/share/${share.body.shareToken}`),
+      env,
+    )
+    expect(revoked.status).toBe(404)
   })
 })
 
