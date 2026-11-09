@@ -26,7 +26,7 @@ worktree 開分支、只讀需要的段落、lint+typecheck+test+build 只看最
 | 批 | Task | 內容 | 前提 |
 | --- | --- | --- | --- |
 | [x] A1 (#A1, local) | `e11-t01` | repo 骨架（Vite／React／TS、worker、shared、wrangler：D1＋R2＋DO、Vitest、oxlint、CLAUDE.md、RULES.md）、CI、PR 預覽、`main` 自動上線、`DEPLOY.md` | 總 PRD Q1 名稱拍板 |
-| [ ] A2 | `e10-t01` `e10-t02` `e10-t04` `e11-t02` | 設計 token、字型子集、基礎元件、深淺色、`/dev/ui`；i18n `t()`、zh-TW 來源／en、偵測與切換；`Intl` 格式工具；bundle 預算與 `check-i18n` 進 CI | A1 |
+| [x] A2（#A2，local） | `e10-t01` `e10-t02` `e10-t04` `e11-t02` | 設計 token、字型子集、基礎元件、深淺色、`/dev/ui`；i18n `t()`、zh-TW 來源／en、偵測與切換；`Intl` 格式工具；bundle 預算與 `check-i18n` 進 CI | A1 |
 | [~] A3（後端 `e1-t01` `e2-t01` `e3-t01` 完成 #A3b，local；前端 `e10-t03` `e1-t02` 待 A2 合併後做） | `e1-t01` `e2-t01` `e3-t01` `e10-t03` `e1-t02` | `trips`／`members`／`invites`／`shares`、`days`／`stops`、`places` schema 與 API；app 殼（路由、三欄／單欄、底部導覽）；旅程清單與建立表單 | A2 |
 
 ## Phase B · M0 日程與地圖
@@ -42,7 +42,7 @@ worktree 開分支、只讀需要的段落、lint+typecheck+test+build 只看最
 | 批 | Task | 內容 | 前提 |
 | --- | --- | --- | --- |
 | [ ] C1 | `e5-t01` `e2-t07` `e8-t01a` `e1-t05` | 必吃必買 schema 與口袋名單查詢；雨天備案與口袋名單側欄；唯讀分享頁基本版（伺服器端過濾、封面、每日卡、語言切換）；分享連結與隱藏選項 | B3 |
-| [ ] C2 | `e10-t06` `e10-t07` `e11-t03` | 無障礙走查與 axe；英文走查與繁中語感複查、術語表；每日備份與實際還原。**M0 完成：擁有者排完紐西蘭南島 14 天並分享給一位朋友** | C1 |
+| [ ] C2（`e11-t03` 已提前完成 #backup） | `e10-t06` `e10-t07` `e11-t03` | 無障礙走查與 axe；英文走查與繁中語感複查、術語表；每日備份與實際還原。**M0 完成：擁有者排完紐西蘭南島 14 天並分享給一位朋友** | C1 |
 
 ## Phase D · M1 照片、必吃必買、預訂
 
