@@ -1,6 +1,7 @@
 import type { HealthResponse } from '../shared/health.ts'
 import type { Env } from './env.ts'
 import { ApiError, errorResponse, json } from './http.ts'
+import * as media from './media.ts'
 import { geoSearch } from './proxy/geocode.ts'
 import { geoParse } from './proxy/parse.ts'
 import { geoRoute, geoRoutes } from './proxy/route.ts'
@@ -107,6 +108,17 @@ const api = new Router()
   .add('POST', '/api/trips/:id/wishlist/:wid/schedule', scheduleWishlistItem)
   .add('POST', '/api/trips/:id/wishlist/:wid/unschedule', unscheduleWishlistItem)
   .add('GET', '/api/trips/:id/pocket', pocketList)
+  // Attachments and media (e6-t01): worker/media.ts; GET /api/media/* sets its own cache-control
+  .add('POST', '/api/trips/:id/attachments/sign', media.signAttachment)
+  .add('GET', '/api/trips/:id/attachments/usage', media.attachmentUsage)
+  .add('GET', '/api/trips/:id/attachments', media.listAttachments)
+  .add('PUT', '/api/trips/:id/attachments/:aid/content', media.putAttachmentContent)
+  .add('PUT', '/api/trips/:id/attachments/:aid/thumb', media.putAttachmentThumb)
+  .add('POST', '/api/trips/:id/attachments/:aid/complete', media.completeAttachment)
+  .add('PATCH', '/api/trips/:id/attachments/:aid', media.patchAttachment)
+  .add('DELETE', '/api/trips/:id/attachments/:aid', media.deleteAttachment)
+  .add('GET', '/api/media/:aid', media.getMedia)
+  .add('GET', '/api/media/:aid/thumb', media.getMediaThumb)
   // External API proxies (e3-t02, e3-t04): worker/proxy/*, never called from the browser
   .add('GET', '/api/trips/:id/geo/search', geoSearch)
   .add('POST', '/api/trips/:id/geo/parse', geoParse)
