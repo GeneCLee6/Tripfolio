@@ -9,6 +9,9 @@ import { geoParse } from './proxy/parse.ts'
 import { geoRoute, geoRoutes } from './proxy/route.ts'
 import { geoUsage } from './proxy/usage.ts'
 import { Router } from './router.ts'
+import { withSecurityHeaders } from './security/headers.ts'
+import { rateLimitedResponse, withRateLimit } from './security/ratelimit.ts'
+import { withUsageCount } from './security/usage.ts'
 import {
   createBooking,
   deleteBooking,
@@ -195,15 +198,18 @@ const api = new Router()
   .add('POST', '/api/trips/:id/geo/route', geoRoute)
   .add('POST', '/api/trips/:id/geo/routes', geoRoutes)
   .add('GET', '/api/trips/:id/geo/usage', geoUsage)
-  .add('POST', '/api/trips/:id/og', ogPreview)
+  // og counts its calls in apiUsage here (e11-t04); the other proxies count inside worker/proxy/*
+  .add('POST', '/api/trips/:id/og', withUsageCount('og', ogPreview))
 
 async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
   try {
     const route = api.match(request.method, url.pathname)
     if (!route) throw new ApiError(404, 'not_found', 'no such endpoint')
-    return await route.handler({ request, env, url, params: route.params })
+    // Per-IP and per-member limits (worker/security/ratelimit.ts, DEPLOY.md §12)
+    return await withRateLimit(route.handler)({ request, env, url, params: route.params })
   } catch (error) {
-    if (error instanceof ApiError) return errorResponse(error)
+    if (error instanceof ApiError)
+      return error.status === 429 ? rateLimitedResponse(error) : errorResponse(error)
     console.error(error)
     return errorResponse(new ApiError(500, 'internal', 'internal error'))
   }
@@ -220,7 +226,12 @@ async function serveSharePage(request: Request, env: Env): Promise<Response> {
 
 // The Worker answers /api/*, /ws/* and /s/* (wrangler `run_worker_first`) and hands everything else
 // to the static assets (the app; client routes fall back to index.html).
+// Every response gets the security headers (worker/security/headers.ts), HTML also the CSP.
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
+  return withSecurityHeaders(await route(request, env))
+}
+
+async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   if (url.pathname.startsWith('/api/')) return handleApi(request, env, url)
   if (url.pathname.startsWith('/ws/'))

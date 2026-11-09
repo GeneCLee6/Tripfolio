@@ -1,9 +1,11 @@
 // D1-backed bookkeeping shared by the proxies: daily apiUsage counts and quotas, per-member request
 // limits, and the minimum interval between calls to a provider. All best effort: D1 has no
-// cross-statement locks, so concurrent requests can overshoot a limit by a few (e11-t04 hardens it).
+// cross-statement locks, so concurrent requests can overshoot a limit by a few. The request limiter
+// itself lives in worker/security/ratelimit.ts (e11-t04); this module keeps its proxy-facing API.
 
 import type { UsageProvider } from '../../shared/api/geo.ts'
-import { ApiError, errorResponse } from '../http.ts'
+import { ApiError } from '../http.ts'
+import { enforceLimit, MINUTE, rateLimited, rateLimitedResponse } from '../security/ratelimit.ts'
 import { proxyDeps } from './deps.ts'
 
 /** The UTC day of an epoch-ms instant, YYYY-MM-DD */
@@ -54,32 +56,15 @@ export async function reserveUsage(
   return row !== null
 }
 
-export function rateLimited(retryAfterS: number, message: string): ApiError {
-  return new ApiError(429, 'rate_limited', message, { retryAfterS })
-}
+export { rateLimited }
 
 /**
  * Counts one request against `key` in the current one-minute window; throws 429 `rate_limited`
- * (details.retryAfterS) past `limit`. Old windows are dropped on the way.
+ * (details.retryAfterS) past `limit`. The shared fixed-window limiter (worker/security/ratelimit.ts)
+ * on the proxies' clock; it allows the request when D1 fails.
  */
 export async function enforceRateLimit(db: D1Database, key: string, limit: number): Promise<void> {
-  const now = proxyDeps.now()
-  const bucket = Math.floor(now / 60_000)
-  const results = await db.batch<{ count: number }>([
-    db.prepare('DELETE FROM rateLimits WHERE bucket < ?').bind(bucket),
-    db
-      .prepare(
-        `INSERT INTO rateLimits (key, bucket, count) VALUES (?, ?, 1)
-         ON CONFLICT (key, bucket) DO UPDATE SET count = rateLimits.count + 1
-         RETURNING count`,
-      )
-      .bind(key, bucket),
-  ])
-  const count = Number(results[1]?.results[0]?.count ?? 1)
-  if (count > limit) {
-    const retryAfterS = Math.max(1, Math.ceil(((bucket + 1) * 60_000 - now) / 1000))
-    throw rateLimited(retryAfterS, `at most ${limit} requests per minute`)
-  }
+  await enforceLimit(db, key, { limit, windowS: MINUTE }, proxyDeps.now())
 }
 
 /**
@@ -121,12 +106,7 @@ export async function withRetryAfter(run: () => Promise<Response>): Promise<Resp
   try {
     return await run()
   } catch (error) {
-    if (error instanceof ApiError && error.status === 429) {
-      const response = errorResponse(error)
-      const details = error.details as { retryAfterS?: number } | undefined
-      response.headers.set('retry-after', String(details?.retryAfterS ?? 60))
-      return response
-    }
+    if (error instanceof ApiError && error.status === 429) return rateLimitedResponse(error)
     throw error
   }
 }

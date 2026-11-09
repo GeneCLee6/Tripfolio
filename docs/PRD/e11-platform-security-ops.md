@@ -45,6 +45,7 @@ depends_on: []
 - [ ] AC-11.3 — 備份：每日備份到 R2 並實際還原一次成功。
   - 進度（#backup，e11-t03）：`worker/backup.ts`＋`scheduled`＋cron `0 17 * * *` 已實作，單元測試涵蓋全部表與筆數、gzip 還原、`APP_ENV` 前綴、30 天清理、失敗重拋。2026-11-09 在本機排練過：`wrangler dev --test-scheduled` 觸發 → 本機 R2 出現備份 → 取回、解壓 → `d1 execute --file` 進空的本機 staging D1 → 資料相同、`migrations apply` 回報無待套用（`DEPLOY.md` §10）。**正式站的每日執行與遠端還原要等第一次部署後確認**，所以不勾。
 - [ ] AC-11.4 — 安全：token 規格、速率限制、上傳限制、文件驗權、伺服器端過濾、noindex、CSP 都有測試或實測紀錄。
+  - 進度（#H3a，e11-t04）：有測試的部分——token 規格（128-bit base64url、只存 SHA-256、常數時間比對、格式不對不查 D1；`tests/worker/security/tokens.test.ts`）、速率限制（各路由上限、時間窗重置、`Retry-After`、D1 故障放行；`ratelimit.test.ts`）、上傳限制（SVG 拒收、超過大小的 `Content-Length` 回 413；`uploads.test.ts`）、文件驗權（分享 token 403、成員 `no-store`）、`apiUsage` 含 `og`、Worker 回應的 `nosniff`／`noindex`／CSP（`headers.test.ts`）；伺服器端過濾已由 `tests/worker/share.test.ts` 涵蓋。瀏覽器實測：本機建置後建旅程、地圖（OpenFreeMap 瓦片）、分享頁在 CSP 下無違規（`DEPLOY.md` §12）。**不勾的原因**：app 的 `index.html` 與靜態檔不經過 Worker，還沒有 CSP／noindex 標頭（要加 `public/_headers`，見 `DEPLOY.md` §12.2），且正式站的 `curl -I` 要等第一次部署後做。
 - [ ] AC-11.5 — 成本：用量頁顯示六項指標與外部 API 配額；80% 警示。
 - [ ] AC-11.6 — 隱私：刪旅程連帶刪 R2（測試）；隱私頁上線。
 
@@ -61,6 +62,7 @@ depends_on: []
 - [ ] `e11-t06` 刪旅程連帶清 R2、隱私頁、noindex 與 CSP 檢查 · AC-11.6 · S · ← e1-t07
   - 後端清理完成（#H3b）；**隱私頁未做**，所以不勾。`worker/cleanup.ts` 每日 cron 在備份與匯率之後跑（備份失敗就跳過，`cleanup_skipped`）。清理契約：旅程軟刪除滿 **30 天** → 刪 R2 `<APP_ENV>/trips/<tripId>/` 全部物件，再依相依順序硬刪該旅程所有列（`TRIP_PURGE_STATEMENTS`；新增帶 `tripId` 的表必須加進去，`tests/worker/cleanup.test.ts` 會擋）；附件軟刪除滿 **7 天** → 刪 R2 物件與列；`pending` 上傳超過 **15 分鐘** → 刪物件（若有）與列；`rateLimits`／`providerThrottle` 超過 2 天、`geoCache` 過期列。R2 先刪、失敗就保留列等隔天重試；每步各自吞錯誤，log 一行 `cleanup_done`（失敗另記 `cleanup_failed`）。每次最多 20 個旅程、500 個附件。`migrations/0008_leftovers.sql` 加了對應的部分索引。
 - [ ] `e11-t04` 速率限制、token 規格與測試、上傳限制、文件驗權讀取、`apiUsage` 計數 · AC-11.4 · M · ← e6-t01
+- [x] `e11-t04` 速率限制、token 規格與測試、上傳限制、文件驗權讀取、`apiUsage` 計數 · AC-11.4 · M · ← e6-t01 · #H3a
 
 ### M3
 

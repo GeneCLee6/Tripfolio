@@ -242,3 +242,83 @@ npx wrangler d1 migrations apply DB --local --env preview --config wrangler.json
 ```
 
 實測（2026-11-09，本機，不是正式站）：本機 D1 套用遷移並寫入一個旅程與一位成員 → 觸發 → `backup_done`（11 張表、5 筆、1348 bytes）→ 取回、解壓 → 倒進空的本機 staging D1 → 兩邊 trips／members／meta 筆數、旅程名稱（含單引號）、`d1_migrations`、23 個索引都相同，`migrations apply` 回報沒有待套用的遷移。**正式站的每日執行與遠端還原（10.1 B）要在第一次部署後由擁有者做一次**，再勾 AC-11.3。
+
+## 12. 安全檢查
+
+e11-t04 的速率限制與回應標頭都在 Worker：`worker/security/ratelimit.ts`（限制表 `LIMITS`）、`worker/security/headers.ts`（標頭與 CSP），由 `worker/app.ts` 套用；測試在 `tests/worker/security/`。
+
+### 12.1 速率限制
+
+D1 的 `rateLimits` 表，固定時間窗（`bucket` 是時間窗起點的 epoch 分鐘，分鐘窗與小時窗共用一張表，超過一小時的列順手刪掉）。盡力而為：並發請求可能多放過幾個；**D1 本身出錯時放行**，每個 isolate 只記一次 `rate_limit_unavailable` log。超過時回 `429`：
+
+```json
+{ "error": { "code": "rate_limited", "message": "at most 10 requests per hour", "details": { "retryAfterS": 1800 } } }
+```
+
+並帶 `Retry-After: <秒>`（任何 handler 丟出的 429 都會補上這個標頭）。
+
+| 路由 | 上限 | 依據 | 位置 |
+| --- | --- | --- | --- |
+| `POST /api/trips`（不需登入） | 10／小時 | 用戶 IP（`CF-Connecting-IP`） | `LIMITS.tripCreate` |
+| `POST /api/join/:token` | 20／小時 | IP | `LIMITS.join` |
+| `GET /api/share/:token` | 120／分鐘 | IP | `LIMITS.share` |
+| `GET /api/media/*` | 600／分鐘 | IP | `LIMITS.media` |
+| `POST`／`PUT`／`PATCH`／`DELETE /api/trips/:id/*` | 120／分鐘 | 成員 token（存 SHA-256 前 32 碼，不存 token） | `LIMITS.write` |
+| `POST /api/trips/:id/attachments/sign` | 60／分鐘（另計，也算進上一列） | 成員 | `SIGN_PER_MINUTE`（`worker/media.ts`） |
+| 地點搜尋、貼連結解析 | 30／分鐘 | 成員 | `GEO_LIMITS`（`worker/proxy/geocode.ts`、`parse.ts`） |
+| 連結預覽 `og` | 20／分鐘 | 成員 | `OG_LIMITS`（`worker/proxy/og.ts`） |
+| 匯率手動更新 | 2／分鐘 | 旅程 | `FX_REFRESH_PER_MINUTE`（`worker/proxy/fx.ts`） |
+| 路線 | 每旅程與全站每日配額 | `apiUsage` | `worker/proxy/route.ts` |
+
+- 沒帶 token 或 token 格式不對的寫入不計數：handler 不碰 D1 直接回 401。
+- **本機例外**：IP 是 `127.0.0.1`／`::1`（miniflare 的本機請求，Cloudflare 上不會出現）時不套用以 IP 計的限制，否則一次本機 e2e 就會用完每小時 10 個建旅程。成員的寫入限制照樣套用。沒有 `CF-Connecting-IP` 的請求共用 `unknown` 一格。
+- 外部 API 一律計入 `apiUsage`：`photon`／`nominatim`／`ors`（`worker/proxy/geocode.ts`、`route.ts`）、`fx`（`fx.ts`）、`og`（`worker/security/usage.ts`，只算真的對外連線的 200／502）。
+
+### 12.2 回應標頭
+
+每個經過 Worker 的回應（API、`/s/*` 分享頁、Worker 交給靜態資產的請求）：
+
+| 標頭 | 值 |
+| --- | --- |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(self), geolocation=(self), microphone=()` |
+| `X-Robots-Tag` | `noindex`（整站，不是公開網站） |
+| `Content-Security-Policy`（只有 HTML） | 見下 |
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://tiles.openfreemap.org https://*.openfreemap.org; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+```
+
+- `style-src 'unsafe-inline'`：styled-components 會注入 `<style>`。`img-src https:`：願望清單的連結預覽保留來源網站的圖片網址。`worker-src blob:`：MapLibre。
+- handler 自己設的 CSP 不覆蓋（`/api/media/*` 的圖片是 `default-src 'none'; sandbox`）。
+- `vite dev` 的 HTML 有 Vite 內嵌的 React Refresh 腳本和 HMR WebSocket，所以只有 dev server（`import.meta.env.MODE === 'development'`）放寬為 `script-src 'self' 'unsafe-inline'`、`connect-src ws: wss: …`；建置與測試都用正式版。
+- 瀏覽器實測（2026-11-09，本機 `vite preview`＋建置後的檔案）：建旅程、日程頁、`/trips/:id/map`（OpenFreeMap 樣式、瓦片、字型都載入，地圖正常）、分享頁 `/s/:token` 都沒有 CSP 違規，唯一的回報是 zod 啟動時用 `Function('')` 偵測能否 JIT（被擋就退回一般模式，不影響功能）。
+
+**還沒做（要改 `public/` 或 `wrangler.jsonc`，不在 e11-t04 的範圍）**：`run_worker_first` 只有 `/api/*`、`/ws/*`、`/s/*`，所以 app 本身的 `index.html` 與 `/assets/*` **不經過 Worker、目前沒有這些標頭**。建議加 `public/_headers`（Workers 靜態資產支援，不多花 Worker 請求數）：
+
+```
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), geolocation=(self), microphone=()
+  X-Robots-Tag: noindex
+  Content-Security-Policy: <上面那一行>
+```
+
+（或把 `run_worker_first` 改成 `true`，但每個靜態檔都會算一次 Worker 請求。）
+
+### 12.3 部署後驗證
+
+```sh
+BASE=https://<正式或預覽網址>
+curl -sI $BASE/api/health          # nosniff、referrer-policy、permissions-policy、x-robots-tag: noindex、cache-control: no-store
+curl -sI $BASE/s/AAAAAAAAAAAAAAAAAAAAAA   # 以上＋content-security-policy
+curl -sI $BASE/                    # 加了 public/_headers 之後才會有以上標頭
+# 速率限制：第 11 次回 429 與 Retry-After（會建 10 個空旅程，只在預覽站做）
+for i in $(seq 1 11); do curl -s -o /dev/null -w "%{http_code} " -X POST $BASE/api/trips \
+  -H 'content-type: application/json' \
+  -d '{"name":"rl","startDate":"2026-12-20","endDate":"2026-12-21","tz":"Asia/Tokyo","owner":{"name":"T","color":"teal"}}'; done
+```
+
+本機實測（2026-11-09，`vite preview`）：`/api/health`、`/s/:token` 的標頭如上；`POST /api/trips` 第 11 次回 429（當時還沒有本機例外，`rateLimits` 列 `ip:trip-create:127.0.0.1` 計到 11）。**正式站的 `curl -I` 要等第一次部署後做**。
