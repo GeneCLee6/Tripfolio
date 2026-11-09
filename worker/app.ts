@@ -11,7 +11,6 @@ import { geoUsage } from './proxy/usage.ts'
 import { Router } from './router.ts'
 import { withSecurityHeaders } from './security/headers.ts'
 import { rateLimitedResponse, withRateLimit } from './security/ratelimit.ts'
-import { withUsageCount } from './security/usage.ts'
 import {
   createBooking,
   deleteBooking,
@@ -198,8 +197,7 @@ const api = new Router()
   .add('POST', '/api/trips/:id/geo/route', geoRoute)
   .add('POST', '/api/trips/:id/geo/routes', geoRoutes)
   .add('GET', '/api/trips/:id/geo/usage', geoUsage)
-  // og counts its calls in apiUsage here (e11-t04); the other proxies count inside worker/proxy/*
-  .add('POST', '/api/trips/:id/og', withUsageCount('og', ogPreview))
+  .add('POST', '/api/trips/:id/og', ogPreview) // og counts its own apiUsage inside worker/proxy/og.ts
 
 async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
   try {

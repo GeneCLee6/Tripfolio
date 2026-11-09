@@ -295,7 +295,7 @@ default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://
 - `vite dev` 的 HTML 有 Vite 內嵌的 React Refresh 腳本和 HMR WebSocket，所以只有 dev server（`import.meta.env.MODE === 'development'`）放寬為 `script-src 'self' 'unsafe-inline'`、`connect-src ws: wss: …`；建置與測試都用正式版。
 - 瀏覽器實測（2026-11-09，本機 `vite preview`＋建置後的檔案）：建旅程、日程頁、`/trips/:id/map`（OpenFreeMap 樣式、瓦片、字型都載入，地圖正常）、分享頁 `/s/:token` 都沒有 CSP 違規，唯一的回報是 zod 啟動時用 `Function('')` 偵測能否 JIT（被擋就退回一般模式，不影響功能）。
 
-**還沒做（要改 `public/` 或 `wrangler.jsonc`，不在 e11-t04 的範圍）**：`run_worker_first` 只有 `/api/*`、`/ws/*`、`/s/*`，所以 app 本身的 `index.html` 與 `/assets/*` **不經過 Worker、目前沒有這些標頭**。建議加 `public/_headers`（Workers 靜態資產支援，不多花 Worker 請求數）：
+**已補（合併時）**：`public/_headers` 把同一組標頭（CSP 只給 `/` 與 `/index.html`）加到靜態資產上，Workers Static Assets 會讀這個檔。原本的說明：`run_worker_first` 只有 `/api/*`、`/ws/*`、`/s/*`，所以 app 本身的 `index.html` 與 `/assets/*` **不經過 Worker、目前沒有這些標頭**。建議加 `public/_headers`（Workers 靜態資產支援，不多花 Worker 請求數）：
 
 ```
 /*
