@@ -33,7 +33,7 @@ describe('handleRequest', () => {
     const { env, assetPaths } = fakeEnv()
     const response = await handleRequest(new Request('https://x.test/api/nope'), env)
     expect(response.status).toBe(404)
-    expect(await response.json()).toEqual({ error: 'not_found' })
+    expect(await response.json()).toMatchObject({ error: { code: 'not_found' } })
     expect(assetPaths).toEqual([])
   })
 

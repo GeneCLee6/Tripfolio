@@ -40,6 +40,7 @@ depends_on: [E1, E3, E10]
 - 即時同步：每旅程一個 `TripDO`，WebSocket 廣播 `patch`（實體、id、欄位、值、rev）；前端的 `useTrip()` 維護本機快取與離線佇列（IndexedDB）。D1 仍是真相來源，DO 只做廣播與短期緩衝。
 - 日出日落用 NOAA 公式本機算（純函式，有測試），不打 API。
 - 純函式已先行實作於 `shared/itinerary/`（移動段、每日合計、時間檢查）與 `shared/time/`（日出日落、時區）（分支 feat/shared-pure-core），schema 與畫面部分留給對應批次。
+- **API 已有**（#A3b，`worker/trips/itinerary.ts`）：`GET /api/trips/:id/days`（含巢狀 stops 與 `legs` 覆寫；已分配依 idx、未分配在後）、`PATCH /api/trips/:id/days/:dayId`、`POST /api/trips/:id/stops`（`afterStopId` 省略＝排最後、null＝第一）、`PATCH/DELETE /api/trips/:id/stops/:sid`、`POST /api/trips/:id/stops/:sid/move`（`{ dayId, afterStopId | null }`，間距 < 1e-6 時該日重排 1..n）、`PUT/DELETE /api/trips/:id/legs/:fromStopId/:toStopId`（`{ mode, minutes | null }`）。每次寫入 `trips.rev` 與該列 `rev` 都 +1，回應帶新的 `rev`。日期變更時 Day k 依序對到新的第 k 天，多出的變未分配（`idx` 為 null、保留 date 與 stops），再延長時先接回未分配的日子。
 
 ## 驗收條件
 
@@ -54,7 +55,7 @@ depends_on: [E1, E3, E10]
 
 ### M0
 
-- [ ] `e2-t01` schema：`days`、`stops`、`legOverrides`，`rev` 與 `updatedAt`；`/api/trips/:id/days|stops` API · AC-2.1, 2.2 · M · ← e1-t01
+- [x] `e2-t01` schema：`days`、`stops`、`legOverrides`，`rev` 與 `updatedAt`；`/api/trips/:id/days|stops` API · AC-2.1, 2.2 · M · ← e1-t01 · #A3b
 - [ ] `e2-t02` 日程頁骨架：Day 導覽（橫向 chip）、每日標題／色／備註／住宿欄位、日期變更重排與未分配 · AC-2.1 · M · ← e1-t02, e2-t01
 - [ ] `e2-t03` 行程點卡片與編輯抽屜（類型、時間、地點選擇、費用、預訂旗標、備註、連結） · AC-2.2 · M · ← e2-t02, e3-t02
 - [ ] `e2-t04` 拖曳排序與跨日移動（dnd-kit、鍵盤替代、手機長按）、小數 order · AC-2.2 · M · ← e2-t03

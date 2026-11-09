@@ -5,7 +5,7 @@ export interface Env {
   ASSETS: Fetcher
   /** One object per trip: live sync only (ARCHITECTURE.md §1); a ping-only placeholder for now */
   TRIP: DurableObjectNamespace<TripDO>
-  /** Production or staging database; the real schema comes with A3 */
+  /** Production or staging database (migrations/) */
   DB: D1Database
   /** Photos, documents, receipts (E6); documents are only ever read through the Worker */
   MEDIA: R2Bucket

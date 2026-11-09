@@ -38,6 +38,12 @@ depends_on: [E10, E11]
 - Worker 的每個 `/api/trips/:id/*` 都經角色中介層；token 三種：`memberToken`（成員＋旅程）、`inviteToken`、`shareToken`，都是 128-bit 隨機值、D1 只存雜湊。
 - 「我是誰」的選擇畫面要讓人一眼看到頭像色與名字，避免選錯；選錯可以在設定頁換（owner 會看到一條紀錄）。
 - 旅程清單頁是 app 首頁：即將出發（倒數，E9）／進行中／過去的旅程。
+- **API 已有**（#A3b，`worker/trips/trips.ts`、`members.ts`、`worker/share.ts`、`worker/auth.ts`；schema 在 `shared/schema`、回應型別在 `shared/api/types.ts`）：
+  - `POST /api/trips`（免驗證；建旅程＋owner 成員＋Day 列，回 `memberToken`）、`GET /api/trips`（`X-Member-Tokens` 逗號分隔，回 `tokenIndex`）、`GET/PATCH/DELETE /api/trips/:id`（PATCH 由 editor、`archived` 只限 owner；DELETE 軟刪、只限 owner）。
+  - `POST /api/trips/:id/members`、`PATCH/DELETE /api/trips/:id/members/:mid`（owner；成員可改自己的名字／顏色；移除＝標記 removedAt 並撤銷其 token）。
+  - `GET/POST /api/trips/:id/invites`、`DELETE /api/trips/:id/invites/:iid`（owner）；`GET /api/join/:token`（「我是誰」預覽，不列 owner）、`POST /api/join/:token`（`{ memberId }` 或 `{ name, color }`，回 `memberToken`；不能認領 owner）。
+  - `GET/POST /api/trips/:id/shares`、`DELETE /api/trips/:id/shares/:sid`（owner，`options`：hideMoney／hideAddresses／showRecap）；`GET /api/share/:token` 目前只回旅程摘要＋空 `days`（C1 補）。
+  - 驗證：`Authorization: Bearer <memberToken>`；無效 401、別的旅程 404、角色不足 403、封存後寫入 403 `trip_archived`、驗證失敗 422；錯誤格式 `{ error: { code, message } }`。
 
 ## 驗收條件
 
@@ -51,7 +57,7 @@ depends_on: [E10, E11]
 
 ### M0
 
-- [ ] `e1-t01` D1 schema：`trips`、`members`、`invites`、`shares`；`/api/trips` CRUD 與 token 中介層骨架 · AC-1.1 · M · ← e11-t01
+- [x] `e1-t01` D1 schema：`trips`、`members`、`invites`、`shares`；`/api/trips` CRUD 與 token 中介層骨架 · AC-1.1 · M · ← e11-t01 · #A3b
 - [ ] `e1-t02` 旅程清單頁與建立／編輯表單（名稱、目的地、日期、時區、幣別、封面色塊、型態） · AC-1.1 · M · ← e1-t01, e10-t03
 - [ ] `e1-t03` 成員模型、邀請連結產生與 `/join` 頁、「我是誰」裝置綁定（memberToken）、設定頁換人 · AC-1.2 · M · ← e1-t01
 - [ ] `e1-t04` 角色中介層（owner／editor／viewer）與前端依角色隱藏編輯 UI · AC-1.3 · S · ← e1-t03
