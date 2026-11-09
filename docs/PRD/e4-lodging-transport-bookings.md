@@ -39,6 +39,12 @@ depends_on: [E2, E3, E6]
 - `bookings` 一張表、`type` 欄位＋`details` JSON（依 type 的 zod schema 驗證）；住宿獨立 `lodgings` 表，因為日程頁每天都要查。
 - 自動建立的行程點標 `source: 'booking'`、連 `bookingId`；改預訂會同步更新行程點時間與地點；刪預訂時問要不要留下行程點。
 - 時區用 `Intl.DateTimeFormat` 與 IANA 名稱，存 UTC＋時區名；不存「本地時間字串」。
+- **API 已有**（e4-t01，`#D3a`；`migrations/0006_bookings.sql`、`worker/trips/lodging.ts`、`worker/trips/bookings.ts`、`shared/schema/lodging.ts`、`shared/schema/booking.ts`，回應型別在 `shared/api/bookings.ts`）：成員 token；viewer 只能讀、editor 以上可寫；每次寫入都遞增旅程 `rev`。
+  - **住宿**：`GET/POST /api/trips/:id/lodgings`、`PATCH/DELETE /api/trips/:id/lodgings/:lid`（軟刪除）。已分配、日期落在 `[checkIn, checkOut)` 的每一天 `days.lodgingId` 指向它；一天只有一個住宿，後寫的蓋過前面的，回應的 `conflicts` 列出原本指向別處的 dayId，`dayIds` 列出現在連到它的日子；改日期會重連、刪除會清掉。`cancelBy` 可送 UTC，或送 `cancelByLocal`（`YYYY-MM-DDTHH:mm`，旅程時區）。`PATCH /days/:dayId` 的 `lodgingId` 必須是本旅程、未刪除的住宿。
+  - **日程**：`GET /api/trips/:id/days` 每天多 `lodging`（當晚住宿；當晚沒有住宿時改放當天早上退房的那間，`isCheckoutDay: true`）與 `checkout`（當天早上退房的住宿，換住處的日子也有）；型別 `DaysWithLodgingResponse`。
+  - **預訂**：`GET/POST /api/trips/:id/bookings`、`PATCH/DELETE /api/trips/:id/bookings/:bid`。`type` ∈ flight／rental／driver／ferry／rail／bus／activity，`details` 依 type 驗證（錯了 422）；PATCH 的 `details` 疊在原值上再驗證，`type` 不能改。時間送 UTC（`startAt`／`endAt`），或送當地時間（`startLocal` 以 `startTz`、預設旅程時區；`endLocal` 以 `endTz`、預設同出發）。
+  - **自動行程點**（`stops.source = 'booking'`、`bookingId`、`bookingSlot`；`booking: 'booked'`；依旅程時區的當地日期放到那一天，日內依時間插入）：航班 → 出發日一個 `transport`（抵達日不同時，抵達日再一個）；租車 → 取車、還車各一個；包車 → 範圍內每天一個，時間用 `details.pickupTime`、標題是司機名；渡輪／鐵路／巴士 → 一個；活動 → 一個 `other`、地點用集合地點。改預訂會同步時間、標題、地點（只有日期變了才移到別天，不動順序），新多出的日子補上、不再適用的刪掉；使用者自己刪掉的那個不會被補回來。旅程沒有那天時回 `skippedDates`。刪預訂一併刪行程點，`?keepStops=1` 改成保留並解除連結。從行程點 API 刪掉預訂的行程點就只是刪掉它，預訂還在。
+  - **期限**：`GET /api/trips/:id/deadlines?withinDays=14`（0–366）→ `[now, now + N]` 內的 `{ kind, id, title, dueAt, type, bookingType }`，依時間排序（同時間：付款、取消、入住）。cancel＝`cancelBy`；payment＝有 `cancelBy` 且未付清（免費取消期限就是全額付款期限）；checkin＝住宿 `checkIn`＋`checkInTime`（沒填用 00:00，旅程時區）、活動 `startAt − checkInMinutesBefore`。
 
 ## 驗收條件
 
@@ -52,7 +58,7 @@ depends_on: [E2, E3, E6]
 
 ### M1
 
-- [ ] `e4-t01` schema `lodgings`、`bookings`（type＋details zod）、與 `attachments` 關聯；API · AC-4.1, 4.2 · S · ← e1-t01
+- [x] `e4-t01` schema `lodgings`、`bookings`（type＋details zod）、與 `attachments` 關聯；API · AC-4.1, 4.2 · S · ← e1-t01 · #D3a（附件關聯留給 `e4-t04`，等 E6 的 `attachments` 表）
 - [ ] `e4-t02` 住宿卡與表單、多晚範圍、日程頁帶入今晚住宿與退房、露營車欄位 · AC-4.1 · M · ← e2-t02, e3-t02, e4-t01
 - [ ] `e4-t03` 交通預訂表單（航班／租車／包車／渡輪與船班／鐵路／巴士）、自動行程點與同步、時區並列與測試 · AC-4.2, 4.5 · M · ← e2-t03, e4-t01
 - [ ] `e4-t04` 附件上傳與預覽（走 E6 通道）、分享頁隱藏 · AC-4.3 · S · ← e6-t01, e4-t02

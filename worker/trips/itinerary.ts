@@ -1,7 +1,7 @@
 // Days, stops and leg overrides (e2-t01). Every write bumps the trip rev and the row rev and answers
 // with the new trip rev.
 
-import type { DaysResponse, DayWithStops } from '../../shared/api/types.ts'
+import type { DaysWithLodgingResponse, DayWithLodging } from '../../shared/api/bookings.ts'
 import { dayPatchSchema } from '../../shared/schema/day.ts'
 import {
   legOverrideSchema,
@@ -21,6 +21,7 @@ import {
 } from '../db.ts'
 import { invalid, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { dayLodgings } from './lodging.ts'
 import { planPlacement, type Ordered } from './order.ts'
 
 const STOP_COLUMNS = [
@@ -99,9 +100,17 @@ export async function listDays(c: RouteContext): Promise<Response> {
     db.prepare('SELECT * FROM stops WHERE tripId = ? ORDER BY "order", id').bind(tripId).all<Row>(),
     db.prepare('SELECT * FROM legOverrides WHERE tripId = ?').bind(tripId).all<Row>(),
   ])
-  const byDay = new Map<string, DayWithStops>()
-  const list = days.results.map((r) => {
-    const day: DayWithStops = { ...toDay(r), stops: [] }
+  const plain = days.results.map(toDay)
+  // E4: the night's lodging and the morning's checkout per day (worker/trips/lodging.ts)
+  const lodgingOf = await dayLodgings(db, tripId, plain)
+  const byDay = new Map<string, DayWithLodging>()
+  const list = plain.map((d) => {
+    const day: DayWithLodging = {
+      ...d,
+      stops: [],
+      lodging: lodgingOf.get(d.id)?.lodging ?? null,
+      checkout: lodgingOf.get(d.id)?.checkout ?? null,
+    }
     byDay.set(day.id, day)
     return day
   })
@@ -109,7 +118,11 @@ export async function listDays(c: RouteContext): Promise<Response> {
     const stop = toStop(r)
     byDay.get(stop.dayId)?.stops.push(stop)
   }
-  const body: DaysResponse = { days: list, legs: legs.results.map(toLeg), rev: auth.trip.rev }
+  const body: DaysWithLodgingResponse = {
+    days: list,
+    legs: legs.results.map(toLeg),
+    rev: auth.trip.rev,
+  }
   return json(body)
 }
 
@@ -119,6 +132,13 @@ export async function patchDay(c: RouteContext): Promise<Response> {
   const auth = await authTrip(c.request, db, c.params.id, 'editor')
   const day = await loadDay(db, auth.trip.id, c.params.dayId)
   const body = await readBody(c.request, dayPatchSchema)
+  if (body.lodgingId) {
+    const lodging = await db
+      .prepare('SELECT id FROM lodgings WHERE id = ? AND tripId = ? AND deletedAt IS NULL')
+      .bind(body.lodgingId, auth.trip.id)
+      .first<Row>()
+    if (!lodging) throw invalid('lodgingId: no such lodging in this trip')
+  }
   const update = updateStatement(
     db,
     'days',

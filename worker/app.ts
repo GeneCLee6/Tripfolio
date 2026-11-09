@@ -7,6 +7,14 @@ import { geoParse } from './proxy/parse.ts'
 import { geoRoute, geoRoutes } from './proxy/route.ts'
 import { geoUsage } from './proxy/usage.ts'
 import { Router } from './router.ts'
+import {
+  createBooking,
+  deleteBooking,
+  listBookings,
+  listDeadlines,
+  patchBooking,
+} from './trips/bookings.ts'
+import { createLodging, deleteLodging, listLodgings, patchLodging } from './trips/lodging.ts'
 import { createShare, listShares, publicShare, revokeShare } from './share.ts'
 import {
   createStop,
@@ -119,6 +127,16 @@ const api = new Router()
   .add('DELETE', '/api/trips/:id/attachments/:aid', media.deleteAttachment)
   .add('GET', '/api/media/:aid', media.getMedia)
   .add('GET', '/api/media/:aid/thumb', media.getMediaThumb)
+  // Lodgings, bookings and their deadlines (e4-t01)
+  .add('GET', '/api/trips/:id/lodgings', listLodgings)
+  .add('POST', '/api/trips/:id/lodgings', createLodging)
+  .add('PATCH', '/api/trips/:id/lodgings/:lid', patchLodging)
+  .add('DELETE', '/api/trips/:id/lodgings/:lid', deleteLodging)
+  .add('GET', '/api/trips/:id/bookings', listBookings)
+  .add('POST', '/api/trips/:id/bookings', createBooking)
+  .add('PATCH', '/api/trips/:id/bookings/:bid', patchBooking)
+  .add('DELETE', '/api/trips/:id/bookings/:bid', deleteBooking)
+  .add('GET', '/api/trips/:id/deadlines', listDeadlines)
   // External API proxies (e3-t02, e3-t04): worker/proxy/*, never called from the browser
   .add('GET', '/api/trips/:id/geo/search', geoSearch)
   .add('POST', '/api/trips/:id/geo/parse', geoParse)
