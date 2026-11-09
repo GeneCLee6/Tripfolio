@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import styled from 'styled-components'
-import { LOCALES } from '../shared/i18n/t.ts'
+import { LOCALES } from '../shared/i18n/core.ts'
 import { SegmentedControl } from '../src/components/SegmentedControl.tsx'
 import { Skeleton } from '../src/components/Skeleton.tsx'
 import { useT } from '../src/lib/i18n.ts'

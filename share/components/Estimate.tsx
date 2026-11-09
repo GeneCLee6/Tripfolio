@@ -1,7 +1,7 @@
 import styled from 'styled-components'
 import type { EstimateLine, ShareEstimate } from '../../shared/api/share.ts'
 import { formatMoney } from '../../shared/i18n/format.ts'
-import type { Locale } from '../../shared/i18n/t.ts'
+import type { Locale } from '../../shared/i18n/core.ts'
 import { useT, type Translate } from '../../src/lib/i18n.ts'
 import { color, font, fontSize, fontWeight, radius, space } from '../../src/styles/tokens.ts'
 

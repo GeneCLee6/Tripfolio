@@ -1,5 +1,5 @@
 import { formatMoney as formatMinor } from '../money/currencies.ts'
-import { t, type Locale } from './t.ts'
+import { t, type Locale } from './core.ts'
 
 // Locale-aware formatting (docs/DESIGN.md §5.3, e10-t04). Numbers, dates and times always go through
 // Intl; the few word templates (「3 小時 20 分」, "3 h 20 min", the weekday parentheses) are catalog

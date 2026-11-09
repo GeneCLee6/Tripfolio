@@ -36,6 +36,7 @@ depends_on: []
 
 - 視覺稿在 `docs/design/mockup.html`，token 以它為準。
 - styled-components，樣式 prop 加 `$`；顏色只從 token。
+- i18n 目錄分三份（2026-11-09，分享頁預算）：`zh-TW.ts`（app 專用）、`zh-TW.common.ts`（app 與分享頁共用：地圖、format、通用字）、`zh-TW.share.ts`（`share.*`），各配 `en.*`；app 註冊前兩份、分享頁註冊後兩份；`check-i18n` 走分享頁 import 圖，擋缺 key、多餘 key、分享頁載入整份目錄、key 重複定義（規則見 `RULES.md` §2）。
 - 字型 self-host 子集（Fraunces 只拉丁、Noto Serif TC 與 Noto Sans TC 用 Google Fonts 的 unicode-range 子集）；登記 `docs/ASSETS.md`。
 
 ## 驗收條件

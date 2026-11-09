@@ -8,6 +8,8 @@ import {
   formatTime,
   formatTzAbbrev,
 } from '../../../shared/i18n/format.ts'
+// format.ts uses the catalog-free core; this registers the app catalog its templates come from
+import '../../../shared/i18n/t.ts'
 
 // Intl puts thin (U+2009) and narrow no-break (U+202F) spaces in ranges and 12-hour times
 const plain = (text: string) => text.replace(/[  ]/g, ' ')

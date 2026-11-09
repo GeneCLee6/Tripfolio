@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { enCommon } from '../../../shared/i18n/en.common.ts'
+import { enShare } from '../../../shared/i18n/en.share.ts'
 import { en } from '../../../shared/i18n/en.ts'
+import { registerCatalog } from '../../../shared/i18n/core.ts'
 import {
   detectLocale,
   getLocale,
@@ -9,6 +12,8 @@ import {
   t,
   tp,
 } from '../../../shared/i18n/t.ts'
+import { zhTWCommon } from '../../../shared/i18n/zh-TW.common.ts'
+import { zhTWShare } from '../../../shared/i18n/zh-TW.share.ts'
 import { zhTW } from '../../../shared/i18n/zh-TW.ts'
 
 afterEach(() => setLocale('zh-TW'))
@@ -90,5 +95,21 @@ describe('catalogs', () => {
     expect([zhTW['term.sharedFund'], en['term.sharedFund']]).toEqual(['公基金', 'Shared fund'])
     expect([zhTW['term.getsBack'], en['term.getsBack']]).toEqual(['應收', 'Gets back'])
     expect([zhTW['term.leg'], en['term.leg']]).toEqual(['移動段', 'Leg'])
+  })
+
+  it('split into app (with common spread in) and share, each key in one place', () => {
+    expect(Object.keys(zhTW)).toEqual(expect.arrayContaining(Object.keys(zhTWCommon)))
+    expect(Object.keys(en)).toEqual(expect.arrayContaining(Object.keys(enCommon)))
+    expect(Object.keys(zhTW).filter((key) => key in zhTWShare)).toEqual([])
+    expect(Object.keys(enShare).sort()).toEqual(Object.keys(zhTWShare).sort())
+  })
+})
+
+describe('registerCatalog()', () => {
+  it('adds to a catalog rather than replacing it', () => {
+    // t.ts registered the full app catalog; the share subset on top must lose nothing
+    registerCatalog('en', { ...enCommon, ...enShare })
+    expect(t('term.settleUp', undefined, 'en')).toBe('Settle up')
+    expect(t('share.title', undefined, 'en')).toBe('Shared trip')
   })
 })

@@ -8,7 +8,7 @@ import {
   formatMoney,
   formatTime,
 } from '../../shared/i18n/format.ts'
-import type { Locale } from '../../shared/i18n/t.ts'
+import type { Locale } from '../../shared/i18n/core.ts'
 import { useT, type Translate } from '../../src/lib/i18n.ts'
 import { focusRing, visuallyHidden } from '../../src/styles/mixins.ts'
 import {

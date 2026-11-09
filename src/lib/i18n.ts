@@ -11,10 +11,11 @@ import {
   type MessageKey,
   type MessageParams,
   type PluralKey,
-} from '../../shared/i18n/t.ts'
+} from '../../shared/i18n/core.ts'
 
 // The browser side of i18n (e10-t02): first-visit detection, the stored choice, <html lang>, and the
-// React hooks. The catalogs and t() themselves are in shared/i18n/t.ts.
+// React hooks. t() itself is in shared/i18n/core.ts; the catalogs are registered by the entry
+// (shared/i18n/t.ts for the app, share/catalog.ts for the share page).
 
 const STORAGE_KEY = 'tripfolio.locale'
 

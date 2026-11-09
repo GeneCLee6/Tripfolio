@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { t } from '../shared/i18n/t.ts'
+import './catalog.ts'
+import { t } from '../shared/i18n/core.ts'
 import { loadFonts } from '../src/styles/fonts.ts'
 import { GlobalStyle } from '../src/styles/GlobalStyle.ts'
 import { initShareLocale } from './locale.ts'

@@ -7,7 +7,7 @@
 | 位置 | 職責 | 禁止 |
 | --- | --- | --- |
 | `shared/` | 前後端共用的型別與純函式（協定、patch、money、time、itinerary、schema、i18n） | React、DOM、Cloudflare API；讀時間或隨機數不經注入 |
-| `shared/i18n/` | `zh-TW.ts`（來源）、`en.ts`、`t()` | — |
+| `shared/i18n/` | 目錄分三份（`zh-TW.ts`／`zh-TW.common.ts`／`zh-TW.share.ts`，各配一個 `en.*`）；`core.ts` 的 `t()`、`t.ts` 註冊 app 目錄 | 分享頁載入的程式 import `t.ts` |
 | `worker/index.ts` | Worker 入口：匯出 handler 與 DO class | 其他邏輯 |
 | `worker/app.ts` | HTTP 路由：`/api/*`、`/ws/*`、`/s/*`，其餘交給靜態資產 | 直接呼叫外部 API（走 `worker/proxy/*`） |
 | `worker/trip-do.ts` | `TripDO`：每旅程一個，WebSocket、patch 廣播、rev | 當真相來源（D1 才是） |
@@ -21,6 +21,9 @@
 
 - JSX 不得有裸字串（文字，以及 `aria-label`、`title`、`placeholder`、`alt`、`label`）：一律 `t('key')`。
 - `shared/i18n/zh-TW.ts` 是來源，先加 key；`en.ts` 同時加同一組 key、同樣的 `{佔位}`。型別與 `npm run check-i18n` 都會擋。
+- **目錄分三份，key 放哪裡**：只有 app 用的 → `zh-TW.ts`／`en.ts`（照原本的區塊放，例如 `mapPage.*` 後面）；分享頁自己的 `share.*` → `zh-TW.share.ts`／`en.share.ts`；分享頁與 app 都會用的（`src/map/**`、`shared/i18n/format.ts`、分享頁用到的術語、通用按鈕、語言名稱）→ `zh-TW.common.ts`／`en.common.ts`。app 的 `zh-TW.ts` 展開 common；分享頁由 `share/catalog.ts` 只註冊 common＋share，所以分享頁的 bundle 不帶整份目錄（e8 分享頁預算）。每個 key 只寫在一個檔案。
+- 分享頁會載入的程式（`share/**`、`src/map/**`、它 import 的元件與 `shared/`）從 `shared/i18n/core.ts` 拿 `t()`、型別，**不要 import `shared/i18n/t.ts`**（它會把整份 app 目錄帶進分享頁）；`src/` 其他地方照舊 import `t.ts`（或用 `useT()`）。只 import 純函式（例如 `format.ts`）的測試要另外 `import '…/shared/i18n/t.ts'` 註冊目錄。
+- `npm run check-i18n` 從 `share/main.tsx` 走 import 圖（含 lazy import、barrel 只跟被 import 的名稱），找出分享頁用到的 key（字面字串剛好是 key、複數 base、`` `share.mode.${…}` `` 這種樣板前綴），擋：分享頁用了只在 app 目錄的 key（搬到 common）、common／share 有分享頁沒用到的 key（搬回 `zh-TW.ts`）、分享頁載入 `t.ts`／`zh-TW.ts`／`en.ts`、`src/` 用了 share 專屬的 key 或不存在的 key、同一個 key 寫在兩個檔案；每對 zh-TW／en 檔案各自 key 與佔位一致。
 - `src/`、`share/` 的程式碼（註解以外）不得出現中日韓文字；真的需要時該行加 `// i18n-ignore`，並在 PR 說明為什麼。
 - 介面預設繁體中文；第一次依瀏覽器語言，之後以使用者切換為準（A2）。
 - 日期、數字、金額一律經 `Intl` 格式工具（A2 的 e10-t04），不要手拼。
