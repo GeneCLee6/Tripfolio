@@ -447,6 +447,8 @@ describe('pocket list and places', () => {
     expect(refs.body).toEqual({
       stops: [],
       wishlistItems: [{ id: item.body.item.id, name: 'Gyoza', status: 'wish' }],
+      lodgings: [],
+      bookings: [],
     })
 
     const merged = await call<{ repointed: { stops: number; wishlistItems: number } }>(
@@ -455,7 +457,7 @@ describe('pocket list and places', () => {
       s.owner,
     )
     expect(merged.status).toBe(200)
-    expect(merged.body.repointed).toEqual({ stops: 0, wishlistItems: 1 })
+    expect(merged.body.repointed).toMatchObject({ stops: 0, wishlistItems: 1 })
     const listed = await call<WishlistResponse>('GET', `${s.base}/wishlist`, s.viewer)
     expect(listed.body.items[0].place).toMatchObject({ id: target.id, nameLocal: 'Target' })
 

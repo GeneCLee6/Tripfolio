@@ -1,5 +1,6 @@
 // GET /api/trips/:id/geo/usage (owner): today's provider calls for the trip and across all trips,
-// with the configured limits. Feeds the usage page (E11).
+// with the configured limits. Feeds the usage page (E11). 'fx' calls made by the cron and the
+// on-demand fill are counted under tripId '*', so they show in `all` only.
 
 import { GEO_LIMITS, type GeoUsageResponse, type UsageProvider } from '../../shared/api/geo.ts'
 import { authTrip } from '../auth.ts'
@@ -8,10 +9,10 @@ import type { RouteContext } from '../router.ts'
 import { proxyDeps } from './deps.ts'
 import { utcDate } from './limits.ts'
 
-const providers: UsageProvider[] = ['photon', 'nominatim', 'ors']
+const providers: UsageProvider[] = ['photon', 'nominatim', 'ors', 'fx', 'og']
 
 function counts(rows: { provider: string; n: number }[]): Record<UsageProvider, number> {
-  const out = { photon: 0, nominatim: 0, ors: 0 }
+  const out: Record<UsageProvider, number> = { photon: 0, nominatim: 0, ors: 0, fx: 0, og: 0 }
   for (const r of rows) {
     if ((providers as string[]).includes(r.provider)) out[r.provider as UsageProvider] = Number(r.n)
   }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { OgResponse } from '../../../shared/api/geo.ts'
+import type { GeoUsageResponse, OgResponse } from '../../../shared/api/geo.ts'
 import {
   decodeEntities,
   fetchable,
@@ -128,6 +128,37 @@ describe('POST /api/trips/:id/og', () => {
     expect((await og('https://down.example.com/')).status).toBe(502)
     h.on('img.example.com', () => new Response('x', { headers: { 'content-type': 'image/jpeg' } }))
     expect((await og('https://img.example.com/a.jpg')).body.imageUrl).toBe('https://img.example.com/a.jpg')
+  })
+
+  it('caches a preview for 7 days in geoCache and counts real fetches as og in apiUsage', async () => {
+    h.on('fergburger.example.com', () => html(SAMPLE))
+    const first = await og('https://fergburger.example.com/#menu')
+    const second = await og('https://fergburger.example.com/')
+    expect(second.body).toEqual(first.body)
+    expect(h.calls).toHaveLength(1)
+    const cached = h.sqlite
+      .prepare("SELECT provider, expiresAt FROM geoCache WHERE key LIKE 'og:%'")
+      .all()
+    expect(cached).toEqual([{ provider: 'og', expiresAt: h.clock.now + 7 * 24 * 3600 * 1000 }])
+    const usage = await h.call<GeoUsageResponse>('GET', `/api/trips/${trip.tripId}/geo/usage`, {
+      token: trip.owner,
+    })
+    expect(usage.body.trip).toEqual({ photon: 0, nominatim: 0, ors: 0, fx: 0, og: 1 })
+    expect(usage.body.all.og).toBe(1)
+
+    // a failed fetch is counted too, and not cached
+    h.on('down.example.com', () => new Response('nope', { status: 500 }))
+    expect((await og('https://down.example.com/')).status).toBe(502)
+    expect((await og('https://down.example.com/')).status).toBe(502)
+    const after = await h.call<GeoUsageResponse>('GET', `/api/trips/${trip.tripId}/geo/usage`, {
+      token: trip.owner,
+    })
+    expect(after.body.trip.og).toBe(3)
+
+    // after 7 days the page is fetched again
+    h.clock.now += 7 * 24 * 3600 * 1000 + 1
+    await og('https://fergburger.example.com/')
+    expect(h.calls.filter((c) => c.url.includes('fergburger'))).toHaveLength(2)
   })
 
   it('needs an editor and limits each member to 20 a minute', async () => {

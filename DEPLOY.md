@@ -182,6 +182,7 @@ backups/<APP_ENV>/<UTC 日期 YYYY-MM-DD>/d1.sql.gz
 - 一天一個檔，同一天再跑會覆蓋。`customMetadata`：`env`、`appVersion`（commit）、`rows`（總筆數）、`tables`（各表筆數的 JSON）。
 - 寫入成功後才刪除**同一前綴下**超過 30 天的備份；別的環境的前綴不會碰。
 - 包含 `d1_migrations`（還原後的遷移紀錄是對的），不包含 D1 自己的 `_cf_*` 表。每次 1000 筆分頁讀取。
+- 備份成功後同一個 cron 接著跑匯率與**清理**（`worker/cleanup.ts`，e11-t06：刪除滿 30 天的旅程連 R2、滿 7 天的已刪附件、逾時 pending 上傳、舊速率紀錄；log `cleanup_done`）；備份失敗時清理跳過（`cleanup_skipped`）。
 - 每次記一行 log：成功 `backup_done`（key、表數、筆數、位元組、刪掉幾個），失敗 `backup_failed` 並重新丟出錯誤，該次 cron 在儀表板顯示為 failed。不需要任何新 secret。
 
 限制（同 TKU Arcade）：

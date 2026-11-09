@@ -2,21 +2,65 @@
 // og:title / og:image (and twitter:* / <title> fallbacks) from its <head> only. Guard rails: http(s)
 // URLs on public host names only (no IP literals, no localhost), redirects followed by hand (at most
 // 3, each re-checked), 3 s for the whole thing, at most 1 MB read, 20 requests per member per minute.
+// Answers are cached in geoCache (provider 'og', key `og:<url>`) for 7 days and every real fetch is
+// counted in apiUsage (provider 'og'), like the other proxies (CLAUDE.md rule 3).
 
 import { z } from 'zod'
 import type { OgResponse } from '../../shared/api/geo.ts'
 import { authTrip } from '../auth.ts'
 import { ApiError, json, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
-import { proxyDeps } from './deps.ts'
-import { enforceRateLimit, withRetryAfter } from './limits.ts'
+import { nowIsoFrom, proxyDeps } from './deps.ts'
+import { countUsage, enforceRateLimit, withRetryAfter } from './limits.ts'
 
 export const OG_LIMITS = {
   perMemberPerMinute: 20,
   timeoutMs: 3000,
   maxBytes: 1024 * 1024,
   maxRedirects: 3,
+  /** Days a preview stays in geoCache */
+  cacheDays: 7,
 } as const
+
+/** apiUsage and geoCache provider name */
+export const OG_PROVIDER = 'og'
+
+/** geoCache key of a preview: the requested URL without its fragment */
+export function ogCacheKey(url: URL): string {
+  const copy = new URL(url.href)
+  copy.hash = ''
+  return `og:${copy.href}`
+}
+
+async function readOgCache(db: D1Database, key: string): Promise<OgResponse | null> {
+  const row = await db
+    .prepare('SELECT results FROM geoCache WHERE key = ? AND expiresAt > ?')
+    .bind(key, proxyDeps.now())
+    .first<{ results: string }>()
+  if (!row) return null
+  try {
+    return JSON.parse(row.results) as OgResponse
+  } catch {
+    return null
+  }
+}
+
+async function writeOgCache(db: D1Database, key: string, preview: OgResponse): Promise<void> {
+  const now = proxyDeps.now()
+  await db
+    .prepare(
+      `INSERT OR REPLACE INTO geoCache (key, provider, results, createdAt, expiresAt)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      key,
+      OG_PROVIDER,
+      JSON.stringify(preview),
+      nowIsoFrom(now),
+      now + OG_LIMITS.cacheDays * 24 * 3600 * 1000,
+    )
+    .run()
+}
 
 /** Whether the proxy may fetch `url`: http(s), a public-looking host name, default ports */
 export function fetchable(url: URL): boolean {
@@ -190,7 +234,8 @@ export async function fetchOg(start: URL): Promise<OgResponse> {
 
 const ogBodySchema = z.object({ url: z.url({ protocol: /^https?$/ }).max(2000) })
 
-/** POST /api/trips/:id/og { url } → OgResponse; 422 url_not_allowed, 502 og_unavailable, 429 */
+/** POST /api/trips/:id/og { url } → OgResponse (cached 7 days); 422 url_not_allowed, 502
+ * og_unavailable, 429 */
 export function ogPreview(c: RouteContext): Promise<Response> {
   return withRetryAfter(async () => {
     const auth = await authTrip(c.request, c.env.DB, c.params.id, 'editor')
@@ -198,6 +243,13 @@ export function ogPreview(c: RouteContext): Promise<Response> {
     await enforceRateLimit(c.env.DB, `og:${auth.member.id}`, OG_LIMITS.perMemberPerMinute)
     const parsed = new URL(url)
     if (!fetchable(parsed)) throw notAllowed()
-    return json(await fetchOg(parsed))
+    const key = ogCacheKey(parsed)
+    const cached = await readOgCache(c.env.DB, key)
+    if (cached) return json(cached)
+    // Counted before the fetch: a page that fails or times out was still called
+    await countUsage(c.env.DB, auth.trip.id, OG_PROVIDER)
+    const preview = await fetchOg(parsed)
+    await writeOgCache(c.env.DB, key, preview)
+    return json(preview)
   })
 }

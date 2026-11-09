@@ -67,6 +67,7 @@ depends_on: [E10, E11]
 ### M0
 
 - [x] `e3-t01` schema `places`（nameLocal、nameEn、lat、lng、address、category、source、hours JSON、links）與引用；`/api/places` · AC-3.1, 3.4 · S · ← e1-t01 · #A3b
+  - 補（#H3b，0008）：`places.externalId`（搜尋結果的 `osm:N…`）；`POST /places` 帶已存在的 externalId 時回 **200** 與既有地點（`existing: true`，rev 不變），新建才 201，前端可不再用 OSM 連結比對。`GET /places/:pid/refs` 多回 `lodgings`（id、name、checkIn）與 `bookings`（id、title、type、`fields`＝指到它的 details 欄位）；刪除／合併地點也處理 `lodgings.placeId`、`attachments.placeId`、`bookings.details` 的 `pickupPlaceId`／`dropoffPlaceId`／`meetingPlaceId`（刪除時移除該鍵）；合併的 `repointed` 多 `lodgings`、`attachments`、`bookings`，目標地點沒有 externalId 時繼承重複者的。
 
 - [ ] `e3-t02` 地點搜尋元件：Worker 代理 Photon／Nominatim（快取、速率、UA）、Google Maps 連結與座標解析、手動放針 · AC-3.1 · M · ← e3-t01 · 後端部分完成（#proxy）
 - [x] `e3-t03` 地圖元件：MapLibre＋OpenFreeMap style 客製、類型圖示、日色、叢集、點卡、手機全螢幕、獨立 chunk · AC-3.2 · M · ← e10-t01 · #map（元件與 `/dev/ui` 展示；真正的地圖頁由 `e2-t05`／B1 接上）

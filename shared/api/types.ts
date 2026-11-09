@@ -94,10 +94,18 @@ export interface Stop {
   links: Link[]
   wishlistItemId: string | null
   bookingId: string | null
+  /** 'manual', or 'booking' for the stops a booking created (e4-t01); always sent by the API */
+  source?: StopSource
+  /** Which of its booking's stops this is ('depart', 'arrive', 'pickup', 'dropoff', 'main',
+   * 'day:YYYY-MM-DD'); null for manual stops. Optional in the type only (older fixtures); the API
+   * always sends it */
+  bookingSlot?: string | null
   isBackup: boolean
   rev: number
   updatedAt: string
 }
+
+export type StopSource = 'manual' | 'booking'
 
 export interface LegOverride {
   tripId: string
@@ -121,6 +129,9 @@ export interface Place {
   source: PlaceSource
   hours: PlaceHours | null
   links: Link[]
+  /** The search provider's id (`osm:N…`); null for manual pins, links and coordinates. Optional
+   * in the type only (older fixtures); the API always sends it */
+  externalId?: string | null
   rev: number
   createdAt: string
   updatedAt: string
@@ -160,7 +171,15 @@ export type CreateTripResponse = MemberTokenResponse & { days: Day[] }
 /** GET /api/trips: tokenIndex points into the X-Member-Tokens list; tokens missing from `trips`
  * are revoked, removed or for deleted trips and can be dropped */
 export interface TripListResponse {
-  trips: { tokenIndex: number; trip: Trip; member: Member }[]
+  trips: {
+    tokenIndex: number
+    trip: Trip
+    member: Member
+    /** Current (not removed) members */
+    memberCount: number
+    /** Assigned days (idx not null) */
+    dayCount: number
+  }[]
 }
 
 /** GET /api/trips/:id */
@@ -187,6 +206,10 @@ export interface PlaceRefsResponse {
   stops: Pick<Stop, 'id' | 'dayId' | 'title'>[]
   /** Wishlist items (not deleted) at this place */
   wishlistItems: Pick<WishlistItem, 'id' | 'name' | 'status'>[]
+  /** Lodgings (not deleted) at this place */
+  lodgings: { id: string; name: string; checkIn: string }[]
+  /** Bookings (not deleted) whose details point at it (pickup / dropoff / meeting place) */
+  bookings: { id: string; title: string; type: string; fields: string[] }[]
 }
 
 /** POST /api/trips/:id/invites (201): the token is only ever returned here */

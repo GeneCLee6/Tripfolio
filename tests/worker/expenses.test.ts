@@ -208,7 +208,7 @@ describe('creating expenses: five split methods and FX resolution', () => {
 
   it('resolves the rate: explicit, trip default, fxRates row, earlier row, else 422 needsRate', async () => {
     const s = await setup()
-    // explicit: 50.00 NZD × 0.912345 = 45.61725 → 4562; equal B/C, payer B takes the odd cent? 4562 is even
+    // explicit: 50.00 NZD × 0.9123454 (10 significant digits are kept) = 45.61727 → 4562; equal B/C
     const explicit = await addExpense(s, {
       amountMinor: 5000,
       currency: 'NZD',
@@ -218,7 +218,7 @@ describe('creating expenses: five split methods and FX resolution', () => {
       splitMethod: 'equal',
     })
     expect(explicit.expense).toMatchObject({
-      fxRate: 0.912345,
+      fxRate: 0.9123454,
       baseMinor: 4562,
       fxSource: 'manual',
     })
@@ -230,7 +230,8 @@ describe('creating expenses: five split methods and FX resolution', () => {
         "INSERT INTO fxRates (date, base, quote, rate, source) VALUES ('2026-12-20', 'AUD', 'IDR', 10500, 'test')",
       )
       .all()
-    // fxRates row: 210000 IDR × (1/10500 → 0.000095) = 19.95 AUD; shares 2:1, payer A
+    // fxRates row: 210000 IDR × (1/10500 → 0.00009523809524, 10 significant digits) = 20.00 AUD;
+    // shares 2:1, payer A
     const auto = await addExpense(s, {
       amountMinor: 210000,
       currency: 'IDR',
@@ -242,12 +243,13 @@ describe('creating expenses: five split methods and FX resolution', () => {
       splitMethod: 'shares',
     })
     expect(auto.expense).toMatchObject({
-      fxRate: 0.000095,
+      fxRate: 0.00009523809524,
       fxSource: 'auto',
       fxDate: '2026-12-20',
-      baseMinor: 1995,
+      baseMinor: 2000,
     })
-    expect(sharesOf(auto.expense)).toEqual({ [s.A]: 1330, [s.B]: 665 })
+    // 2000 × 2/3 = 1333.33, × 1/3 = 666.67: floors 1333 + 666, the leftover cent goes to A
+    expect(sharesOf(auto.expense)).toEqual({ [s.A]: 1334, [s.B]: 666 })
     expect(auto.expense.shares[0].weight).toBe(2)
 
     // an earlier row is used up to 7 days later
@@ -259,7 +261,8 @@ describe('creating expenses: five split methods and FX resolution', () => {
       participants: all(s),
       splitMethod: 'equal',
     })
-    expect(later.expense).toMatchObject({ fxDate: '2026-12-20', baseMinor: 998 })
+    // 105000 IDR / 10500 = 10.00 AUD (6 decimals made it 9.98)
+    expect(later.expense).toMatchObject({ fxDate: '2026-12-20', baseMinor: 1000 })
 
     // 8 days later: nothing; the UI must ask for a rate
     const none = await call<{ error: { code: string; details: Record<string, unknown> } }>(
@@ -307,7 +310,7 @@ describe('creating expenses: five split methods and FX resolution', () => {
     await call('PUT', `${s.base}/fx/overrides`, s.owner, {})
     const fx2 = await call<FxResponse>('GET', `${s.base}/fx?date=2026-12-21&quote=IDR`, s.viewer)
     expect(fx2.body.rates).toEqual([
-      { quote: 'IDR', rate: 0.000095, source: 'auto', rateDate: '2026-12-20' },
+      { quote: 'IDR', rate: 0.00009523809524, source: 'auto', rateDate: '2026-12-20' },
     ])
     const fx3 = await call<FxResponse>('GET', `${s.base}/fx?date=2026-12-21&quote=THB`, s.viewer)
     expect(fx3.body.rates[0]).toMatchObject({ rate: null, source: null })

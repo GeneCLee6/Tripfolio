@@ -164,6 +164,52 @@ async function linkDays(
   return { statements, dayIds, conflicts }
 }
 
+/**
+ * Statements that re-point every day of the trip after its dates changed (PATCH /api/trips/:id
+ * re-plans the Day rows, so dates and idx move under the lodgings). A day keeps its lodging while
+ * that lodging still covers the day's date; otherwise it takes the newest lodging that does, or
+ * none. Unassigned days (idx null) lose theirs.
+ */
+export async function relinkTripLodgings(
+  db: D1Database,
+  tripId: string,
+  now: string,
+): Promise<D1PreparedStatement[]> {
+  const [days, lodgings] = await db.batch<Row>([
+    db.prepare('SELECT id, date, idx, lodgingId FROM days WHERE tripId = ?').bind(tripId),
+    db
+      .prepare(
+        `SELECT id, checkIn, checkOut FROM lodgings WHERE tripId = ? AND deletedAt IS NULL
+          ORDER BY createdAt DESC, id DESC`,
+      )
+      .bind(tripId),
+  ])
+  const stays = lodgings.results.map((r) => ({
+    id: String(r.id),
+    checkIn: String(r.checkIn),
+    checkOut: String(r.checkOut),
+  }))
+  const covers = (stay: (typeof stays)[number], date: string) =>
+    date >= stay.checkIn && date < stay.checkOut
+  const statements: D1PreparedStatement[] = []
+  for (const r of days.results) {
+    const date = strOrNull(r.date)
+    const current = strOrNull(r.lodgingId)
+    let next: string | null = null
+    if (r.idx !== null && date !== null) {
+      const kept = stays.find((stay) => stay.id === current && covers(stay, date))
+      next = kept ? kept.id : (stays.find((stay) => covers(stay, date))?.id ?? null)
+    }
+    if (next !== current)
+      statements.push(
+        db
+          .prepare('UPDATE days SET lodgingId = ?, rev = rev + 1, updatedAt = ? WHERE id = ?')
+          .bind(next, now, String(r.id)),
+      )
+  }
+  return statements
+}
+
 /** GET /api/trips/:id/lodgings (viewer) */
 export async function listLodgings(c: RouteContext): Promise<Response> {
   const auth = await authTrip(c.request, c.env.DB, c.params.id, 'viewer')

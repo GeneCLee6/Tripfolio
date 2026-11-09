@@ -59,6 +59,7 @@ depends_on: []
 ### M1–M2
 
 - [ ] `e11-t06` 刪旅程連帶清 R2、隱私頁、noindex 與 CSP 檢查 · AC-11.6 · S · ← e1-t07
+  - 後端清理完成（#H3b）；**隱私頁未做**，所以不勾。`worker/cleanup.ts` 每日 cron 在備份與匯率之後跑（備份失敗就跳過，`cleanup_skipped`）。清理契約：旅程軟刪除滿 **30 天** → 刪 R2 `<APP_ENV>/trips/<tripId>/` 全部物件，再依相依順序硬刪該旅程所有列（`TRIP_PURGE_STATEMENTS`；新增帶 `tripId` 的表必須加進去，`tests/worker/cleanup.test.ts` 會擋）；附件軟刪除滿 **7 天** → 刪 R2 物件與列；`pending` 上傳超過 **15 分鐘** → 刪物件（若有）與列；`rateLimits`／`providerThrottle` 超過 2 天、`geoCache` 過期列。R2 先刪、失敗就保留列等隔天重試；每步各自吞錯誤，log 一行 `cleanup_done`（失敗另記 `cleanup_failed`）。每次最多 20 個旅程、500 個附件。`migrations/0008_leftovers.sql` 加了對應的部分索引。
 - [ ] `e11-t04` 速率限制、token 規格與測試、上傳限制、文件驗權讀取、`apiUsage` 計數 · AC-11.4 · M · ← e6-t01
 
 ### M3

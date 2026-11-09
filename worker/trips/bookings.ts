@@ -582,8 +582,9 @@ export async function deleteBooking(c: RouteContext): Promise<Response> {
 }
 
 /**
- * GET /api/trips/:id/deadlines?withinDays=14 (viewer): due in [now, now + withinDays], soonest
- * first. cancel = cancelBy; payment = cancelBy while not paid in full (the free-cancellation date
+ * GET /api/trips/:id/deadlines?withinDays=14[&includePast=1] (viewer): due in [now, now +
+ * withinDays], soonest first; with includePast=1 also everything already past due (listed first,
+ * oldest first: a missed payment or cancellation date). cancel = cancelBy; payment = cancelBy while not paid in full (the free-cancellation date
  * is when the full price becomes due); checkin = a lodging's checkIn + checkInTime (00:00 without
  * one) in the trip's zone, an activity's startAt minus checkInMinutesBefore.
  */
@@ -594,6 +595,10 @@ export async function listDeadlines(c: RouteContext): Promise<Response> {
   const withinDays = raw === null ? 14 : Number(raw)
   if (!Number.isInteger(withinDays) || withinDays < 0 || withinDays > 366)
     throw invalid('withinDays: an integer from 0 to 366')
+  const pastParam = c.url.searchParams.get('includePast')
+  if (pastParam !== null && pastParam !== '0' && pastParam !== '1')
+    throw invalid('includePast: 0 or 1')
+  const includePast = pastParam === '1'
   const [lodgingRows, bookingRows] = await Promise.all([
     db
       .prepare('SELECT * FROM lodgings WHERE tripId = ? AND deletedAt IS NULL')
@@ -634,7 +639,7 @@ export async function listDeadlines(c: RouteContext): Promise<Response> {
   const deadlines = all
     .filter((d) => {
       const t = Date.parse(d.dueAt)
-      return t >= now && t <= until
+      return (includePast || t >= now) && t <= until
     })
     .sort(
       (a, b) =>

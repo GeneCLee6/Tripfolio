@@ -20,6 +20,7 @@ import {
 import { ApiError, invalid, json, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
 import { dayCount, planDays, type DayPlan, type DaySlot } from './day-plan.ts'
+import { relinkTripLodgings } from './lodging.ts'
 
 const TRIP_COLUMNS = [
   'name',
@@ -96,6 +97,8 @@ export async function createTrip(c: RouteContext): Promise<Response> {
   const db = c.env.DB
   const { owner, ...fields } = await readBody(c.request, tripCreateSchema)
   checkDates(fields.startDate, fields.endDate)
+  // A new trip has no photos yet, so nothing can be its cover
+  if (fields.coverAttachmentId) throw invalid('coverAttachmentId: not a ready photo of this trip')
   const now = nowIso()
   const tripId = crypto.randomUUID()
   const memberId = crypto.randomUUID()
@@ -149,10 +152,40 @@ export async function listTrips(c: RouteContext): Promise<Response> {
     .filter(Boolean)
   if (tokens.length > MAX_MEMBER_TOKENS)
     throw invalid(`at most ${MAX_MEMBER_TOKENS} tokens in ${MEMBER_TOKENS_HEADER}`)
-  const resolved = await Promise.all(tokens.map((t) => resolveMemberToken(c.env.DB, t)))
+  const db = c.env.DB
+  const resolved = await Promise.all(tokens.map((t) => resolveMemberToken(db, t)))
+  const tripIds = [...new Set(resolved.flatMap((auth) => (auth ? [auth.trip.id] : [])))]
+  const memberCounts = new Map<string, number>()
+  const dayCounts = new Map<string, number>()
+  if (tripIds.length > 0) {
+    const marks = tripIds.map(() => '?').join(', ')
+    const [members, days] = await db.batch<{ tripId: string; n: number }>([
+      db
+        .prepare(
+          `SELECT tripId, COUNT(*) AS n FROM members
+            WHERE tripId IN (${marks}) AND removedAt IS NULL GROUP BY tripId`,
+        )
+        .bind(...tripIds),
+      db
+        .prepare(
+          `SELECT tripId, COUNT(*) AS n FROM days
+            WHERE tripId IN (${marks}) AND idx IS NOT NULL GROUP BY tripId`,
+        )
+        .bind(...tripIds),
+    ])
+    for (const r of members.results) memberCounts.set(String(r.tripId), Number(r.n))
+    for (const r of days.results) dayCounts.set(String(r.tripId), Number(r.n))
+  }
   const body: TripListResponse = { trips: [] }
   resolved.forEach((auth, tokenIndex) => {
-    if (auth) body.trips.push({ tokenIndex, trip: auth.trip, member: auth.member })
+    if (!auth) return
+    body.trips.push({
+      tokenIndex,
+      trip: auth.trip,
+      member: auth.member,
+      memberCount: memberCounts.get(auth.trip.id) ?? 0,
+      dayCount: dayCounts.get(auth.trip.id) ?? 0,
+    })
   })
   return json(body)
 }
@@ -169,7 +202,20 @@ export async function getTrip(c: RouteContext): Promise<Response> {
   return json(body)
 }
 
-/** PATCH /api/trips/:id (editor; `archived` owner only). Date changes re-plan the Day rows */
+/** 422 unless `attachmentId` is a ready, not deleted photo of this trip */
+async function assertCoverPhoto(db: D1Database, tripId: string, attachmentId: string) {
+  const row = await db
+    .prepare(
+      `SELECT id FROM attachments WHERE id = ? AND tripId = ? AND kind = 'photo'
+          AND status = 'ready' AND deletedAt IS NULL`,
+    )
+    .bind(attachmentId, tripId)
+    .first<Row>()
+  if (!row) throw invalid('coverAttachmentId: not a ready photo of this trip')
+}
+
+/** PATCH /api/trips/:id (editor; `archived` owner only). Date changes re-plan the Day rows and
+ * re-link the days to the lodgings; coverAttachmentId must be a ready photo of the trip */
 export async function patchTrip(c: RouteContext): Promise<Response> {
   const db = c.env.DB
   const auth = await authTrip(c.request, db, c.params.id, 'editor', { allowArchived: true })
@@ -181,11 +227,14 @@ export async function patchTrip(c: RouteContext): Promise<Response> {
   if (trip.archivedAt && editsContent && archived !== false)
     throw new ApiError(403, 'trip_archived', 'the trip is archived')
 
+  if (fields.coverAttachmentId) await assertCoverPhoto(db, trip.id, fields.coverAttachmentId)
+
   const now = nowIso()
   const statements: D1PreparedStatement[] = []
   const startDate = fields.startDate ?? trip.startDate
   const endDate = fields.endDate ?? trip.endDate
-  if (startDate !== trip.startDate || endDate !== trip.endDate) {
+  const datesChanged = startDate !== trip.startDate || endDate !== trip.endDate
+  if (datesChanged) {
     checkDates(startDate, endDate)
     const { results } = await db
       .prepare(
@@ -215,7 +264,12 @@ export async function patchTrip(c: RouteContext): Promise<Response> {
     { bumpRowRev: false },
   )
   if (update) statements.unshift(update)
-  const rev = statements.length ? await writeWithRev(db, trip.id, statements) : trip.rev
+  let rev = statements.length ? await writeWithRev(db, trip.id, statements) : trip.rev
+  if (datesChanged) {
+    // The days have their new dates now; point them at the lodgings that cover them (e4-t01)
+    const relink = await relinkTripLodgings(db, trip.id, nowIso())
+    if (relink.length) rev = await writeWithRev(db, trip.id, relink)
+  }
   return json({ trip: await loadTrip(db, trip.id), rev })
 }
 

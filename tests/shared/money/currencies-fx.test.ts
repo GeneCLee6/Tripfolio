@@ -71,16 +71,33 @@ describe('fx', () => {
     expect(convertMinor(5, 'AUD', 'JPY', 10)).toBe(1);
   });
 
-  it('identity conversion keeps the amount; rates are kept at 6 decimals', () => {
+  it('identity conversion keeps the amount; rates keep 10 significant digits', () => {
     expect(convertMinor(12345, 'AUD', 'AUD', 1)).toBe(12345);
-    expect(normalizeRate(20.12345678)).toBe(20.123457);
+    expect(normalizeRate(20.12345678)).toBe(20.12345678);
+    expect(normalizeRate(20.123456789123)).toBe(20.12345679);
+    // small rates keep their digits (6 decimals made this 0.000095, about 0.25% off)
+    expect(normalizeRate(1 / 10500)).toBe(0.00009523809524);
+    expect(normalizeRate(12444.8612345)).toBe(12444.86123);
     expect(() => normalizeRate(0)).toThrow(RangeError);
     expect(() => normalizeRate(Number.NaN)).toThrow(RangeError);
   });
 
-  it('invertRate inverts and rounds to 6 decimals', () => {
+  it('invertRate inverts and rounds to 10 significant digits', () => {
     expect(invertRate(20)).toBe(0.05);
-    expect(invertRate(0.912345)).toBe(1.096077);
-    expect(invertRate(3)).toBe(0.333333);
+    expect(invertRate(0.912345)).toBe(1.096076594);
+    expect(invertRate(3)).toBe(0.3333333333);
+  });
+
+  it('converts exactly with small and large rates (no float error in the product)', () => {
+    // IDR 210,000 at 1/10500 (0.00009523809524) = AUD 20.0000000004 -> 2000
+    expect(convertMinor(210_000, 'IDR', 'AUD', 1 / 10500)).toBe(2000);
+    // VND 1,000,000,000 at 0.00006123456789 = AUD 61234.56789 -> 6123457
+    expect(convertMinor(1_000_000_000, 'VND', 'AUD', 0.00006123456789)).toBe(6123457);
+    // AUD 0.10 at 0.1 + 0.2 (0.3000000000000000444) -> 0.03
+    expect(convertMinor(10, 'AUD', 'NZD', 0.1 + 0.2)).toBe(3);
+    // half-up at the exact boundary: 1 cent at 0.5 = 0.5 cent -> 1
+    expect(convertMinor(1, 'AUD', 'NZD', 0.5)).toBe(1);
+    // AUD 1,000.00 at 12444.86123 IDR = IDR 12,444,861.23 -> 12444861
+    expect(convertMinor(100_000, 'AUD', 'IDR', 12444.86123)).toBe(12444861);
   });
 });

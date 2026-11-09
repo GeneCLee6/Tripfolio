@@ -99,7 +99,8 @@ export interface RoutesResponse {
   routes: RouteResponse[]
 }
 
-export type UsageProvider = 'photon' | 'nominatim' | 'ors'
+/** apiUsage providers: place search, routing, exchange rates (e7-t03), link previews (e5-t02) */
+export type UsageProvider = 'photon' | 'nominatim' | 'ors' | 'fx' | 'og'
 
 export const GEO_LIMITS = {
   /** Place search + parse requests per member per minute */

@@ -59,6 +59,7 @@ depends_on: [E2, E3, E6]
 ### M1
 
 - [x] `e4-t01` schema `lodgings`、`bookings`（type＋details zod）、與 `attachments` 關聯；API · AC-4.1, 4.2 · S · ← e1-t01 · #D3a（附件關聯留給 `e4-t04`，等 E6 的 `attachments` 表）
+  - 補（#H3b）：`GET /deadlines?includePast=1` 連已過期的項目一起回（排在最前、最舊的先；只接受 0／1，其他 422）；`PATCH /api/trips/:id` 改日期後會依住宿重算 `days.lodgingId`（`relinkTripLodgings`：仍涵蓋的保留，否則取最新建立的涵蓋住宿，未分配的天清空）；`Stop` 回應多 `source`（manual／booking）與 `bookingSlot`。
 - [ ] `e4-t02` 住宿卡與表單、多晚範圍、日程頁帶入今晚住宿與退房、露營車欄位 · AC-4.1 · M · ← e2-t02, e3-t02, e4-t01
 - [ ] `e4-t03` 交通預訂表單（航班／租車／包車／渡輪與船班／鐵路／巴士）、自動行程點與同步、時區並列與測試 · AC-4.2, 4.5 · M · ← e2-t03, e4-t01
 - [ ] `e4-t04` 附件上傳與預覽（走 E6 通道）、分享頁隱藏 · AC-4.3 · S · ← e6-t01, e4-t02

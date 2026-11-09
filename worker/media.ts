@@ -61,6 +61,11 @@ const extFor: Record<string, string> = {
   'application/pdf': 'pdf',
 }
 
+/** `${APP_ENV ?? 'production'}/trips/<tripId>/`: every object of a trip (the cleanup purges it) */
+export function mediaPrefix(env: Pick<Env, 'APP_ENV'>, tripId: string) {
+  return `${env.APP_ENV || 'production'}/trips/${tripId}/`
+}
+
 /** `${APP_ENV ?? 'production'}/trips/<tripId>/<kind>/<uuid>.<ext>`: previews share the bucket */
 export function mediaKey(
   env: Pick<Env, 'APP_ENV'>,
@@ -69,7 +74,7 @@ export function mediaKey(
   uuid: string,
   mime: string,
 ) {
-  return `${env.APP_ENV || 'production'}/trips/${tripId}/${kind}/${uuid}.${extFor[mime] ?? 'bin'}`
+  return `${mediaPrefix(env, tripId)}${kind}/${uuid}.${extFor[mime] ?? 'bin'}`
 }
 
 /** `<uuid>.thumb` next to the main key: WebP, or JPEG where the browser cannot encode WebP */
@@ -330,7 +335,8 @@ export async function patchAttachment(c: RouteContext): Promise<Response> {
 
 /**
  * DELETE /api/trips/:id/attachments/:aid (editor): soft delete; it stops being readable at once.
- * The R2 objects stay until the cleanup job (e11-t06) removes rows deleted 30+ days ago.
+ * The R2 objects stay until the daily cleanup (worker/cleanup.ts, e11-t06) removes them and the
+ * row 7 days later; a deleted trip's objects go 30 days after the trip was deleted.
  */
 export async function deleteAttachment(c: RouteContext): Promise<Response> {
   const db = c.env.DB

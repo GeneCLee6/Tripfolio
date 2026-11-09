@@ -20,7 +20,8 @@ export const bookingStates = ['none', 'todo', 'booked'] as const
 export const bookingState = z.enum(bookingStates)
 export type BookingState = z.infer<typeof bookingState>
 
-export const legModes = ['drive', 'walk', 'transit', 'flight', 'ferry', 'other'] as const
+/** Leg override modes; legOverrides.mode has no CHECK in SQL, so this list is the only gate */
+export const legModes = ['drive', 'walk', 'cycle', 'transit', 'flight', 'ferry', 'other'] as const
 export const legMode = z.enum(legModes)
 export type LegMode = z.infer<typeof legMode>
 
