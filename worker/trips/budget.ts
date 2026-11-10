@@ -20,6 +20,7 @@ import {
 import { authTrip } from '../auth.ts'
 import { insertStatement, writeWithRev, type Row } from '../db.ts'
 import { json, nowIso, readBody } from '../http.ts'
+import { notifyTrip } from '../sync.ts'
 import type { RouteContext } from '../router.ts'
 
 const order = (c: string) => budgetCategories.indexOf(c as BudgetCategory)
@@ -202,6 +203,7 @@ export async function putBudget(c: RouteContext): Promise<Response> {
       }),
     ),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'budget', id: '*', action: 'upsert', by: auth.member.id })
   const [saved, members] = await Promise.all([
     loadRows(db, auth.trip.id),
     memberCount(db, auth.trip.id),

@@ -5,6 +5,7 @@ import { focusRing } from '../../styles/mixins.ts'
 import { color, fontSize, fontWeight, radius, space, zIndex } from '../../styles/tokens.ts'
 import { useT } from '../i18n.ts'
 import { applyUpdate, registerServiceWorker, useUpdateWaiting } from './register.ts'
+import type { PendingMutation } from './queue.ts'
 import { offlineQueue, replayNow, startSync, usePendingMutations } from './sync.ts'
 import { useOnline } from './useOnline.ts'
 
@@ -73,6 +74,24 @@ const Body = styled.div`
   gap: ${space.md}px;
 `
 
+/** The waiting list's title of a mutation: expense create / change, or the itinerary's kind */
+function itemTitle(item: PendingMutation) {
+  if (item.entity.type === 'itinerary') {
+    switch (item.entity.kind) {
+      case 'stop.create':
+        return 'offline.item.stopCreate'
+      case 'stop.move':
+        return 'offline.item.stopMove'
+      case 'stop.delete':
+      case 'leg.delete':
+        return 'offline.item.stopDelete'
+      default:
+        return 'offline.item.itinerary'
+    }
+  }
+  return item.method === 'POST' ? 'offline.item.create' : 'offline.item.update'
+}
+
 export function OfflineBadge() {
   const t = useT()
   const toast = useToast()
@@ -127,25 +146,26 @@ export function OfflineBadge() {
           ) : (
             <List>
               {pending.map((item) => {
-                const note = (item.body as { note?: unknown } | undefined)?.note
+                const note =
+                  item.entity.label ?? (item.body as { note?: unknown } | undefined)?.note
                 return (
                   <Row key={item.id} $refused={Boolean(item.failure)}>
                     <RowTitle>
-                      {item.method === 'POST' ? t('offline.item.create') : t('offline.item.update')}
+                      {t(itemTitle(item))}
                       {typeof note === 'string' && note ? ` · ${note}` : ''}
                     </RowTitle>
                     <Muted>
-                      {item.failure
-                        ? t('offline.item.refused', { message: item.failure.message })
-                        : t('offline.item.waiting')}
+                      {item.failure?.code === 'pending_dependency'
+                        ? t('offline.item.orphan')
+                        : item.failure
+                          ? t('offline.item.refused', { message: item.failure.message })
+                          : t('offline.item.waiting')}
                     </Muted>
                     {item.failure && (
                       <Actions>
                         <Button
                           size="sm"
-                          onClick={() =>
-                            void offlineQueue.retry(item.id).then(() => replayNow())
-                          }
+                          onClick={() => void offlineQueue.retry(item.id).then(() => replayNow())}
                         >
                           {t('offline.retry')}
                         </Button>

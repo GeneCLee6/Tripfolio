@@ -427,6 +427,34 @@ describe('Worker sync glue', () => {
     expect(notified.map((n) => n.changes[0].action)).toEqual(['upsert', 'delete'])
   })
 
+  it('prep writes (checklists, budget, notes) tell the trip’s object too (e2-t08b)', async () => {
+    const t = await newTrip()
+    const base = `/api/trips/${t.trip.id}`
+    const list = (await call('POST', `${base}/checklists`, t.memberToken, {
+      kind: 'packing',
+      title: 'Bags',
+    })).body as unknown as { checklist: { id: string } }
+    await call('POST', `${base}/checklists/${list.checklist.id}/items`, t.memberToken, {
+      text: 'Passport',
+    })
+    await call('PUT', `${base}/budget`, t.memberToken, { rows: [] })
+    const note = (await call('POST', `${base}/notes`, t.memberToken, { title: 'Tipping' }))
+      .body as unknown as { note: { id: string } }
+    await call('PATCH', `${base}/notes/${note.note.id}`, t.memberToken, {})
+    await call('DELETE', `${base}/notes/${note.note.id}`, t.memberToken)
+    await Promise.all(waited)
+    const changes = notified.flatMap((n) => n.changes).filter((c) => c.entity !== 'trip')
+    expect(changes.map((c) => [c.entity, c.id, c.action])).toEqual([
+      ['checklist', list.checklist.id, 'upsert'],
+      ['checklist', list.checklist.id, 'upsert'],
+      ['budget', '*', 'upsert'],
+      ['note', note.note.id, 'upsert'],
+      // The empty PATCH changed nothing: no event
+      ['note', note.note.id, 'delete'],
+    ])
+    expect(changes.every((c) => c.byMemberId === t.member.id)).toBe(true)
+  })
+
   it('a failing object never fails the write', async () => {
     const t = await newTrip()
     failNotify = true

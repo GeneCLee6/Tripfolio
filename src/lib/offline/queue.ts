@@ -4,20 +4,39 @@
 // so the person decides (discard or retry) before anything else goes out. Network errors and 5xx
 // leave everything in place for the next attempt.
 //
-// Only expense writes (submitExpense) are queued so far; itinerary edits, check-offs and text
-// edits join when e2-t08b's useTrip() pipeline exists (its patches are the queue's real unit).
+// Expense writes (submitExpense, e10-t05) and itinerary edits (e2-t08b, src/lib/offline/
+// itinerary.ts) are queued. A create made offline hands the UI a provisional id (`pending-…`);
+// later mutations may reference it (a move after the new stop, a leg to it). When the create goes
+// through, every waiting mutation is rewritten with the server's id before it is sent; a mutation
+// that still names a provisional id nobody will create any more (its create was discarded) is
+// refused locally instead of being sent.
 // The storage sits behind QueueStore so the ordering and replay rules are unit-tested without a
 // browser (tests/src/offline/queue.test.ts).
 
 export type MutationMethod = 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
+/** Provisional ids of offline creates start with this */
+export const PENDING_PREFIX = 'pending-'
+
+export const isPendingId = (id: string): boolean => id.startsWith(PENDING_PREFIX)
+
+export const newPendingId = (): string => `${PENDING_PREFIX}${crypto.randomUUID()}`
+
+const PENDING_PATTERN = /pending-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g
+
 export interface MutationEntity {
-  type: 'expense'
+  type: 'expense' | 'itinerary'
   tripId: string
   /** The server id being changed (PATCH/DELETE) */
   id?: string
   /** A create's provisional id, handed to the UI until the server assigns the real one */
   tempId?: string
+  /** What kind of change, for the waiting list (e.g. 'stop.create') */
+  kind?: string
+  /** A short human label for the waiting list (a stop's title) */
+  label?: string
+  /** The structured change, so a page can re-apply what still waits (itinerary: ItineraryOp) */
+  op?: unknown
 }
 
 export interface MutationFailure {
@@ -66,6 +85,8 @@ export interface QueueOptions {
   classify: (error: unknown) => SendFailure
   /** Called after each successful send, before the next one */
   onSent?: (mutation: PendingMutation, response: unknown) => void
+  /** The id the server gave a create (to replace its provisional id in what still waits) */
+  createdId?: (mutation: PendingMutation, response: unknown) => string | undefined
   now?: () => Date
   newId?: () => string
 }
@@ -83,6 +104,8 @@ export interface OfflineQueue {
   /** The waiting mutations, oldest first (a new array after every change) */
   list(): readonly PendingMutation[]
   count(): number
+  /** The server id a provisional id became (this tab), or the id unchanged */
+  resolve(id: string): string
   subscribe(listener: () => void): () => void
 }
 
@@ -94,6 +117,7 @@ export function createQueue(store: QueueStore, options: QueueOptions): OfflineQu
   let items: PendingMutation[] = []
   const listeners = new Set<() => void>()
   let running: Promise<ReplayResult> | null = null
+  const resolved = new Map<string, string>()
 
   const set = (next: PendingMutation[]) => {
     items = [...next].sort(bySeq)
@@ -107,12 +131,27 @@ export function createQueue(store: QueueStore, options: QueueOptions): OfflineQu
       const next = items[0]
       if (!next) return { status: 'done', sent }
       if (next.failure) return { status: 'blocked', sent, mutation: next }
+      const orphan = orphanPendingId(next, items)
+      if (orphan) {
+        // Its create is gone (discarded): sending it would only fail on the server
+        const refused = {
+          ...next,
+          failure: { status: 409, code: 'pending_dependency', message: orphan },
+        }
+        await store.put(refused)
+        set(items.map((item) => (item.id === next.id ? refused : item)))
+        return { status: 'blocked', sent, mutation: refused }
+      }
       let response: unknown
       try {
         response = await options.send(next)
       } catch (error) {
         const failure = options.classify(error)
-        if (failure.kind === 'network' || failure.status >= 500 || RETRY_LATER.has(failure.status)) {
+        if (
+          failure.kind === 'network' ||
+          failure.status >= 500 ||
+          RETRY_LATER.has(failure.status)
+        ) {
           return { status: 'offline', sent }
         }
         const { status, code, message } = failure
@@ -122,7 +161,20 @@ export function createQueue(store: QueueStore, options: QueueOptions): OfflineQu
         return { status: 'blocked', sent, mutation: refused }
       }
       await store.remove(next.id)
-      set(items.filter((item) => item.id !== next.id))
+      let rest = items.filter((item) => item.id !== next.id)
+      const tempId = next.entity.tempId
+      const realId = tempId ? options.createdId?.(next, response) : undefined
+      if (tempId && realId) {
+        resolved.set(tempId, realId)
+        const rewritten: PendingMutation[] = []
+        rest = rest.map((item) => {
+          const changed = remapIds(item, tempId, realId)
+          if (changed !== item) rewritten.push(changed)
+          return changed
+        })
+        for (const item of rewritten) await store.put(item)
+      }
+      set(rest)
       sent += 1
       options.onSent?.(next, response)
     }
@@ -171,11 +223,49 @@ export function createQueue(store: QueueStore, options: QueueOptions): OfflineQu
     },
     list: () => items,
     count: () => items.length,
+    resolve: (id) => resolved.get(id) ?? id,
     subscribe(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
   }
+}
+
+/**
+ * The mutation with every occurrence of a provisional id (URL, body, structured op) replaced by the
+ * server's id; the same object when it does not mention it.
+ */
+export function remapIds(
+  mutation: PendingMutation,
+  tempId: string,
+  realId: string,
+): PendingMutation {
+  const { entity, ...rest } = mutation
+  const json = JSON.stringify({ ...rest, entity: { ...entity, tempId: undefined } })
+  if (!json.includes(tempId)) return mutation
+  const next = JSON.parse(json.split(tempId).join(realId)) as PendingMutation
+  if (entity.tempId !== undefined) next.entity.tempId = entity.tempId
+  else delete next.entity.tempId
+  return next
+}
+
+/**
+ * A provisional id the mutation needs (URL or body) that no create still waiting before it will
+ * produce; null when it can be sent.
+ */
+export function orphanPendingId(
+  mutation: PendingMutation,
+  queue: readonly PendingMutation[],
+): string | null {
+  const text = `${mutation.url} ${JSON.stringify(mutation.body ?? null)}`
+  const own = mutation.entity.tempId
+  const earlier = new Set(
+    queue.filter((item) => item.seq < mutation.seq).map((item) => item.entity.tempId),
+  )
+  for (const match of text.match(PENDING_PATTERN) ?? []) {
+    if (match !== own && !earlier.has(match)) return match
+  }
+  return null
 }
 
 /** 4xx that mean "not now" rather than "no": timeout, rate limit */
@@ -221,7 +311,10 @@ export function idbStore(): QueueStore {
     })
     return db
   }
-  const run = async <T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>) => {
+  const run = async <T>(
+    mode: IDBTransactionMode,
+    action: (store: IDBObjectStore) => IDBRequest<T>,
+  ) => {
     const database = await open()
     return promised(action(database.transaction(STORE, mode).objectStore(STORE)))
   }

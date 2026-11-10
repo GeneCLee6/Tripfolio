@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { TripEvent } from '../../../shared/protocol.ts'
+import type { TripEvent, WelcomeMessage } from '../../../shared/protocol.ts'
 import { getToken } from '../tokens.ts'
 import { TripSocket, type SyncStatus, type TripSocketOptions } from './TripSocket.ts'
 
@@ -10,21 +10,22 @@ export type TripSyncEvent =
   | { type: 'closed'; code: number }
 
 /**
- * Opens a TripSocket for the trip and passes what it hears to `handler`; returns the status. The
- * handler may change on every render (the latest one is called). Not wired into pages yet: e2-t08b
- * connects the itinerary.
+ * Opens a TripSocket for the trip and passes what it hears to `handler`; returns a stop function.
+ * The trip layout keeps one per trip (TripSyncContext.tsx); pages listen with useTripEvents().
  */
 export function startTripSync(
   tripId: string,
   handler: (event: TripSyncEvent) => void,
   onStatus: (status: SyncStatus) => void,
   options: Partial<TripSocketOptions> = {},
+  onWelcome?: (welcome: WelcomeMessage) => void,
 ): () => void {
   const socket = new TripSocket(tripId, { token: () => getToken(tripId), ...options })
   socket.on('event', (event) => handler({ type: 'event', event }))
   socket.on('resync', ({ rev }) => handler({ type: 'resync', rev }))
   socket.on('closed', ({ code }) => handler({ type: 'closed', code }))
   socket.on('status', onStatus)
+  if (onWelcome) socket.on('welcome', onWelcome)
   socket.connect()
   return () => socket.close()
 }

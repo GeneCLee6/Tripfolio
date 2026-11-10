@@ -1,5 +1,13 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import styled, { css } from 'styled-components'
 import type { GeoPoint } from '../../../shared/api/geo.ts'
 import type { DayWithStops, Stop } from '../../../shared/api/types.ts'
@@ -55,8 +63,8 @@ import { DayBlock } from './DayBlock.tsx'
 import { DayEditor } from './DayEditor.tsx'
 import { LegEditor } from './LegEditor.tsx'
 import { colorOfDay, STOP_TYPE_LABEL, stopName } from './labels.ts'
-import { StopEditor } from './StopEditor.tsx'
-import { isTempId, useItinerary } from './useItinerary.ts'
+import { StopEditor, type StopEditorProps } from './StopEditor.tsx'
+import { isTempId, useItinerary, type StopSource } from './useItinerary.ts'
 import { usePocket } from './usePocket.ts'
 import { EDGE_NEXT, EDGE_PREV, useStopDrag } from './useStopDrag.ts'
 
@@ -265,12 +273,27 @@ function PocketGrip({ entry, label }: { entry: PocketEntry; label: string }) {
   )
 }
 
+/**
+ * The stop editor fed with the stop as the page has it now (the detail pane renders outside the
+ * page's tree): another member's change reaches the open editor and is merged there (e2-t08b).
+ */
+function LiveStopEditor({ source, stop, ...props }: StopEditorProps & { source: StopSource }) {
+  const id = stop?.id ?? null
+  const live = useSyncExternalStore(
+    source.subscribe,
+    () => (id ? source.get(id) : undefined),
+    () => undefined,
+  )
+  return <StopEditor {...props} stop={live ?? stop} removed={id !== null && live === null} />
+}
+
 export default function ItineraryPage() {
   const t = useT()
   const { trip } = useTripContext()
   const { setDetail } = useDetailPane()
   const toast = useToast()
-  const itinerary = useItinerary(trip)
+  const pocket = usePocket(trip.id)
+  const itinerary = useItinerary(trip, { onPocketStale: pocket.reload })
   const { data, resource, dayLegs, placesById } = itinerary
   const wide = useMediaQuery(media.tablet)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -282,7 +305,6 @@ export default function ItineraryPage() {
   const editable = can('editContent')
   const motion = useMediaQuery(media.motion)
   const desktop = useMediaQuery(media.desktop)
-  const pocket = usePocket(trip.id)
   const [pocketOpen, setPocketOpen] = useState(false)
   const [scheduling, setScheduling] = useState<PocketEntry | null>(null)
 
@@ -447,14 +469,17 @@ export default function ItineraryPage() {
     setDetail({
       title: stop ? t('itinerary.editor.edit') : t('itinerary.editor.new'),
       content: (
-        <StopEditor
+        <LiveStopEditor
           key={stop?.id ?? `new:${day.id}`}
+          source={itinerary.stopSource}
           trip={trip}
           date={day.date ?? trip.startDate}
           stop={stop}
           places={data?.places ?? []}
           bias={biasFor(day, stop)}
-          onSubmit={(values) => actions.current.saveStop(day.id, stop?.id ?? null, values)}
+          onSubmit={(values, changed) =>
+            actions.current.saveStop(day.id, stop?.id ?? null, values, changed)
+          }
           onDelete={
             stop
               ? () =>

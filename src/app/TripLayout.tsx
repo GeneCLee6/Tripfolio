@@ -14,6 +14,8 @@ import { useT } from '../lib/i18n.ts'
 import { InstallBanner } from '../lib/offline/InstallBanner.tsx'
 import { notifyTripOpened } from '../lib/offline/register.ts'
 import { useCan } from '../lib/role.ts'
+import { SyncStatusDot } from '../lib/sync/SyncStatusDot.tsx'
+import { TripSyncProvider } from '../lib/sync/TripSyncContext.tsx'
 import { removeToken } from '../lib/tokens.ts'
 import { focusRing } from '../styles/mixins.ts'
 import {
@@ -447,46 +449,52 @@ export function TripLayout() {
 
   return (
     <TripContext.Provider value={context}>
-      <DetailPaneContext.Provider value={pane}>
-        <TopBar
-          tripName={context.trip.name}
-          trailing={
-            <TopBarLink to={tripPath(id, 'settings')} aria-label={t('nav.settings')}>
-              <SettingsIcon size={20} />
-            </TopBarLink>
-          }
-        />
-        <Frame>
-          <Side>
-            <TripSummary data={data} />
-            <SideNav aria-label={t('nav.label')}>
-              {SECTIONS.map((section) => (
-                <SideLink key={section.id} to={tripPath(id, section)} end={section.path === ''}>
-                  <section.icon size={20} />
-                  {t(section.label)}
-                </SideLink>
-              ))}
-            </SideNav>
-          </Side>
-          <Main id="main">
-            {pathname.replace(/\/+$/, '') === tripPath(id) && (
-              <InstallBanner
-                tripId={id}
-                startDate={context.trip.startDate}
-                endDate={context.trip.endDate}
-                tz={context.trip.tz}
-              />
-            )}
-            <ErrorBoundary resetKey={pathname}>
-              <Suspense fallback={<Skeleton $height={160} />}>
-                <Outlet />
-              </Suspense>
-            </ErrorBoundary>
-          </Main>
-          <DetailSurface detail={detail} onClose={() => setDetail(null)} inline={isDesktop} />
-        </Frame>
-        <BottomNav tripId={id} />
-      </DetailPaneContext.Provider>
+      <TripSyncProvider tripId={id}>
+        <DetailPaneContext.Provider value={pane}>
+          <TopBar
+            tripName={context.trip.name}
+            trailing={
+              <>
+                <SyncStatusDot />
+                <TopBarLink to={tripPath(id, 'settings')} aria-label={t('nav.settings')}>
+                  <SettingsIcon size={20} />
+                </TopBarLink>
+              </>
+            }
+          />
+          <Frame>
+            <Side>
+              <TripSummary data={data} />
+              <SyncStatusDot />
+              <SideNav aria-label={t('nav.label')}>
+                {SECTIONS.map((section) => (
+                  <SideLink key={section.id} to={tripPath(id, section)} end={section.path === ''}>
+                    <section.icon size={20} />
+                    {t(section.label)}
+                  </SideLink>
+                ))}
+              </SideNav>
+            </Side>
+            <Main id="main">
+              {pathname.replace(/\/+$/, '') === tripPath(id) && (
+                <InstallBanner
+                  tripId={id}
+                  startDate={context.trip.startDate}
+                  endDate={context.trip.endDate}
+                  tz={context.trip.tz}
+                />
+              )}
+              <ErrorBoundary resetKey={pathname}>
+                <Suspense fallback={<Skeleton $height={160} />}>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
+            </Main>
+            <DetailSurface detail={detail} onClose={() => setDetail(null)} inline={isDesktop} />
+          </Frame>
+          <BottomNav tripId={id} />
+        </DetailPaneContext.Provider>
+      </TripSyncProvider>
     </TripContext.Provider>
   )
 }

@@ -21,6 +21,11 @@ export const SYNC_ENTITIES = [
   'pool',
   'settlement',
   'share',
+  // Trip prep (checklist items report their list's id; '*' is a template applied)
+  'checklist',
+  'budget',
+  'note',
+  'document',
 ] as const
 export type SyncEntity = (typeof SYNC_ENTITIES)[number]
 

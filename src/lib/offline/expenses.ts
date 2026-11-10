@@ -1,5 +1,6 @@
 import type { ExpenseResponse, ExpenseView } from '../../../shared/api/expenses.ts'
 import type { ExpenseCreateBody, ExpensePatchBody, ExpenseWrite } from '../expenses/api.ts'
+import { isPendingId, PENDING_PREFIX } from './queue.ts'
 import { offlineQueue, onMutationSent } from './sync.ts'
 
 // Expense writes made offline (e10-t05): submitExpense() hands them here. A create gets a
@@ -7,9 +8,7 @@ import { offlineQueue, onMutationSent } from './sync.ts'
 // expense again before it was sent changes the queued create instead of queueing a PATCH of an id
 // the server never saw. Once the create is sent, the provisional id maps to the real one.
 
-export const PENDING_PREFIX = 'pending-'
-
-export const isPendingId = (id: string): boolean => id.startsWith(PENDING_PREFIX)
+export { isPendingId, PENDING_PREFIX } from './queue.ts'
 
 /** Provisional id → the server's id, once the queued create went through (this tab only) */
 const resolved = new Map<string, string>()
@@ -65,7 +64,10 @@ export function provisionalExpense(
 }
 
 /** A create body with a later edit applied; a cleared rate (null) is simply left out */
-export function mergeIntoCreate(create: ExpenseCreateBody, patch: ExpensePatchBody): ExpenseCreateBody {
+export function mergeIntoCreate(
+  create: ExpenseCreateBody,
+  patch: ExpensePatchBody,
+): ExpenseCreateBody {
   const { fxRate, ...rest } = patch
   const merged: ExpenseCreateBody = { ...create, ...rest }
   if (fxRate === null) delete merged.fxRate

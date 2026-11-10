@@ -18,6 +18,7 @@ import { NOTE_TEMPLATES } from '../../shared/templates/index.ts'
 import { authTrip } from '../auth.ts'
 import { insertStatement, updateStatement, writeWithRev, type Row } from '../db.ts'
 import { json, notFound, nowIso, readBody } from '../http.ts'
+import { notifyTrip } from '../sync.ts'
 import type { RouteContext } from '../router.ts'
 
 const COLUMNS = ['section', 'title', 'body', 'order', 'shareable'] as const
@@ -90,6 +91,7 @@ export async function createNote(c: RouteContext): Promise<Response> {
       updatedAt: now,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'note', id: id, action: 'upsert', by: auth.member.id })
   const response: NoteResponse = { note: await loadNote(db, auth.trip.id, id), rev }
   return json(response, 201)
 }
@@ -105,6 +107,7 @@ export async function patchNote(c: RouteContext): Promise<Response> {
     values: [note.id],
   })
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'note', id: note.id, action: 'upsert', by: auth.member.id })
   const response: NoteResponse = { note: await loadNote(db, auth.trip.id, note.id), rev }
   return json(response)
 }
@@ -117,6 +120,7 @@ export async function deleteNote(c: RouteContext): Promise<Response> {
   const rev = await writeWithRev(db, auth.trip.id, [
     db.prepare('DELETE FROM notes WHERE id = ?').bind(note.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'note', id: note.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -147,6 +151,7 @@ export async function applyNotesTemplate(c: RouteContext): Promise<Response> {
       })
     })
   const rev = statements.length ? await writeWithRev(db, auth.trip.id, statements) : auth.trip.rev
+  if (statements.length) notifyTrip(c.env, auth.trip.id, { rev, entity: 'note', id: '*', action: 'upsert', by: auth.member.id })
   const body: ApplyNotesResponse = {
     added: statements.length,
     notes: await loadNotes(db, auth.trip.id),

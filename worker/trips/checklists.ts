@@ -25,6 +25,7 @@ import { checklistTemplateLists, dateMinusDays } from '../../shared/templates/in
 import { authTrip } from '../auth.ts'
 import { insertStatement, updateStatement, writeWithRev, type Row } from '../db.ts'
 import { invalid, json, notFound, nowIso, readBody } from '../http.ts'
+import { notifyTrip } from '../sync.ts'
 import type { RouteContext } from '../router.ts'
 
 const LIST_COLUMNS = ['title', 'order'] as const
@@ -153,6 +154,7 @@ export async function createChecklist(c: RouteContext): Promise<Response> {
       updatedAt: now,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'checklist', id: id, action: 'upsert', by: auth.member.id })
   const response: ChecklistResponse = { checklist: await loadList(db, auth.trip.id, id), rev }
   return json(response, 201)
 }
@@ -168,6 +170,7 @@ export async function patchChecklist(c: RouteContext): Promise<Response> {
     values: [list.id],
   })
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'checklist', id: list.id, action: 'upsert', by: auth.member.id })
   const response: ChecklistResponse = { checklist: await loadList(db, auth.trip.id, list.id), rev }
   return json(response)
 }
@@ -181,6 +184,7 @@ export async function deleteChecklist(c: RouteContext): Promise<Response> {
     db.prepare('DELETE FROM checklistItems WHERE checklistId = ?').bind(list.id),
     db.prepare('DELETE FROM checklists WHERE id = ?').bind(list.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'checklist', id: list.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -215,6 +219,7 @@ export async function createChecklistItem(c: RouteContext): Promise<Response> {
       updatedAt: now,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'checklist', id: list.id, action: 'upsert', by: auth.member.id })
   const response: ChecklistItemResponse = { item: await loadItem(db, list.id, id), rev }
   return json(response, 201)
 }
@@ -232,6 +237,7 @@ export async function patchChecklistItem(c: RouteContext): Promise<Response> {
     values: [item.id],
   })
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'checklist', id: list.id, action: 'upsert', by: auth.member.id })
   const response: ChecklistItemResponse = { item: await loadItem(db, list.id, item.id), rev }
   return json(response)
 }
@@ -245,6 +251,7 @@ export async function deleteChecklistItem(c: RouteContext): Promise<Response> {
   const rev = await writeWithRev(db, auth.trip.id, [
     db.prepare('DELETE FROM checklistItems WHERE id = ?').bind(item.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'checklist', id: list.id, action: 'upsert', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -313,6 +320,7 @@ export async function applyChecklistTemplate(c: RouteContext): Promise<Response>
     }
   }
   const rev = statements.length ? await writeWithRev(db, auth.trip.id, statements) : auth.trip.rev
+  if (statements.length) notifyTrip(c.env, auth.trip.id, { rev, entity: 'checklist', id: '*', action: 'upsert', by: auth.member.id })
   const body: ApplyTemplateResponse = {
     added,
     checklists: await loadChecklists(db, auth.trip.id),

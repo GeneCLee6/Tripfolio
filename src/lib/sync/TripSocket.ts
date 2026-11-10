@@ -81,6 +81,12 @@ export class TripSocket {
   private heartbeat: unknown = null
   private unanswered = 0
   private started = false
+  /** The browser says the network is gone: no point waiting for two missed pings */
+  private readonly lost = () => {
+    if (!this.started || !this.socket) return
+    this.drop()
+    this.failed()
+  }
   private readonly wake = () => {
     if (!this.started || this.socket) return
     const target = globalThis.document
@@ -112,6 +118,7 @@ export class TripSocket {
     this.started = true
     const target = this.wakeTarget()
     target?.addEventListener('online', this.wake)
+    target?.addEventListener('offline', this.lost)
     target?.addEventListener('visibilitychange', this.wake)
     this.open()
   }
@@ -133,6 +140,7 @@ export class TripSocket {
     this.started = false
     const target = this.wakeTarget()
     target?.removeEventListener('online', this.wake)
+    target?.removeEventListener('offline', this.lost)
     target?.removeEventListener('visibilitychange', this.wake)
     this.clearTimer('retryTimer')
     this.drop()

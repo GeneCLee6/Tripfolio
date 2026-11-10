@@ -136,6 +136,38 @@ beforeEach(() => {
 afterEach(() => forgetRev('trip1'))
 
 describe('TripSocket', () => {
+  it('drops the connection at once when the browser goes offline, and is back on online', () => {
+    const target = new EventTarget()
+    const socket = new TripSocket('trip1', {
+      token: () => token,
+      origin: 'ws://x.test',
+      createSocket: (url, protocols) => {
+        const s = new FakeSocket(url, protocols)
+        sockets.push(s)
+        return s
+      },
+      setTimeout: clock.setTimeout,
+      clearTimeout: clock.clear,
+      setInterval: clock.setInterval,
+      clearInterval: clock.clear,
+      wakeTarget: target,
+    })
+    const statuses: SyncStatus[] = []
+    socket.on('status', (s) => statuses.push(s))
+    socket.connect()
+    last().open()
+    last().receive(welcome())
+    target.dispatchEvent(new Event('offline'))
+    expect(statuses).toEqual(['connecting', 'online', 'offline'])
+    expect(sockets).toHaveLength(1)
+    target.dispatchEvent(new Event('online'))
+    expect(sockets).toHaveLength(2)
+    last().open()
+    last().receive(welcome())
+    expect(statuses.at(-1)).toBe('online')
+    socket.close()
+  })
+
   it('connects with the token as a subprotocol and says hello with the last rev seen', () => {
     noteRev('trip1', 12)
     const { socket, seen } = make()

@@ -9,6 +9,7 @@ import { documentPatchSchema, type DocCategory } from '../../shared/schema/prep.
 import { authTrip } from '../auth.ts'
 import { writeWithRev, type Row } from '../db.ts'
 import { json, notFound, nowIso, readBody } from '../http.ts'
+import { notifyTrip } from '../sync.ts'
 import { toAttachment } from '../media.ts'
 import type { RouteContext } from '../router.ts'
 
@@ -56,6 +57,7 @@ export async function patchDocument(c: RouteContext): Promise<Response> {
       .prepare('UPDATE attachments SET docCategory = ?, rev = rev + 1, updatedAt = ? WHERE id = ?')
       .bind(docCategory, nowIso(), String(row.id)),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'document', id: String(row.id), action: 'upsert', by: auth.member.id })
   const body: DocumentResponse = {
     document: toDocument(await loadDocument(db, auth.trip.id, String(row.id))),
     rev,

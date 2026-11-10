@@ -27,6 +27,17 @@ export function classify(error: unknown): SendFailure {
   return { kind: 'refused', status: 400, code: 'unknown', message: String(error) }
 }
 
+/** The id in a create's answer: `{ stop: { id } }`, `{ expense: { id } }`, … */
+export function createdIdOf(response: unknown): string | undefined {
+  if (!response || typeof response !== 'object') return undefined
+  for (const value of Object.values(response)) {
+    if (value && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {
+      return (value as { id: string }).id
+    }
+  }
+  return undefined
+}
+
 type SentListener = (mutation: PendingMutation, response: unknown) => void
 const sentListeners = new Set<SentListener>()
 
@@ -42,6 +53,7 @@ export const offlineQueue = createQueue(
     send: (mutation) =>
       request(mutation.method, mutation.url, { token: mutation.token, body: mutation.body }),
     classify,
+    createdId: (_mutation, response) => createdIdOf(response),
     onSent: (mutation, response) => {
       for (const listener of sentListeners) listener(mutation, response)
     },

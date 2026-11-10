@@ -1,15 +1,8 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 import type { GeoPoint } from '../../../shared/api/geo.ts'
 import type { Place, Stop, Trip } from '../../../shared/api/types.ts'
-import { isCurrencyCode, type CurrencyCode } from '../../../shared/money/currencies.ts'
-import {
-  bookingStates,
-  stopPatchSchema,
-  stopTypes,
-  type BookingState,
-  type StopType,
-} from '../../../shared/schema/index.ts'
+import { bookingStates, stopPatchSchema, stopTypes } from '../../../shared/schema/index.ts'
 import {
   Button,
   Dialog,
@@ -26,42 +19,41 @@ import { CloseIcon, PlusIcon, TrashIcon } from '../../components/icons.tsx'
 import { rovingKeyDown } from '../../components/roving.ts'
 import { controlBox } from '../../components/styles.ts'
 import { useT } from '../../lib/i18n.ts'
+import { carryConflicts, changedFields, mergeFields, sameValue } from '../../lib/itinerary/merge.ts'
 import { placeName } from '../../lib/itinerary/places.ts'
-import { draftToInstants, localTime } from '../../lib/itinerary/time.ts'
+import {
+  draftValues,
+  toDraft,
+  type StopDraft,
+  type StopValues,
+} from '../../lib/itinerary/stop-draft.ts'
 import { focusRing } from '../../styles/mixins.ts'
 import { color, font, fontSize, fontWeight, radius, space } from '../../styles/tokens.ts'
 import { BOOKING_LABEL, costCurrencies, STOP_TYPE_LABEL } from './labels.ts'
 
 // The stop editor (e2-t03): in the detail pane on desktop and a Sheet below (the trip layout decides).
 // Times are typed as the trip's local wall clock on the stop's day and stored as UTC instants.
+//
+// Live (e2-t08b): `stop` is the stop as the page has it now. When someone else changes it while
+// the editor is open, fields the person has not touched take the new value silently; a field they
+// are editing keeps their value and shows 「其他人剛改了這個欄位」 with 「使用他們的版本」
+// (src/lib/itinerary/merge.ts). Saving sends only the fields the person changed.
 
-/** The editable fields of a stop, as PATCH / POST take them */
-export type StopValues = Pick<
-  Stop,
-  | 'type'
-  | 'title'
-  | 'placeId'
-  | 'startAt'
-  | 'endAt'
-  | 'durationMin'
-  | 'costMinor'
-  | 'currency'
-  | 'booking'
-  | 'note'
-  | 'links'
-  | 'isBackup'
->
+export type { StopValues } from '../../lib/itinerary/stop-draft.ts'
 
 export interface StopEditorProps {
   trip: Trip
   /** The stop's day date (YYYY-MM-DD) that the local times belong to */
   date: string
-  /** null: a new stop */
+  /** null: a new stop. May change while open (another member's edit): merged field by field */
   stop: Stop | null
+  /** The stop was deleted (by someone else) while the editor was open */
+  removed?: boolean
   places: readonly Place[]
   /** Search bias: the previous stop's place or the trip centre */
   bias: GeoPoint | null
-  onSubmit: (values: StopValues) => void
+  /** `changed`: for an existing stop, only the fields the person changed */
+  onSubmit: (values: StopValues, changed: Partial<StopValues>) => void
   onDelete?: () => void
   onPlaceCreated: (place: Place) => void
   onClose: () => void
@@ -196,10 +188,22 @@ const Actions = styled.div`
 
 const isHttp = (url: string) => /^https?:\/\/\S+$/i.test(url.trim())
 
+const ConflictBox = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${space.sm}px;
+  align-items: center;
+  padding: ${space.xs}px ${space.sm}px;
+  border-left: 3px solid ${color.warning};
+  background: ${color.paper};
+  font-size: ${fontSize.sm}px;
+`
+
 export function StopEditor({
   trip,
   date,
   stop,
+  removed = false,
   places,
   bias,
   onSubmit,
@@ -209,25 +213,94 @@ export function StopEditor({
 }: StopEditorProps) {
   const t = useT()
   const currencies = costCurrencies(trip, stop?.currency ?? null)
-  const [type, setType] = useState<StopType>(stop?.type ?? 'sight')
+  // base: the stop as last seen (what "untouched" means); draft: the form
+  const [base, setBase] = useState<StopDraft>(() => toDraft(stop, trip.tz, currencies))
+  const [draft, setDraft] = useState<StopDraft>(base)
+  const [conflicts, setConflicts] = useState<Partial<StopDraft>>({})
   const [typeTouched, setTypeTouched] = useState(Boolean(stop))
-  const [title, setTitle] = useState(stop?.title ?? '')
-  const [placeId, setPlaceId] = useState<string | null>(stop?.placeId ?? null)
   const [picking, setPicking] = useState(!stop?.placeId)
   const [manual, setManual] = useState(false)
   const [known, setKnown] = useState<readonly Place[]>(places)
-  const [start, setStart] = useState(localTime(stop?.startAt ?? null, trip.tz))
-  const [end, setEnd] = useState(localTime(stop?.endAt ?? null, trip.tz))
-  const [duration, setDuration] = useState(stop?.durationMin?.toString() ?? '')
-  const [costMinor, setCostMinor] = useState<number | null>(stop?.costMinor ?? null)
-  const [currency, setCurrency] = useState<CurrencyCode>(
-    (stop?.currency && isCurrencyCode(stop.currency) ? stop.currency : currencies[0]) ?? 'AUD',
-  )
-  const [booking, setBooking] = useState<BookingState>(stop?.booking ?? 'none')
-  const [note, setNote] = useState(stop?.note ?? '')
-  const [links, setLinks] = useState<string[]>(stop?.links.map((link) => link.url) ?? [])
-  const [isBackup, setIsBackup] = useState(stop?.isBackup ?? false)
   const [showErrors, setShowErrors] = useState(false)
+
+  // Someone else changed the stop: merge field by field (during render, before anything paints)
+  if (stop) {
+    const remote = toDraft(stop, trip.tz, currencies)
+    if (!sameValue(remote, base)) {
+      const result = mergeFields(base, draft, remote)
+      setBase(remote)
+      setDraft(result.merged)
+      setConflicts(carryConflicts(conflicts, result.conflicts, result.merged))
+      if (result.updated.includes('placeId') && result.merged.placeId) setPicking(false)
+    }
+  }
+  for (const place of places) {
+    if (!known.some((item) => item.id === place.id)) {
+      setKnown([...known, ...places.filter((p) => !known.some((item) => item.id === p.id))])
+      break
+    }
+  }
+
+  const {
+    type,
+    title,
+    placeId,
+    start,
+    end,
+    duration,
+    costMinor,
+    currency,
+    booking,
+    note,
+    links,
+    isBackup,
+  } = draft
+  const field =
+    <K extends keyof StopDraft>(key: K) =>
+    (value: StopDraft[K]) =>
+      setDraft((current) => ({ ...current, [key]: value }))
+  const setType = field('type')
+  const setTitle = field('title')
+  const setPlaceId = field('placeId')
+  const setStart = field('start')
+  const setEnd = field('end')
+  const setDuration = field('duration')
+  const setCostMinor = field('costMinor')
+  const setCurrency = field('currency')
+  const setBooking = field('booking')
+  const setNote = field('note')
+  const setIsBackup = field('isBackup')
+  const setLinks = (change: (list: string[]) => string[]) =>
+    setDraft((current) => ({ ...current, links: change(current.links) }))
+
+  /** 「其他人剛改了這個欄位」 under a field group, while their value differs from the form's */
+  const conflictFor = (keys: (keyof StopDraft)[]): ReactNode => {
+    const open = keys.filter((key) => key in conflicts && !sameValue(conflicts[key], draft[key]))
+    if (open.length === 0) return null
+    return (
+      <ConflictBox role="status" data-testid="stop-conflict">
+        <span>{t('itinerary.editor.remoteChanged')}</span>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setDraft((current) => {
+              const next = { ...current }
+              for (const key of open) next[key] = conflicts[key] as never
+              return next
+            })
+            setConflicts((current) => {
+              const next = { ...current }
+              for (const key of open) delete next[key]
+              return next
+            })
+          }}
+        >
+          {t('itinerary.editor.useTheirs')}
+        </Button>
+      </ConflictBox>
+    )
+  }
   const [confirmDelete, setConfirmDelete] = useState(false)
   const noteId = useId()
 
@@ -244,34 +317,22 @@ export function StopEditor({
       return
     }
     setManual(false)
-    setKnown((list) => (list.some((item) => item.id === pick.placeId) ? list : [...list, pick.place]))
+    setKnown((list) =>
+      list.some((item) => item.id === pick.placeId) ? list : [...list, pick.place],
+    )
     setPlaceId(pick.placeId)
     setPicking(false)
     if (!typeTouched) setType(pick.suggestedType)
   }
 
   const submit = () => {
-    const { startAt, endAt } = draftToInstants({ start, end }, date, trip.tz)
-    const values: StopValues = {
-      type,
-      title: title.trim(),
-      placeId,
-      startAt,
-      endAt,
-      durationMin: durationInvalid ? null : durationValue,
-      costMinor,
-      currency: costMinor === null ? null : currency,
-      booking,
-      note,
-      links: links.filter((url) => url.trim()).map((url) => ({ url: url.trim() })),
-      isBackup,
-    }
+    const values = draftValues(draft, date, trip.tz)
     const parsed = stopPatchSchema.safeParse(values)
     if (!parsed.success || durationInvalid || linkErrors.some(Boolean)) {
       setShowErrors(true)
       return
     }
-    onSubmit(values)
+    onSubmit(values, stop ? changedFields(draftValues(base, date, trip.tz), values) : values)
     onClose()
   }
 
@@ -316,6 +377,7 @@ export function StopEditor({
             </TypeOption>
           ))}
         </TypeGrid>
+        {conflictFor(['type'])}
       </Group>
 
       <Group>
@@ -354,6 +416,7 @@ export function StopEditor({
           />
         )}
         {manual && <Hint role="status">{t('itinerary.editor.manualPin')}</Hint>}
+        {conflictFor(['placeId'])}
       </Group>
 
       <Input
@@ -364,6 +427,7 @@ export function StopEditor({
         maxLength={200}
         onChange={(event) => setTitle(event.target.value)}
       />
+      {conflictFor(['title'])}
 
       <Group>
         <Two>
@@ -397,6 +461,7 @@ export function StopEditor({
           value={duration}
           onChange={(event) => setDuration(event.target.value)}
         />
+        {conflictFor(['start', 'end', 'duration'])}
       </Group>
 
       <MoneyField
@@ -408,6 +473,7 @@ export function StopEditor({
         onChange={setCostMinor}
         onCurrencyChange={setCurrency}
       />
+      {conflictFor(['costMinor', 'currency'])}
 
       <Group>
         <legend>{t('itinerary.editor.booking')}</legend>
@@ -418,12 +484,18 @@ export function StopEditor({
           onChange={setBooking}
           size="sm"
         />
+        {conflictFor(['booking'])}
       </Group>
 
       <Check>
-        <input type="checkbox" checked={isBackup} onChange={(event) => setIsBackup(event.target.checked)} />
+        <input
+          type="checkbox"
+          checked={isBackup}
+          onChange={(event) => setIsBackup(event.target.checked)}
+        />
         {t('itinerary.editor.backup')}
       </Check>
+      {conflictFor(['isBackup'])}
 
       <Group>
         <Label htmlFor={noteId}>{t('itinerary.editor.note')}</Label>
@@ -433,6 +505,7 @@ export function StopEditor({
           maxLength={5000}
           onChange={(event) => setNote(event.target.value)}
         />
+        {conflictFor(['note'])}
       </Group>
 
       <Group>
@@ -467,7 +540,14 @@ export function StopEditor({
             </Button>
           </Row>
         )}
+        {conflictFor(['links'])}
       </Group>
+
+      {removed && (
+        <Hint role="alert" $error>
+          {t('itinerary.editor.removedRemote')}
+        </Hint>
+      )}
 
       {showErrors && (
         <Hint role="alert" $error>
@@ -488,7 +568,7 @@ export function StopEditor({
           <Button variant="ghost" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" disabled={removed}>
             {t('common.save')}
           </Button>
         </Row>
