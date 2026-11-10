@@ -3,7 +3,7 @@ import type { TripDO } from './trip-do.ts'
 export interface Env {
   /** The React app's static assets: index.html (app) and share.html (share page) */
   ASSETS: Fetcher
-  /** One object per trip: live sync only (ARCHITECTURE.md §1); a ping-only placeholder for now */
+  /** One object per trip: WebSocket fan-out of rev events with a 200-event catch-up buffer (worker/trip-do.ts, ARCHITECTURE.md §4.2) */
   TRIP: DurableObjectNamespace<TripDO>
   /** Production or staging database (migrations/) */
   DB: D1Database
