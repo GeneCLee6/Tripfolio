@@ -395,14 +395,6 @@ export const DayBlock = forwardRef<HTMLElement, DayBlockProps>(function DayBlock
       {day.note && <Note>{day.note}</Note>}
       {/* Tonight's lodging and the morning's checkout (e4-t02; `lodging` / `checkout` ride on the day) */}
       <LodgingLine day={day} trip={trip} editable={editable} />
-      <DropArea ref={setDropRef} $over={isOver && day.stops.length === 0} data-day-drop={day.id}>
-        {day.stops.length === 0 ? (
-      {!unassigned && (
-        <Lodge>
-          <span>{t('itinerary.lodging.empty')}</span>
-          <Faint>{t('itinerary.lodging.hint')}</Faint>
-        </Lodge>
-      )}
       <DropArea ref={setDropRef} $over={isOver && main.length === 0} data-day-drop={day.id}>
         {main.length === 0 ? (
           <Empty>{t('itinerary.emptyDay')}</Empty>
