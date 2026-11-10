@@ -53,7 +53,8 @@ depends_on: [E1, E11]
   - 驗證（#F1b，e6-t03）：純函式 `src/lib/upload/match.ts`（`tests/src/photos/match.test.ts`：500 m 邊界、同一天才配、旅程時區跨午夜、沒 GPS 依日期、沒時間或不在旅程日期內不配、已手動分過的不動、指向已刪除日的重配）。Playwright（375／1440）：API 建兩天旅程＋有座標的行程點 → 上傳測試裡組出的 JPEG（canvas 產生、插入 EXIF `DateTimeOriginal` 為 Day 1、GPS 距行程點約 60 m）＋一張無 EXIF 的 PNG → 上傳批次結束後自動配對：JPEG 掛到該行程點與 Day 1、PNG 留在「還沒分到哪一天」→ 燈箱「搬到…」改到 Day 2 → API 與依日相簿都跟著變。
 - [x] AC-6.3 — 相簿：每日／全程相簿、封面、燈箱（鍵盤可用）。
   - 驗證（#F1b，e6-t04）：照片頁「全部／依日」分頁；依日每段有日色邊條、Day N · 日期、張數、當日封面縮圖，最後是「還沒分到哪一天」。燈箱（`src/components/Lightbox.tsx`）是全螢幕原生 modal `<dialog>`（焦點困在裡面、Esc 關閉、關閉後焦點回到縮圖）、←／→ 與左右按鈕切換、指標水平滑動切換、`aria-live` 唸「第 N／M 張」、動畫只在沒有 `prefers-reduced-motion` 時播；資訊欄顯示拍攝時間（旅程時區）、分在哪天／行程點、「搬到…」、「設為旅程封面」、「設為當日封面」、刪除（編輯者）。Playwright 以鍵盤 ←／→ 走過兩張、Esc 關閉；元件測試檢查 aria。**取捨：當日封面存在這台裝置的 localStorage**（`tripfolio.photos.dayCovers.<tripId>`），因為 `days` 沒有封面欄位、這批不能改 Worker；其他裝置退回當天第一張。之後在 `days` 加 `coverAttachmentId` 再搬過去。
-- [ ] AC-6.4 — 容量：旅程與全站用量顯示與警示。
+- [x] AC-6.4 — 容量：旅程與全站用量顯示與警示。
+  - 2026-11-10 勾選：旅程用量 `StorageMeter`（#D1b）＋全站 R2 用量與 80% 警示在用量頁（#J1b，`e2e/admin.spec.ts`）。全站門檻以 R2 免費 10 GB 為準，不是原規劃的 8 GB。
   - 進度（#D1b，e6-t05）：**旅程用量已完成並驗證**：`StorageMeter` 讀 `GET …/attachments/usage`，「已用 X / 1.5 GB」、≥ 80% 琥珀色提示、超過 1.5 GB 紅色警示（元件測試涵蓋三種狀態；Playwright 驗證上傳後與刪除後數字會更新）；照片頁一律顯示，旅程首頁在 > 50% 才顯示精簡版。**全站 8 GB 警示給擁有者要等 E11 用量頁**，所以本條不勾。
 
 ## Task 拆分

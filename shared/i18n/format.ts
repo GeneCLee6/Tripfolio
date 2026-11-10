@@ -1,6 +1,9 @@
 import { formatMoney as formatMinor } from '../money/currencies.ts'
 import { t, type Locale } from './core.ts'
 
+/** The Intl tag for dates and times: English uses Australian order ("Mon, 9 Nov") because the owner lives in Australia. Money keeps the plain locale so currency symbols stay unambiguous (A$, NZ$, NT$) */
+export const dateLocale = (locale: Locale): string => (locale === 'en' ? 'en-AU' : locale)
+
 // Locale-aware formatting (docs/DESIGN.md §5.3, e10-t04). Numbers, dates and times always go through
 // Intl; the few word templates (「3 小時 20 分」, "3 h 20 min", the weekday parentheses) are catalog
 // messages so they are translated like everything else. Never hand-build these strings in a component.
@@ -59,13 +62,13 @@ export function formatDate(date: DateInput, locale: Locale, options: DateFormatO
   const { instant, dateOnly } = toInstant(date)
   const timeZone = zoneFor(dateOnly, options.timeZone)
   const zh = locale === 'zh-TW'
-  const day = new Intl.DateTimeFormat(locale, {
+  const day = new Intl.DateTimeFormat(dateLocale(locale), {
     timeZone,
     year: options.year ? 'numeric' : undefined,
     month: zh ? 'long' : 'short',
     day: 'numeric',
   }).format(instant)
-  const weekday = new Intl.DateTimeFormat(locale, {
+  const weekday = new Intl.DateTimeFormat(dateLocale(locale), {
     timeZone,
     weekday: zh ? 'narrow' : 'short',
   }).format(instant)
@@ -81,7 +84,7 @@ export function formatDateRange(start: DateInput, end: DateInput, locale: Locale
   const to = toInstant(end)
   const timeZone = zoneFor(from.dateOnly && to.dateOnly)
   const part = (instant: Date, options: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat(locale, { timeZone, ...options }).format(instant)
+    new Intl.DateTimeFormat(dateLocale(locale), { timeZone, ...options }).format(instant)
   const fields = (instant: Date) => part(instant, { year: 'numeric', month: 'numeric', day: 'numeric' })
   const [a, b] = [fields(from.instant), fields(to.instant)]
   if (a === b) return part(from.instant, { month: locale === 'zh-TW' ? 'long' : 'short', day: 'numeric' })
@@ -91,7 +94,7 @@ export function formatDateRange(start: DateInput, end: DateInput, locale: Locale
   const month = locale === 'zh-TW' ? 'long' : 'short'
   const year = sameYear ? undefined : 'numeric'
   if (locale !== 'zh-TW') {
-    return new Intl.DateTimeFormat(locale, { timeZone, year, month, day: 'numeric' }).formatRange(
+    return new Intl.DateTimeFormat(dateLocale(locale), { timeZone, year, month, day: 'numeric' }).formatRange(
       from.instant,
       to.instant,
     )
@@ -121,7 +124,7 @@ export function formatTime(value: string | Date, locale: Locale, options: TimeFo
   } else {
     instant = value
   }
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(dateLocale(locale), {
     timeZone,
     hour: options.hour12 ? 'numeric' : '2-digit',
     minute: '2-digit',
@@ -163,6 +166,6 @@ export function formatDistance(meters: number, locale: Locale): string {
  * for Pacific/Auckland (Intl only has abbreviations it can be sure of).
  */
 export function formatTzAbbrev(timeZone: string, locale: Locale, at: Date = new Date()): string {
-  const parts = new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: 'short' }).formatToParts(at)
+  const parts = new Intl.DateTimeFormat(dateLocale(locale), { timeZone, timeZoneName: 'short' }).formatToParts(at)
   return parts.find((part) => part.type === 'timeZoneName')?.value ?? timeZone
 }

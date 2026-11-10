@@ -52,7 +52,9 @@
 - **2026-11-10 e2-t08b 日程即時同步與離線編輯完成（#H2c，已合併）。** `TripLayout` 每旅程一條 socket，其他頁可用 `useTripEvents()` 訂閱；日程頁收到別人的事件 300 ms 合併後重抓（API 沒有單日端點所以抓整個 `/days`），自己的略過，`resync` 全抓；`src/lib/itinerary/merge.ts` 欄位級後寫贏（編輯器只送改過的欄位、衝突時「使用他們的版本」）；`src/lib/offline/itinerary.ts` 行程點與每日編輯進離線佇列，`pending-` 暫時 id 送出後改寫成真 id；狀態點「即時／重新連線中／離線」；四個準備頁 handler 補 `notifyTrip`。兩個 context Playwright：A 新增到 B 看到 0.57–0.89 秒；離線新增與移動後恢復 1.0–1.3 秒同步。**AC-2.6 未勾（要兩台實體裝置）**。首屏 162.4／180。留下：附件沒有即時通知（`worker/media.ts`）；記帳、必吃必買、準備頁尚未訂閱即時事件；口袋名單排入、清單勾選尚不能離線。
 - **2026-11-10 e5-t05／e4-t06／e4-t04 記帳串接完成（#H1b／#H1c／#F1c，已合併）。** `ExpenseFormSheet` 的 `initial` 預填（含 `wishlistItemId`、`bookingId`）；必吃必買「完成並記帳」（存檔才標 done）與「標記完成（不記帳）」；預訂與住宿「誰先付 → 記帳」（選成員或公基金，帶價格、類別、日期、`bookingId`，列上顯示「已記帳」）；住宿與預訂表單的「確認信／附件」（`kind:'document'`，`AttachmentList`，僅成員）；`GET /attachments` 支援 `bookingId`／`lodgingId` 篩選。修掉兩個 bug：記帳表單 key 與復原列撞號導致第二筆存完 Sheet 卡住；上傳前清空 file input 讓 FileList 變空。**AC-4.2、4.3、5.4 已勾**。首屏 163.4／180。留下：住宿的 id 暫放在 `bookingId`（匯出／複製會遺失這個連結）；附件不存檔名；必吃必買記帳的分攤預設未依類別；記帳不會更新預訂付款狀態；離線時必吃必買的 done PATCH 沒排隊；`GET /expenses?bookingId=` 尚無伺服器篩選。
 - **2026-11-10 e10-t07 中英文走查完成（#C2b，已合併）。** 137 個字串值＋5 處範本：英文改英式／澳式拼法（colour、traveller、licence、car hire）、不用 Please、彎引號、pool→Shared fund、travel mate→traveller；繁中統一「旅程列表」「餐飲」「開車」「火車」「假日公園」「自給自足認證」「公基金」「建立」「電子郵件」，全形標點。術語表定稿在 `docs/DESIGN.md` §5，逐頁紀錄在 `docs/ZH-WALKTHROUGH.md`、`docs/EN-WALKTHROUGH.md`。**AC-10.2 已勾**（仍建議請母語者實用一輪）。留下：英文日期仍是美式順序，`format.ts` 改 `en-AU` 待做。
-- **進行中的 agent 分支**：`C:\dev\_wt	ripfolio-a11y`（`feat/e10-t06-a11y`，無障礙走查）。
+- **2026-11-10 e10-t06 無障礙走查完成（#C2a，已合併）。** `e2e/a11y.spec.ts`（axe wcag2a／2aa／21aa，22 條路由＋兩個 Sheet＋燈箱 × 淺深色 × 繁中英文，共 100 次，零 serious／critical）、`e2e/keyboard.spec.ts`（10 項鍵盤走查）、reduced motion（`src/map/camera.ts`）、375 px 觸控 44 px（`GlobalStyle` 全域規則＋`coarseTarget`／`coarseLink`）。對比修正集中在 `tokens.ts`（`muted`、`success`、`danger` 微調；新增 `warningText`、`tussockText`），DESIGN §2 已同步。修掉 Sheet 卸載時焦點掉到 body 的 bug（`Dialog.tsx` 記住開啟者）。**AC-10.5 已勾**。新增 devDependency `@axe-core/playwright` 4.14.0。留下：MapLibre attribution 不在觸控檢查內；記一筆的分類與付款人 radio 沒做 roving；VoiceOver／TalkBack 實機未測。
+- **2026-11-10 英文日期改澳式（`chore/en-au-formats`）。** `shared/i18n/format.ts` 的 `dateLocale()`：英文日期與時間用 `en-AU`（Mon, 9 Nov；7:30 pm；時區縮寫 NZDT／AEST），金額維持 `en`（A$、NZ$、NT$ 不含糊）。相關單元測試期望值已更新。
+- **進行中的 agent 分支：無**。71 個 task 已全部完成；剩下的 AC 都要部署後或實體裝置驗證，清單見 §2。
 - **下一步：合併上面三個分支後，開 B2（`e2-t05` 移動段接地圖頁）、B3 其餘（`e2-t04` 拖曳、`e2-t06` 時間檢查）、C1 其餘（`e5-t01`、`e2-t07`、`e1-t05`）。原計畫：（日程頁、地點搜尋元件、行程點編輯）。擁有者要先建 GitHub repo、設 secret（§2）。**
 
 ## 2. 待擁有者決定（開工前）
@@ -68,6 +70,27 @@
 | Q6 Email 提醒 | M3 | 先不做 |
 | ~~建 GitHub repo（公開）並推送~~ | — | 已完成（2026-11-09）。**待做：`main` 分支保護**（要求 PR、`CI / verify` 通過、禁 force-push；`DEPLOY.md` §3.3） |
 | **部署 secret** | repo 建好後 | TKU Arcade 那把 Cloudflare token 沒留存、無法從 GitHub 讀回；要在 Cloudflare 儀表板**新建一把**（範本「Edit Cloudflare Workers」＋ D1 Edit，權限表見 `DEPLOY.md` §3.1），然後 `gh secret set CLOUDFLARE_API_TOKEN -R GeneCLee6/Tripfolio` 與 `gh secret set CLOUDFLARE_ACCOUNT_ID -R GeneCLee6/Tripfolio --body a81440c3c2cf7f6a49fc44058be5eb68`；沒設之前部署 workflow 會跳過不會失敗。順手可把同一把 token 也更新到 TKU Arcade 的 secret |
+
+### 2.1 程式全部完成後，要你驗證的事（2026-11-10）
+
+71 個 task 全部完成；下面 14 條 AC 只能在部署後或用實體裝置驗證。做完一條就在對應 epic 打勾。
+
+| 先做 | AC | 怎麼驗 |
+| --- | --- | --- |
+| 1 | AC-11.1 部署 | 設好 `CLOUDFLARE_API_TOKEN` secret 後 push 一次，看 Deploy workflow 真的部署；開一個 PR 看預覽站 |
+| 2 | AC-11.4 安全 | 部署後照 `DEPLOY.md` §12.3 跑 `curl -I`，確認標頭與第 11 次建旅程回 429 |
+| 3 | AC-11.3 備份 | 部署隔天看 R2 `backups/production/` 有檔，照 §10 遠端還原一次到臨時資料庫 |
+| 4 | AC-11.5 成本 | 設 `ADMIN_KEY`（和選用的 `CF_ANALYTICS_TOKEN`），開 `/admin/usage?key=…` 看到 Cloudflare 數字 |
+| 5 | AC-1.4 Google 登入 | 照 §13 建 OAuth client、設 secret，兩台裝置登入看到同一份旅程清單 |
+| 6 | AC-10.4 PWA | 手機安裝到主畫面、飛航模式開最近旅程、離線記一筆後恢復網路自動同步；部署兩版看更新提示 |
+| 7 | AC-3.5 離線地圖 | 手機下載離線地圖後飛航模式開地圖，看到所有針與路線 |
+| 8 | AC-2.6 多人同步 | 兩支手機同時編輯同一天：3 秒內互見、一台斷網編輯後恢復同步 |
+| 9 | AC-3.2 地圖 | 實體手機上全螢幕、雙指縮放、點卡都順 |
+| 10 | AC-7.1 記一筆 | 手機上從按「＋」到存檔 ≤ 10 秒；離線記帳恢復後同步 |
+| 11 | AC-7.2 多幣別 | 正式站記一筆 NZD／IDR，看到自動匯率；批次套用刷卡匯率 |
+| 12 | AC-8.5 ICS | 把 `.ics` 匯入 Google 日曆與 Apple 行事曆、用 webcal 訂閱，時間與時區正確 |
+| 13 | AC-8.1 分享頁效能 | Lighthouse 手機效能 ≥ 90（目前 72–80；要過得讓 Worker 把封面輸出在 HTML 或字型自管，需另開 task） |
+| 14 | AC-5.2 依地區分組 | 這條是功能缺口，不是驗證：必吃必買「依最近住宿城市分組」還沒做，需要另開 task |
 
 ## 3. 工作方式（每批）
 

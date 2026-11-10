@@ -33,21 +33,21 @@ describe('formatMoney', () => {
 describe('formatDate', () => {
   it('shows a stored date with its weekday', () => {
     expect(formatDate('2026-11-09', 'zh-TW')).toBe('11月9日（一）')
-    expect(formatDate('2026-11-09', 'en')).toBe('Mon, Nov 9')
+    expect(formatDate('2026-11-09', 'en')).toBe('Mon, 9 Nov')
     expect(formatDate('2026-11-08', 'zh-TW')).toBe('11月8日（日）')
-    expect(formatDate('2026-11-08', 'en')).toBe('Sun, Nov 8')
+    expect(formatDate('2026-11-08', 'en')).toBe('Sun, 8 Nov')
   })
 
   it('adds the year on request', () => {
     expect(formatDate('2026-11-09', 'zh-TW', { year: true })).toBe('2026年11月9日（一）')
-    expect(formatDate('2026-11-09', 'en', { year: true })).toBe('Mon, Nov 9, 2026')
+    expect(formatDate('2026-11-09', 'en', { year: true })).toBe('Mon, 9 Nov 2026')
   })
 
   it('shows an instant in the given zone, not the machine zone', () => {
     // 12:00 UTC on the 8th is already the 9th in Auckland (UTC+13)
     const instant = new Date('2026-11-08T12:00:00Z')
-    expect(formatDate(instant, 'en', { timeZone: 'Pacific/Auckland' })).toBe('Mon, Nov 9')
-    expect(formatDate(instant, 'en', { timeZone: 'UTC' })).toBe('Sun, Nov 8')
+    expect(formatDate(instant, 'en', { timeZone: 'Pacific/Auckland' })).toBe('Mon, 9 Nov')
+    expect(formatDate(instant, 'en', { timeZone: 'UTC' })).toBe('Sun, 8 Nov')
   })
 
   it('rejects what is not a YYYY-MM-DD date', () => {
@@ -58,15 +58,15 @@ describe('formatDate', () => {
 describe('formatDateRange', () => {
   it('drops what both ends share', () => {
     expect(plain(formatDateRange('2026-11-09', '2026-11-14', 'zh-TW'))).toBe('11月9日 – 14日')
-    expect(plain(formatDateRange('2026-11-09', '2026-11-14', 'en'))).toBe('Nov 9 – 14')
+    expect(plain(formatDateRange('2026-11-09', '2026-11-14', 'en'))).toBe('9–14 Nov')
     expect(plain(formatDateRange('2026-11-09', '2026-12-02', 'zh-TW'))).toBe('11月9日 – 12月2日')
-    expect(plain(formatDateRange('2026-11-09', '2026-12-02', 'en'))).toBe('Nov 9 – Dec 2')
+    expect(plain(formatDateRange('2026-11-09', '2026-12-02', 'en'))).toBe('9 Nov – 2 Dec')
   })
 
   it('shows years only across a new year, and one date for a one-day span', () => {
     expect(plain(formatDateRange('2026-12-28', '2027-01-03', 'zh-TW'))).toBe('2026年12月28日 – 2027年1月3日')
-    expect(plain(formatDateRange('2026-12-28', '2027-01-03', 'en'))).toBe('Dec 28, 2026 – Jan 3, 2027')
-    expect(plain(formatDateRange('2026-11-09', '2026-11-09', 'en'))).toBe('Nov 9')
+    expect(plain(formatDateRange('2026-12-28', '2027-01-03', 'en'))).toBe('28 Dec 2026 – 3 Jan 2027')
+    expect(plain(formatDateRange('2026-11-09', '2026-11-09', 'en'))).toBe('9 Nov')
   })
 })
 
@@ -77,7 +77,7 @@ describe('formatTime', () => {
   })
 
   it('can use a 12-hour clock', () => {
-    expect(plain(formatTime('19:30', 'en', { hour12: true }))).toBe('7:30 PM')
+    expect(plain(formatTime('19:30', 'en', { hour12: true }))).toBe('7:30 pm')
     expect(plain(formatTime('19:30', 'zh-TW', { hour12: true }))).toBe('下午7:30')
   })
 
@@ -120,9 +120,9 @@ describe('formatDistance', () => {
 describe('formatTzAbbrev', () => {
   it('gives what Intl knows for the zone at that instant', () => {
     const november = new Date('2026-11-09T00:00:00Z')
-    expect(formatTzAbbrev('Pacific/Auckland', 'en', november)).toBe('GMT+13')
+    expect(formatTzAbbrev('Pacific/Auckland', 'en', november)).toBe('NZDT')
     expect(formatTzAbbrev('Pacific/Auckland', 'zh-TW', november)).toBe('GMT+13')
-    expect(formatTzAbbrev('America/Los_Angeles', 'en', november)).toBe('PST')
-    expect(formatTzAbbrev('Australia/Sydney', 'en', new Date('2026-07-01T00:00:00Z'))).toBe('GMT+10')
+    expect(formatTzAbbrev('America/Los_Angeles', 'en', november)).toBe('GMT-8')
+    expect(formatTzAbbrev('Australia/Sydney', 'en', new Date('2026-07-01T00:00:00Z'))).toBe('AEST')
   })
 })

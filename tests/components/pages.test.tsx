@@ -131,7 +131,7 @@ describe('TripHomePage', () => {
     })
     expect(html).toContain('Travellers')
     expect(html).toContain('Archived')
-    expect(html).toContain('Dec 20')
+    expect(html).toContain('20–28 Dec')
     expect(html).not.toContain('Edit trip')
   })
 })

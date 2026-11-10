@@ -15,14 +15,15 @@
 | `paper`（底，骨白） | `#EDEFEA` | `#121A1D` |
 | `card`（卡片） | `#F8F9F6` | `#1A2427` |
 | `ink`（主文字） | `#17262B` | `#E6ECE8` |
-| `muted`（次文字） | `#5F6E72` | `#97A6A9` |
+| `muted`（次文字） | `#56656A` | `#97A6A9` |
 | `line`（分隔） | `#D5DCD6` | `#2A373B` |
 | `fjord`（峽灣墨綠，主動作） | `#0F6E74` | `#5FB6BC` |
 | `fjordInk`（深墨綠，封面底） | `#0A4F54` | `#9ADCE0` |
 | `glacier`（冰川淡青，軟底） | `#CDE7EA` | `#173B40` |
 | `tussock`（叢草金，價格／強調） | `#B88A1E` | `#D9AE4A` |
 | `tussockSoft`（金色軟底，公基金） | `#F1E7C8` | `#3A3217` |
-| `success`／`warning`／`danger` | `#3C8C5A`／`#C9892B`／`#B9483A` | `#6BC08A`／`#E0A552`／`#E07A6C` |
+| `success`／`warning`／`danger` | `#2C7446`／`#C9892B`／`#AD4134` | `#6BC08A`／`#E0A552`／`#E07A6C` |
+| `warningText`／`tussockText`（小字專用，填色與圖示仍用 `warning`／`tussock`） | `#8A5E12`／`#80610E` | `#E0A552`／`#D9AE4A` |
 
 - **日色**（10）：`#0F6E74` 墨綠、`#B5654A` 赭、`#5B7B4A` 苔綠、`#4C6A92` 靛、`#8B5E83` 紫灰、`#3F8F8A` 湖綠、`#A64B4B` 磚紅、`#C99A3B` 芥末、`#6E8B3D` 橄欖、`#7A6A5A` 岩棕。
 - 間距：4 的倍數（4、8、12、16、24、32、48、64）。
@@ -53,7 +54,7 @@ Button（primary／secondary／ghost／danger）、IconButton、Input、Select�
 
 1. **繁中是來源語言**：先寫 `zh-TW.ts`，再翻 `en.ts`；key 以語意命名（`itinerary.addStop`），不以句子當 key。
 2. **禁止裸字串**：JSX 可見文字一律 `t()`；`scripts/check-i18n.mjs` 擋 en 缺 key 與多餘 key，另一支 grep JSX 的 CJK 與長英文字串。
-3. **數字、日期、金額、時長、距離**用 `Intl` 與 `shared/i18n/format.ts`，不要手拼。
+3. **數字、日期、金額、時長、距離**用 `Intl` 與 `shared/i18n/format.ts`，不要手拼。英文的日期與時間用 `en-AU`（「Mon, 9 Nov」、「7:30 pm」、時區縮寫如 NZDT／AEST，`dateLocale()`）；金額維持 `en` 讓幣別符號不含糊（A$、NZ$、NT$）。
 4. **繁中語氣**：台灣用語、短句、動詞開頭（「加行程點」「記一筆」「結算」）；不用簡中詞彙（「創建」「視頻」「打車」）。
 5. **英文語氣**：短、直接、動詞開頭（"Add stop"、"Log expense"、"Settle up"）；不用 "Please"。
 6. **內容語言**：使用者填的內容（行程點名稱、備註）是單語，不翻譯；地點有 `nameLocal`／`nameEn`，介面語言是英文時優先顯示 `nameEn`。
@@ -90,7 +91,7 @@ Button（primary／secondary／ghost／danger）、IconButton、Input、Select�
 - 全部操作可鍵盤完成；焦點樣式可見（`accent` 2 px 外框）；拖曳有鍵盤替代（空白鍵抓起、方向鍵移動、Esc 取消）與按鈕替代（上移／下移／移到別天）。
 - 觸控目標 ≥ 44 px；底部導覽與浮動鈕避開 iOS home indicator（`env(safe-area-inset-bottom)`）。
 - 狀態不只靠顏色：應收／應付同時有「＋／−」與文字；日色針上有編號；警示有圖示。
-- 對比 AA：`muted` 在 `paper` 上 ≥ 4.5:1（已選色達標）；珊瑚只用在大字與圖示，不用在小字。
+- 對比 AA：`muted` 在 `paper`、`glacier`、`tussockSoft` 上都 ≥ 4.5:1（2026-11-10 axe 走查後調整）；小字的警示與金色用 `warningText`／`tussockText`；珊瑚只用在大字與圖示。
 - `prefers-reduced-motion`：Sheet 與地圖飛行動畫改為直接切換。
 - axe 無 serious／critical 進 CI（M0 收尾 C2）。
 

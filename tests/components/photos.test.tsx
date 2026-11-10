@@ -234,7 +234,7 @@ describe('photo pages', () => {
 
   it('shows UTC capture times in the trip zone and wall-clock ones as recorded', () => {
     // 08:00Z is 16:00 in Bali (UTC+8)
-    expect(takenAtText('2030-12-20T08:00:00Z', 'Asia/Makassar', 'en')).toBe('Fri, Dec 20 16:00')
-    expect(takenAtText('2030-12-21T09:30:00', 'Asia/Makassar', 'en')).toBe('Sat, Dec 21 09:30')
+    expect(takenAtText('2030-12-20T08:00:00Z', 'Asia/Makassar', 'en')).toBe('Fri, 20 Dec 16:00')
+    expect(takenAtText('2030-12-21T09:30:00', 'Asia/Makassar', 'en')).toBe('Sat, 21 Dec 09:30')
   })
 })
