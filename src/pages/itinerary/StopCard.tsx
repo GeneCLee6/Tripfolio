@@ -3,7 +3,8 @@ import styled, { css } from 'styled-components'
 import type { Place, Stop } from '../../../shared/api/types.ts'
 import { formatMoney } from '../../../shared/i18n/format.ts'
 import { isCurrencyCode } from '../../../shared/money/currencies.ts'
-import { IconButton, StopTypeIcon, WarningIcon } from '../../components/index.ts'
+import { IconButton, PhotoThumb, StopTypeIcon, WarningIcon } from '../../components/index.ts'
+import { usePhotosByStop } from '../../lib/photos/store.ts'
 import { useT } from '../../lib/i18n.ts'
 import { focusRing } from '../../styles/mixins.ts'
 import {
@@ -206,6 +207,26 @@ const MoreIcon = () => (
 
 const EXCERPT_LENGTH = 120
 
+/** Photos filed on this stop (e6-t03): up to three thumbnails and a "+N" */
+const PhotoStrip = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${space.xs}px;
+  font-size: ${fontSize.sm - 2}px;
+  color: ${color.muted};
+  > span {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: ${radius.control - 4}px;
+    overflow: hidden;
+    background: ${color.line};
+  }
+`
+
+const STRIP_THUMBS = 3
+
 export interface StopCardProps {
   stop: Stop
   place?: Place
@@ -249,6 +270,7 @@ export function StopCard({
   const name = stopName(stop, place, t)
   const time = stopTimeText(stop, tz, t)
   const note = stop.note.trim().replace(/\s+/g, ' ')
+  const photos = usePhotosByStop(stop.tripId).get(stop.id) ?? []
 
   useEffect(() => {
     if (!menuOpen) return
@@ -313,6 +335,22 @@ export function StopCard({
         )}
         {stop.isBackup && <Tag>{t('itinerary.stop.backup')}</Tag>}
       </Tags>
+      {photos.length > 0 && (
+        <PhotoStrip
+          role="img"
+          aria-label={t.plural('photos.stop.label', photos.length)}
+          data-testid="stop-photos"
+        >
+          {photos.slice(0, STRIP_THUMBS).map((photo) => (
+            <span key={photo.id}>
+              <PhotoThumb attachmentId={photo.id} tripId={stop.tripId} alt="" />
+            </span>
+          ))}
+          {photos.length > STRIP_THUMBS && (
+            <span aria-hidden="true">{t('photos.stop.more', { count: photos.length - STRIP_THUMBS })}</span>
+          )}
+        </PhotoStrip>
+      )}
       {handle && <HandleAnchor>{handle}</HandleAnchor>}
       <MenuAnchor ref={anchor}>
         <IconButton
