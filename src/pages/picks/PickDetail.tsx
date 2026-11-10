@@ -79,7 +79,7 @@ const Facts = styled.dl`
 const Price = styled.span`
   font-family: ${font.mono};
   font-variant-numeric: tabular-nums;
-  color: ${color.tussock};
+  color: ${color.tussockText};
   font-weight: ${fontWeight.medium};
 `
 

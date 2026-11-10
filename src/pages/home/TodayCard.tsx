@@ -78,7 +78,7 @@ const Note = styled.p<{ $warn?: boolean }>`
   gap: ${space.xs}px ${space.sm}px;
   margin: 0;
   font-size: ${fontSize.sm}px;
-  color: ${({ $warn }) => ($warn ? color.warning : color.muted)};
+  color: ${({ $warn }) => ($warn ? color.warningText : color.muted)};
 `
 
 const Small = styled(Link)`

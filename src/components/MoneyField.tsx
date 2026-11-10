@@ -65,7 +65,7 @@ const AmountInput = styled.input`
     color: ${color.muted};
   }
   @media ${media.coarse} {
-    min-height: ${touchTarget - 2}px;
+    min-height: ${touchTarget}px;
   }
 `
 

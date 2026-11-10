@@ -31,7 +31,7 @@ import { useApiErrorToast, useCan } from '../../lib/role.ts'
 import { todayIn } from '../../lib/trip-groups.ts'
 import { color, fontSize, space } from '../../styles/tokens.ts'
 import { PageHeading, Stack } from '../parts.tsx'
-import { Check, Fill, Muted, Panel, PanelHead, PanelTitle, Row, Track } from './prep-ui.tsx'
+import { Check, CheckHit, Fill, Muted, Panel, PanelHead, PanelTitle, Row, Track } from './prep-ui.tsx'
 
 // /trips/:id/checklists (e9-t03): pre-trip to-dos and packing lists in two tabs. A template for the
 // trip's style can be copied in (with a preview of what it adds; applying twice adds nothing).
@@ -318,12 +318,14 @@ export default function ChecklistsPage() {
                     const overdue = isOverdue(item, today)
                     return (
                       <ItemRow key={item.id} data-item={item.templateKey ?? item.id}>
-                        <Check
-                          checked={item.done}
-                          disabled={!editable}
-                          aria-label={t('prep.checklists.item.done', { text: item.text })}
-                          onChange={(event) => void patchItem(item, { done: event.target.checked })}
-                        />
+                        <CheckHit>
+                          <Check
+                            checked={item.done}
+                            disabled={!editable}
+                            aria-label={t('prep.checklists.item.done', { text: item.text })}
+                            onChange={(event) => void patchItem(item, { done: event.target.checked })}
+                          />
+                        </CheckHit>
                         <ItemBody>
                           <ItemText
                             type="button"

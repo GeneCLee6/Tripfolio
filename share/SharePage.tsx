@@ -5,7 +5,7 @@ import { LOCALES } from '../shared/i18n/core.ts'
 import { SegmentedControl } from '../src/components/SegmentedControl.tsx'
 import { Skeleton } from '../src/components/Skeleton.tsx'
 import { useT } from '../src/lib/i18n.ts'
-import { focusRing } from '../src/styles/mixins.ts'
+import { coarseLink, focusRing } from '../src/styles/mixins.ts'
 import {
   color,
   font,
@@ -160,6 +160,7 @@ const Footer = styled.footer`
   font-size: ${fontSize.sm}px;
   a {
     color: ${color.muted};
+    ${coarseLink}
   }
   a:hover {
     color: ${color.ink};

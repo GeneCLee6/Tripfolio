@@ -23,7 +23,6 @@ import {
   CLUSTER_MAX_ZOOM,
   CLUSTER_RADIUS,
   FIT_MAX_ZOOM,
-  FIT_PADDING,
   LONG_PRESS_MS,
   LONG_PRESS_SLOP_PX,
   MAP_LABEL_FONT,
@@ -32,10 +31,10 @@ import {
   fitTarget,
   lineFeatures,
   pinFeatures,
-  type FitTarget,
   type PinProperties,
   type PointFeature,
 } from './geojson.ts'
+import { cameraDuration, moveCamera } from './camera.ts'
 import { LAYER_LABEL_KEYS, typeLabelKey } from './labels.ts'
 import { PIN_PIXEL_RATIO, pinDataUrl } from './sprite.ts'
 import { applyRestyle, loadBaseStyle, restyle, type PaintProperty, type StyleSpecification } from './style.ts'
@@ -237,17 +236,6 @@ async function ensureImages(map: MapLibreMap, ids: readonly string[]): Promise<v
   )
 }
 
-function moveCamera(map: MapLibreMap, target: FitTarget, animate: boolean): void {
-  if (!target) return
-  const duration = animate ? 600 : 0
-  if ('bounds' in target) {
-    const { width, height } = map.getContainer().getBoundingClientRect()
-    const padding = Math.max(8, Math.min(FIT_PADDING, width / 5, height / 5))
-    map.fitBounds(target.bounds, { padding, maxZoom: FIT_MAX_ZOOM, duration })
-  } else {
-    map.easeTo({ center: target.center, zoom: target.zoom, duration })
-  }
-}
 
 const modeKeyOf = (mode: MapMode) => (mode === 'trip' ? 'trip' : `day:${mode.day}`)
 const modeFromKey = (key: string): MapMode => (key === 'trip' ? 'trip' : { day: Number(key.slice(4)) })
@@ -411,7 +399,7 @@ export default function TripMap({
           const source = created.getSource(SOURCE_PINS) as GeoJSONSource | undefined
           const center = (hit.geometry as { coordinates: [number, number] }).coordinates
           void source?.getClusterExpansionZoom(clusterId).then((zoom) => {
-            created.easeTo({ center, zoom, duration: latest.current.reducedMotion ? 0 : 500 })
+            created.easeTo({ center, zoom, duration: cameraDuration(latest.current.reducedMotion, 500) })
           })
         })
         for (const layer of [LAYER_PINS, LAYER_CLUSTERS]) {
@@ -493,7 +481,7 @@ export default function TripMap({
     if (!map || status !== 'ready') return
     const { pins: currentPins, lines: currentLines, fit: currentFit, modeKey: currentMode, reducedMotion: still } =
       latest.current
-    moveCamera(map, fitTarget(currentPins, currentLines, currentFit, modeFromKey(currentMode)), !still)
+    moveCamera(map, fitTarget(currentPins, currentLines, currentFit, modeFromKey(currentMode)), still)
   }, [fitKey, status])
 
   // Selection: the card in the popup and the ring around the pin
@@ -551,7 +539,7 @@ export default function TripMap({
           geometry: { type: 'Point', coordinates: center },
           properties: {},
         })
-        map.easeTo({ center, zoom: Math.max(map.getZoom(), 13), duration: reducedMotion ? 0 : 600 })
+        map.easeTo({ center, zoom: Math.max(map.getZoom(), 13), duration: cameraDuration(reducedMotion, 600) })
       },
       () => setNotice(t('map.locateFailed')),
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
@@ -563,7 +551,7 @@ export default function TripMap({
     const map = mapRef.current
     if (!map) return
     const [lng, lat] = feature.geometry.coordinates
-    map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), CLUSTER_MAX_ZOOM + 1), duration: reducedMotion ? 0 : 500 })
+    map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), CLUSTER_MAX_ZOOM + 1), duration: cameraDuration(reducedMotion, 500) })
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

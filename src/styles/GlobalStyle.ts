@@ -1,5 +1,5 @@
 import { createGlobalStyle } from 'styled-components'
-import { color, colorVariables, font, fontSize, fontWeight, lineHeight } from './tokens.ts'
+import { color, colorVariables, font, fontSize, fontWeight, lineHeight, media, touchTarget } from './tokens.ts'
 
 // Shared by the app and the share page. The theme follows the system unless <html data-theme> fixes
 // it (src/styles/theme.ts). Any element can carry data-theme too, which scopes the variables to its
@@ -42,6 +42,19 @@ export const GlobalStyle = createGlobalStyle`
   }
   button, input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid ${color.fjord}; outline-offset: 2px; }
+  /* Touch targets (DESIGN.md §6, AC-10.5): on a coarse pointer every control that is not inline text
+     is at least 44 px. Inline links in running text keep their line (min-* skips inline boxes); a
+     component that sets its own min-height raises it under media.coarse itself. */
+  @media ${media.coarse} {
+    a, button, select, summary, [role='button'], [role='tab'], [role='radio'], [role='checkbox'] {
+      min-height: ${touchTarget}px;
+      min-width: ${touchTarget}px;
+    }
+    .maplibregl-ctrl.maplibregl-ctrl-group button {
+      width: ${touchTarget}px;
+      height: ${touchTarget}px;
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;

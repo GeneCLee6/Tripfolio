@@ -45,7 +45,7 @@ import {
 } from '../../lib/itinerary/pocket.ts'
 import { useCan } from '../../lib/role.ts'
 import { moveToDayTarget, type MoveTarget } from '../../lib/itinerary/order.ts'
-import { focusRing } from '../../styles/mixins.ts'
+import { coarseTarget, focusRing } from '../../styles/mixins.ts'
 import {
   color,
   duration,
@@ -134,6 +134,7 @@ const DayChipButton = styled.button<{ $color: string; $active: boolean; $muted: 
   font-size: ${fontSize.sm}px;
   white-space: nowrap;
   cursor: pointer;
+  ${coarseTarget}
   &::before {
     content: '';
     width: 8px;

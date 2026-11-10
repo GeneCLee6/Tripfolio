@@ -36,7 +36,7 @@ const Chip = styled.button<{ $color: string; $active: boolean }>`
     transition: background-color ${duration.fast}ms ease;
   }
   @media ${media.coarse} {
-    min-height: ${touchTarget - 4}px;
+    min-height: ${touchTarget}px;
   }
   ${focusRing}
 `

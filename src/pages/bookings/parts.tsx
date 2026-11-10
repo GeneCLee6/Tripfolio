@@ -38,7 +38,7 @@ export const Hint = styled.p<{ $tone?: 'warning' | 'danger' }>`
   margin: 0;
   font-size: ${fontSize.sm}px;
   color: ${({ $tone }) =>
-    $tone === 'danger' ? color.danger : $tone === 'warning' ? color.warning : color.muted};
+    $tone === 'danger' ? color.danger : $tone === 'warning' ? color.warningText : color.muted};
 `
 
 const CheckLabel = styled.label`

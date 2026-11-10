@@ -34,7 +34,7 @@ import {
 import { errorMessageKey } from '../../lib/errors.ts'
 import { useT } from '../../lib/i18n.ts'
 import { useApiErrorToast, useCan } from '../../lib/role.ts'
-import { focusRing } from '../../styles/mixins.ts'
+import { coarseLink, focusRing } from '../../styles/mixins.ts'
 import { color, font, fontSize, fontWeight, media, radius, space } from '../../styles/tokens.ts'
 import { Count, PageHeading, SectionTitle, Stack } from '../parts.tsx'
 import { ContributionSheet, type ContributionSave } from './ContributionSheet.tsx'
@@ -119,6 +119,7 @@ const How = styled.details`
     cursor: pointer;
     font-weight: ${fontWeight.semibold};
     min-height: 32px;
+    ${coarseLink}
     ${focusRing}
   }
   > p {

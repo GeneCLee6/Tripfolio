@@ -39,8 +39,8 @@ const Swatch = styled.button<{ $color: string; $active: boolean }>`
   box-shadow: inset 0 0 0 2px ${color.card};
   cursor: pointer;
   @media ${media.coarse} {
-    width: ${touchTarget - 4}px;
-    height: ${touchTarget - 4}px;
+    width: ${touchTarget}px;
+    height: ${touchTarget}px;
   }
   ${focusRing}
 `

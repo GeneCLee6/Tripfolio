@@ -8,9 +8,9 @@ export type ChipTone = 'neutral' | 'fjord' | 'tussock' | 'success' | 'warning' |
 const toneColor: Record<ChipTone, string> = {
   neutral: color.muted,
   fjord: color.fjord,
-  tussock: color.tussock,
+  tussock: color.tussockText,
   success: color.success,
-  warning: color.warning,
+  warning: color.warningText,
   danger: color.danger,
 }
 
@@ -42,7 +42,7 @@ const ButtonChip = styled.button<{ $tone: ChipTone; $selected: boolean }>`
     border-color: ${({ $tone }) => toneColor[$tone === 'neutral' ? 'fjord' : $tone]};
   }
   @media ${media.coarse} {
-    min-height: ${touchTarget - 8}px;
+    min-height: ${touchTarget}px;
   }
   ${focusRing}
 `

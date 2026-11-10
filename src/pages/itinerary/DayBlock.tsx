@@ -90,8 +90,9 @@ const Note = styled.p`
   white-space: pre-line;
 `
 
+// Muted already; an opacity on top fell below AA (AC-10.5)
 const Faint = styled.span`
-  opacity: 0.8;
+  color: ${color.muted};
 `
 
 const Empty = styled.p`

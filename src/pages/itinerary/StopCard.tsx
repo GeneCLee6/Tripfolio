@@ -130,7 +130,7 @@ const Tag = styled.span<{ $tone?: TagTone }>`
   border-radius: ${radius.pill}px;
   background: ${color.card};
   color: ${({ $tone }) =>
-    $tone === 'warn' ? color.warning : $tone === 'fjord' ? color.fjord : color.muted};
+    $tone === 'warn' ? color.warningText : $tone === 'fjord' ? color.fjord : color.muted};
   font-size: ${fontSize.sm - 2}px;
   line-height: 1.5;
   white-space: nowrap;
@@ -209,7 +209,7 @@ const PickLink = styled(Link)`
   border: 1px solid ${color.tussock};
   border-radius: ${radius.pill}px;
   background: ${color.card};
-  color: ${color.tussock};
+  color: ${color.tussockText};
   font-size: ${fontSize.sm - 2}px;
   line-height: 1.5;
   white-space: nowrap;

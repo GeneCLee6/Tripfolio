@@ -1,5 +1,5 @@
 import styled from 'styled-components'
-import { focusRing, visuallyHidden } from '../../styles/mixins.ts'
+import { coarseTarget, focusRing, visuallyHidden } from '../../styles/mixins.ts'
 import { color, font, fontSize, fontWeight, radius, space } from '../../styles/tokens.ts'
 
 // Small styled pieces the four prep pages (checklists, budget, documents, notes) share.
@@ -68,6 +68,15 @@ export const Fill = styled.div<{ $ratio: number; $tone?: 'ok' | 'danger' }>`
   background: ${({ $tone }) => ($tone === 'danger' ? color.danger : color.fjord)};
 `
 
+/** Around a Check: the whole 44 px square toggles it on a coarse pointer (DESIGN.md §6) */
+export const CheckHit = styled.label`
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  cursor: pointer;
+  ${coarseTarget}
+`
+
 export const Check = styled.input.attrs({ type: 'checkbox' })`
   flex: none;
   width: 22px;
@@ -83,6 +92,7 @@ export const Switch = styled.label`
   align-items: center;
   gap: ${space.sm}px;
   min-height: 40px;
+  ${coarseTarget}
   font-size: ${fontSize.sm}px;
   cursor: pointer;
   > input {

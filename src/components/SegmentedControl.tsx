@@ -32,7 +32,7 @@ const Option = styled.button<{ $active: boolean; $size: 'sm' | 'md' }>`
       color ${duration.fast}ms ease;
   }
   @media ${media.coarse} {
-    min-height: ${touchTarget - 8}px;
+    min-height: ${touchTarget}px;
   }
   ${focusRing}
 `

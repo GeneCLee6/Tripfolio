@@ -52,7 +52,7 @@ import {
   extraRows,
   type CsvLabels,
 } from '../../lib/stats/csv.ts'
-import { focusRing } from '../../styles/mixins.ts'
+import { coarseTarget, focusRing } from '../../styles/mixins.ts'
 import { color, font, fontSize, fontWeight, media, radius, space } from '../../styles/tokens.ts'
 import { categoryLabel } from '../expenses/labels.ts'
 import { PageHeading, SectionTitle, Stack } from '../parts.tsx'
@@ -202,6 +202,7 @@ const Check = styled.label`
   align-items: center;
   gap: ${space.sm}px;
   min-height: 40px;
+  ${coarseTarget}
   cursor: pointer;
   > input {
     width: 18px;

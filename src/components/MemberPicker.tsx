@@ -38,7 +38,7 @@ const Option = styled.button<{ $selected: boolean }>`
     opacity: ${({ $selected }) => ($selected ? 1 : 0.45)};
   }
   @media ${media.coarse} {
-    min-height: ${touchTarget - 4}px;
+    min-height: ${touchTarget}px;
   }
   ${focusRing}
 `
@@ -50,7 +50,7 @@ const ExtraMark = styled.span`
   height: 22px;
   border-radius: 50%;
   background: ${color.tussockSoft};
-  color: ${color.tussock};
+  color: ${color.tussockText};
   font-weight: ${fontWeight.bold};
 `
 

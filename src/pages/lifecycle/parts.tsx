@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { color, fontSize, fontWeight, space } from '../../styles/tokens.ts'
-import { focusRing } from '../../styles/mixins.ts'
+import { coarseLink, focusRing } from '../../styles/mixins.ts'
 
 // Small pieces the lifecycle screens share: a checkbox with a hint (the share dialog's look), a
 // muted paragraph, a block heading and the link to the privacy page.
@@ -112,6 +112,7 @@ const StyledLink = styled(Link)`
   color: ${color.fjord};
   font-size: ${fontSize.sm}px;
   font-weight: ${fontWeight.medium};
+  ${coarseLink}
   ${focusRing}
 `
 

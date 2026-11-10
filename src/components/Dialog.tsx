@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react'
 import styled, { css, keyframes } from 'styled-components'
 import { useT } from '../lib/i18n.ts'
 import { color, duration, fontSize, fontWeight, media, radius, space } from '../styles/tokens.ts'
@@ -7,7 +7,9 @@ import { CloseIcon } from './icons.tsx'
 
 // Dialog and Sheet are both a native modal <dialog>: showModal() puts it in the top layer and makes
 // the rest of the page inert, so focus stays inside (the focus trap), Esc fires `cancel`, and the
-// browser hands focus back to the opener on close.
+// browser hands focus back to the opener on close. An owner may also unmount an open modal (a form
+// rendered only while open): then the browser has no close to restore from, so the opener is
+// remembered here and given the focus back (AC-10.5).
 
 type Variant = 'dialog' | 'sheet'
 
@@ -129,12 +131,28 @@ function Modal({ variant, open, onClose, title, children, actions }: DialogProps
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
+  const opener = useRef<HTMLElement | null>(null)
+
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    else if (!open && dialog.open) dialog.close()
+    if (open && !dialog.open) {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      dialog.showModal()
+    } else if (!open && dialog.open) dialog.close()
   }, [open])
+
+  // Unmounted while open: close it while it is still in the document, then hand the focus back.
+  // A layout cleanup runs before React removes the <dialog> node.
+  useLayoutEffect(() => {
+    const dialog = ref.current
+    return () => {
+      if (!dialog?.open) return
+      dialog.close()
+      const back = opener.current
+      if (back?.isConnected) back.focus()
+    }
+  }, [])
 
   return (
     <Panel

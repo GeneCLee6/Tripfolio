@@ -43,7 +43,7 @@ const Article = styled.article<{ $muted: boolean }>`
 const placeholderTone: Record<WishlistCategory, ReturnType<typeof css>> = {
   eat: css`
     background: ${color.tussockSoft};
-    color: ${color.tussock};
+    color: ${color.tussockText};
   `,
   buy: css`
     background: ${color.glacier};
@@ -55,7 +55,7 @@ const placeholderTone: Record<WishlistCategory, ReturnType<typeof css>> = {
   `,
   experience: css`
     background: ${color.tussockSoft};
-    color: ${color.warning};
+    color: ${color.warningText};
   `,
 }
 
@@ -144,7 +144,7 @@ const Price = styled.span`
   font-family: ${font.mono};
   font-variant-numeric: tabular-nums;
   font-weight: ${fontWeight.medium};
-  color: ${color.tussock};
+  color: ${color.tussockText};
 `
 
 const Recommender = styled.span`

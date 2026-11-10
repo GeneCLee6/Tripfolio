@@ -2,7 +2,7 @@ import styled, { css } from 'styled-components'
 import { formatDistance, formatDuration } from '../../../shared/i18n/format.ts'
 import { useT } from '../../lib/i18n.ts'
 import type { DisplayLeg } from '../../lib/itinerary/legs.ts'
-import { focusRing, visuallyHidden } from '../../styles/mixins.ts'
+import { coarseTarget, focusRing, visuallyHidden } from '../../styles/mixins.ts'
 import { color, font, fontSize, radius, space } from '../../styles/tokens.ts'
 import { LEG_MODE_LABEL } from './labels.ts'
 
@@ -29,6 +29,7 @@ const RowButton = styled.button`
   ${row}
   width: 100%;
   min-height: 32px;
+  ${coarseTarget}
   border: 0;
   border-radius: ${radius.control}px;
   background: transparent;
@@ -56,7 +57,7 @@ const Badge = styled.abbr<{ $tone: 'warning' | 'fjord' }>`
   padding: 0 ${space.xs + 2}px;
   border: 1px solid ${({ $tone }) => ($tone === 'warning' ? color.warning : color.fjord)};
   border-radius: ${radius.pill}px;
-  color: ${({ $tone }) => ($tone === 'warning' ? color.warning : color.fjord)};
+  color: ${({ $tone }) => ($tone === 'warning' ? color.warningText : color.fjord)};
   font-size: ${fontSize.sm - 2}px;
   text-decoration: none;
   cursor: help;
