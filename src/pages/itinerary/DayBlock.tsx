@@ -22,6 +22,7 @@ import { dayDropId } from '../../lib/itinerary/dnd.ts'
 import type { DayLegs, DisplayLeg } from '../../lib/itinerary/legs.ts'
 import { moveDownTarget, moveUpTarget, type MoveTarget } from '../../lib/itinerary/order.ts'
 import { focusRing } from '../../styles/mixins.ts'
+import { LodgingLine } from '../bookings/LodgingLine.tsx'
 import { color, font, fontSize, fontWeight, radius, space } from '../../styles/tokens.ts'
 import { stopName, warningText } from './labels.ts'
 import { LegRow } from './LegRow.tsx'
@@ -83,18 +84,6 @@ const Note = styled.p`
   font-size: ${fontSize.sm}px;
   color: ${color.muted};
   white-space: pre-line;
-`
-
-const Lodge = styled.p`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${space.xs}px ${space.sm}px;
-  margin: 0 0 ${space.sm}px;
-  padding: ${space.sm}px ${space.md - 2}px;
-  border-radius: ${radius.control}px;
-  background: ${color.paper};
-  font-size: ${fontSize.sm}px;
-  color: ${color.muted};
 `
 
 const Faint = styled.span`
@@ -334,12 +323,8 @@ export const DayBlock = forwardRef<HTMLElement, DayBlockProps>(function DayBlock
       <WarningList label={t('itinerary.check.label')} items={warningItems} />
       {unassigned && <Note>{t('itinerary.unassigned.hint')}</Note>}
       {day.note && <Note>{day.note}</Note>}
-      {!unassigned && (
-        <Lodge>
-          <span>{t('itinerary.lodging.empty')}</span>
-          <Faint>{t('itinerary.lodging.hint')}</Faint>
-        </Lodge>
-      )}
+      {/* Tonight's lodging and the morning's checkout (e4-t02; `lodging` / `checkout` ride on the day) */}
+      <LodgingLine day={day} trip={trip} editable={editable} />
       <DropArea ref={setDropRef} $over={isOver && day.stops.length === 0} data-day-drop={day.id}>
         {day.stops.length === 0 ? (
           <Empty>{t('itinerary.emptyDay')}</Empty>

@@ -5,7 +5,6 @@ import { formatDateRange } from '../../shared/i18n/format.ts'
 import {
   Button,
   Chip,
-  EmptyState,
   MemberAvatarRow,
   PhotoThumb,
   StorageMeter,
@@ -30,6 +29,7 @@ import {
   radius,
   space,
 } from '../styles/tokens.ts'
+import { DeadlinesBlock } from './bookings/DeadlinesBlock.tsx'
 import { SectionTitle, Stack } from './parts.tsx'
 import { TripFormDialog } from './trip-form/TripFormDialog.tsx'
 
@@ -203,6 +203,7 @@ export default function TripHomePage() {
           {trip.archivedAt && <Chip tone="warning">{t('trips.archived')}</Chip>}
         </div>
         <Row>
+          <ButtonLink to={tripPath(trip.id, 'bookings')}>{t('bookings.homeLink')}</ButtonLink>
           <ButtonLink to={tripPath(trip.id, 'photos')}>
             {canEdit && !trip.coverAttachmentId ? t('photos.cover.homeSet') : t('photos.title')}
           </ButtonLink>
@@ -230,11 +231,7 @@ export default function TripHomePage() {
 
       <Stack as="section" $gap="md" aria-labelledby="home-deadlines">
         <SectionTitle id="home-deadlines">{t('tripHome.deadlines')}</SectionTitle>
-        <EmptyState
-          illustration="receipt"
-          title={t('tripHome.deadlinesEmpty.title')}
-          body={t('tripHome.deadlinesEmpty.body')}
-        />
+        <DeadlinesBlock trip={trip} />
       </Stack>
 
       <Stack as="section" $gap="md" aria-labelledby="home-sections">

@@ -48,11 +48,11 @@ depends_on: [E2, E3, E6]
 
 ## 驗收條件
 
-- [ ] AC-4.1 — 住宿：多晚一筆、日程頁每日顯示今晚住宿與退房時間、付款狀態與取消期限；露營車欄位。
-- [ ] AC-4.2 — 交通預訂：航班／租車／渡輪／鐵路／巴士表單、自動行程點（跨日班機兩天）、改預訂同步行程點。
+- [x] AC-4.1 — 住宿：多晚一筆、日程頁每日顯示今晚住宿與退房時間、付款狀態與取消期限；露營車欄位。（`e2e/bookings.spec.ts` 375／1440：從 Day 1「還沒安排住宿」加兩晚假日公園＋有電 → Day 1／2 今晚住、Day 3 退房 10:00；預訂總覽顯示未付與取消期限）
+- [ ] AC-4.2 — 交通預訂：航班／租車／渡輪／鐵路／巴士表單、自動行程點（跨日班機兩天）、改預訂同步行程點。（表單全做了；e2e 驗了跨日班機兩天各一個行程點、包車兩天兩個、刪除時保留行程點；租車／渡輪／鐵路／巴士表單只有 `tests/src/bookings/form.test.ts` 的 body 對應，改預訂同步只有 Worker 測試——補一段「編輯租車改日期 → 行程點跟著移」的 e2e 再勾）
 - [ ] AC-4.3 — 附件：上傳與預覽；分享頁可隱藏。
-- [ ] AC-4.4 — 期限：取消／付款／入住截止在首頁「即將到期」列出，排序正確。
-- [ ] AC-4.5 — 時區：航班兩地時間並列且正確（含跨日）；有測試。
+- [x] AC-4.4 — 期限：取消／付款／入住截止在首頁「即將到期」列出，排序正確。（排序由 Worker 決定、`tests/worker/bookings.test.ts`；首頁 e2e 看到住宿的付款、取消期限、入住三列與「3 天後」；`includePast` 切換「顯示已過期」）
+- [x] AC-4.5 — 時區：航班兩地時間並列且正確（含跨日）；有測試。（`tests/src/bookings/form.test.ts`：SYD→AKL 跨日、TPE→AKL、NZ 夏令結束；e2e：TPE 13:00 GMT+8 → 05:00 (+1 天) GMT+13，存的 UTC 相差 11 小時）
 
 ## Task 拆分
 
@@ -60,10 +60,13 @@ depends_on: [E2, E3, E6]
 
 - [x] `e4-t01` schema `lodgings`、`bookings`（type＋details zod）、與 `attachments` 關聯；API · AC-4.1, 4.2 · S · ← e1-t01 · #D3a（附件關聯留給 `e4-t04`，等 E6 的 `attachments` 表）
   - 補（#H3b）：`GET /deadlines?includePast=1` 連已過期的項目一起回（排在最前、最舊的先；只接受 0／1，其他 422）；`PATCH /api/trips/:id` 改日期後會依住宿重算 `days.lodgingId`（`relinkTripLodgings`：仍涵蓋的保留，否則取最新建立的涵蓋住宿，未分配的天清空）；`Stop` 回應多 `source`（manual／booking）與 `bookingSlot`。
-- [ ] `e4-t02` 住宿卡與表單、多晚範圍、日程頁帶入今晚住宿與退房、露營車欄位 · AC-4.1 · M · ← e2-t02, e3-t02, e4-t01
-- [ ] `e4-t03` 交通預訂表單（航班／租車／包車／渡輪與船班／鐵路／巴士）、自動行程點與同步、時區並列與測試 · AC-4.2, 4.5 · M · ← e2-t03, e4-t01
+- [x] `e4-t02` 住宿卡與表單、多晚範圍、日程頁帶入今晚住宿與退房、露營車欄位 · AC-4.1 · M · ← e2-t02, e3-t02, e4-t01 · #D3b／#F1a
+  - `src/pages/bookings/LodgingLine.tsx`（日程標頭：今晚住＋入住時間、營地類型與設施、價格、連住第幾晚；退房日「退房 10:00」；沒有就「今晚住：— · 還沒安排住宿」，點了開 `LodgingSheet`）；`src/lib/bookings/lodging-store.ts`（一趟一次 `GET /lodgings` 補設施等欄位；存檔後重讀 `/days` 覆蓋各天的 `lodging`／`checkout`，離開日程就丟掉——日程頁自己的資料不會被通知）；衝突以 toast 告知；預訂總覽 `/trips/:id/bookings` 住宿／交通／活動三組。
+- [x] `e4-t03` 交通預訂表單（航班／租車／包車／渡輪與船班／鐵路／巴士）、自動行程點與同步、時區並列與測試 · AC-4.2, 4.5 · M · ← e2-t03, e4-t01 · #D3b／#F1a
+  - `BookingSheet`（lazy；先選類型再依 type 給欄位；航班出發／抵達各自時區 Select、預設旅程時區，其他 type 用旅程時區；前端算好 UTC＋`startTz`／`endTz` 送出；`bookingCreateSchema` 驗證）；存檔 toast 列出建立的行程點（`stops[].slot`）與 `skippedDates`；刪除問「保留自動建立的行程點？」→ `?keepStops=1`；「誰先付」只顯示、一鍵記帳按鈕停用等 e4-t06；金額在有匯率時附主幣別約值。
 - [ ] `e4-t04` 附件上傳與預覽（走 E6 通道）、分享頁隱藏 · AC-4.3 · S · ← e6-t01, e4-t02
-- [ ] `e4-t05` 期限清單與首頁「即將到期」 · AC-4.4 · S · ← e4-t02, e4-t03
+- [x] `e4-t05` 期限清單與首頁「即將到期」 · AC-4.4 · S · ← e4-t02, e4-t03 · #D3b／#F1a
+  - `DeadlinesBlock`：`/deadlines?withinDays=14`、「顯示已過期」加 `includePast=1`；每列類型圖示、取消期限／付款／入住 chip、`Intl.RelativeTimeFormat` 的「3 天後」／「已過 2 天」，點了到預訂總覽。
 
 ### M2
 
