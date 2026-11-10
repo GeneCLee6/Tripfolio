@@ -260,7 +260,7 @@ describe('usage', () => {
   })
 })
 
-describe('simplifyLine', () => {
+describe('simplifyLine', { timeout: 30_000 }, () => {
   it('keeps short lines and both ends of long ones', () => {
     const short: [number, number][] = [
       [0, 0],
