@@ -72,7 +72,7 @@ depends_on: []
   - **更新**：新版本裝好就等待；頂欄下方出現「有新版本 · 重新整理」，按下才 `skip-waiting`，接管後重新載入；每小時 `registration.update()`。只在 production build 註冊（dev 與其他 e2e 不受影響）。
   - **離線佇列**（`src/lib/offline/`）：`queue.ts` IndexedDB `tripfolio-offline/mutations`（`{ id, seq, method, url, body, token, createdAt, entity, failure? }`），依序重送，4xx 停下並標成失敗（後面的等使用者「再試一次」或「捨棄」），網路錯誤、5xx、408／425／429 留著下次再送；`useOnline.ts` 以 `navigator.onLine`＋失敗請求判定離線、離線時每 10 秒打 `/api/health`；`sync.ts` 在 app 啟動、恢復連線、分頁回到前景時重送（不依賴 Background Sync）。`submitExpense()`（簽名不變）離線或遇網路錯誤就排隊並回暫時的花費（id `pending-…`、`rev` -1）；送出前再改那一筆會併進排隊中的新增。頂欄徽章「離線 · N 筆待同步」／「N 筆待同步」／「N 筆無法同步」，點開列出待送項目。**行程編輯、勾選、文字修改還沒排隊**（等 e2-t08b 的 `useTrip()`，佇列屆時改存 patch）。
   - **安裝提示**（`install.ts`、`InstallBanner.tsx`）：一載入就接住 `beforeinstallprompt`；旅程開始前 7 天內（或進行中）在旅程首頁顯示橫幅，Chromium 有「安裝」、iOS 顯示「分享 → 加入主畫面」；「不用了」按旅程記在 localStorage；已安裝（standalone）不顯示。
-  - **預算**：SW 是獨立檔案，不算首屏；app 首屏 165.0／180 kB（含 main 上其他批次；本批約 +6.5 kB）。
+  - **預算**：SW 是獨立檔案，不算首屏；app 首屏 168.8／180 kB（rebase 到 6d02295 後，含 main 上其他批次；本批約 +6.5 kB）。
   - **留下**：離線新增的花費還不會出現在清單（清單頁在 `src/pages`，下一批可讀 `usePendingMutations()` 畫「待同步」列）；離線新增後按「復原」會打 `DELETE /expenses/pending-…` 而失敗（`expensesApi.remove` 沒包）；重送 POST 若第一次其實已到伺服器但回應遺失，會重複一筆（伺服器沒有冪等鍵）；token 存在佇列裡（同一台裝置，與 localStorage 的 token 同級）；字型仍從 Google Fonts 載入（SW 會快取看過的字型檔，沒看過的離線用後備字型）；`sw/tsconfig.sw.json` 未接進 CI 的 typecheck。
 
 ## 風險與對策
