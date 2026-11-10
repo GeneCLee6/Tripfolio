@@ -69,7 +69,9 @@ async function open(page: Page, request: APIRequestContext, name: string) {
 const editor = (page: Page, desktop: boolean): Locator =>
   desktop
     ? page.getByRole('complementary', { name: '細節' })
-    : page.getByRole('dialog').filter({ has: page.getByLabel('搜尋地點').or(page.getByText('更換地點')) })
+    : page
+        .getByRole('dialog')
+        .filter({ has: page.getByLabel('搜尋地點').or(page.getByText('更換地點')) })
 
 const cardNames = (page: Page) =>
   page.locator('[data-stop-id] > button:first-child > span:first-child').allTextContents()
@@ -91,7 +93,9 @@ for (const [label, width, height] of [
     await expect(page.getByText('今晚住：—').first()).toBeVisible()
     if (!desktop) await expect(page.getByText('第 1 天，共 4 天')).toBeVisible()
     // The chip strip scrolls on its own; the page never scrolls sideways
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    )
     await shot(page, `${label}-itinerary-empty`)
 
     // 1. A stop from place search
@@ -184,7 +188,9 @@ for (const [label, width, height] of [
     await expect(
       page.locator('section[data-day-id]').filter({ hasText: 'Fergburger' }).getByRole('heading'),
     ).toHaveText(/^Day 3/)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    )
     await shot(page, `${label}-itinerary-moved`)
   })
 }
@@ -206,7 +212,9 @@ test('English labels and the place picker errors', async ({ browser, request }) 
       await route.fulfill({
         status: 429,
         headers: { 'retry-after': '42' },
-        json: { error: { code: 'rate_limited', message: 'slow down', details: { retryAfterS: 42 } } },
+        json: {
+          error: { code: 'rate_limited', message: 'slow down', details: { retryAfterS: 42 } },
+        },
       })
     } else {
       await route.fulfill({
@@ -436,5 +444,216 @@ for (const [label, width, height] of [
       width,
     )
     await shot(page, `${label}-b3i-moved`)
+  })
+}
+
+// ---- e2-t07: the rainy-day group and the pocket list (e5-t05: the pick tag and done mark) ----
+
+async function seedPocket(request: APIRequestContext, name: string) {
+  const { trip, memberToken } = await createTrip(request, name)
+  const headers = { authorization: `Bearer ${memberToken}` }
+  const { days } = (await (
+    await request.get(`/api/trips/${trip.id}/days`, { headers })
+  ).json()) as {
+    days: { id: string; idx: number | null }[]
+  }
+  const day1 = days[0].id
+  const place = async (nameLocal: string, lat: number, lng: number, category = 'sight') => {
+    const response = await request.post(`/api/trips/${trip.id}/places`, {
+      headers,
+      data: { nameLocal, lat, lng, category, source: 'manual' },
+    })
+    expect(response.status()).toBe(201)
+    return ((await response.json()) as { place: { id: string } }).place.id
+  }
+  for (const [title, lat, lng] of [
+    ['Queenstown', -45.0312, 168.6626],
+    ['Glenorchy', -44.8513, 168.3871],
+    ['Kingston', -45.3333, 168.7167],
+  ] as const) {
+    const placeId = await place(title, lat, lng)
+    const response = await request.post(`/api/trips/${trip.id}/stops`, {
+      headers,
+      data: { dayId: day1, title, placeId },
+    })
+    expect(response.status()).toBe(201)
+  }
+  // The pocket list: one pick and one place nothing uses yet
+  const pick = await request.post(`/api/trips/${trip.id}/wishlist`, {
+    headers,
+    data: { category: 'eat', name: 'Fergburger', estMinor: 1800, currency: 'NZD' },
+  })
+  expect(pick.status()).toBe(201)
+  const itemId = ((await pick.json()) as { item: { id: string } }).item.id
+  await place('Moke Lake', -45.0, 168.57, 'nature')
+  return { trip, memberToken, headers, day1, itemId }
+}
+
+for (const [label, width, height] of [
+  ['phone', 375, 812],
+  ['desktop', 1440, 900],
+] as const) {
+  test(`${label}: rainy-day group and pocket list`, async ({ page, request }) => {
+    const desktop = width >= 1200
+    await page.setViewportSize({ width, height })
+    const s = await seedPocket(request, `Pocket ${label}`)
+    await page.addInitScript(
+      ([id, value]) =>
+        localStorage.setItem('tripfolio.memberTokens', JSON.stringify({ [id]: value })),
+      [s.trip.id, s.memberToken],
+    )
+    await page.goto(`/trips/${s.trip.id}/itinerary`)
+    const section = page.locator(`section[data-day-id="${s.day1}"]`)
+    const mainNames = () =>
+      section
+        .locator('[data-day-drop] [data-stop-id] > button:first-child > span:first-child')
+        .allTextContents()
+    const group = page.locator(`[data-backup-group="${s.day1}"]`)
+    const backupNames = () =>
+      group.locator('[data-stop-id] > button:first-child > span:first-child').allTextContents()
+    await expect.poll(mainNames).toEqual(['Queenstown', 'Glenorchy', 'Kingston'])
+    await expect(group).toHaveCount(0)
+    const total = section.locator('[data-day-total]')
+    await expect(total).toBeVisible()
+    const before = (await total.textContent()) ?? ''
+
+    // 1. Kingston to the rainy-day group through its menu: out of the rail and of the total
+    await page.getByRole('button', { name: '「Kingston」的更多動作' }).click()
+    await page.getByRole('menuitem', { name: '移到備案' }).click()
+    await expect.poll(backupNames).toEqual(['Kingston'])
+    await expect.poll(mainNames).toEqual(['Queenstown', 'Glenorchy'])
+    await expect(group.getByRole('button', { name: /雨天備案/ })).toContainText('1')
+    await expect(total).not.toHaveText(before)
+    await shot(page, `${label}-backup`)
+
+    // 2. 「全部換上」: Kingston takes the day, the other two become the backups (no legs left)
+    await group.getByRole('button', { name: '全部換上' }).click()
+    await expect.poll(mainNames).toEqual(['Kingston'])
+    await expect.poll(backupNames).toEqual(['Queenstown', 'Glenorchy'])
+    await expect(total).toHaveCount(0)
+    await page.reload()
+    await expect.poll(mainNames).toEqual(['Kingston'])
+    await expect.poll(backupNames).toEqual(['Queenstown', 'Glenorchy'])
+
+    // 3. The pocket list: the pick into Day 1 (dragged on desktop, 「排進」 on phones)
+    const scheduleVia = async (name: string) => {
+      if (!desktop) {
+        await page.getByRole('button', { name: /^口袋名單（\d+）$/ }).click()
+        const sheet = page.getByRole('dialog', { name: '口袋名單' })
+        await expect(sheet.getByText(name, { exact: true })).toBeVisible()
+      }
+      await page.getByRole('button', { name: `把「${name}」排進某一天` }).click()
+      await page
+        .getByRole('dialog', { name: `把「${name}」排進哪一天？` })
+        .getByRole('button', { name: /^Day 1/ })
+        .click()
+    }
+    const panel = page.locator('[data-pocket-panel]')
+    if (desktop) {
+      await expect(panel.getByText('Fergburger', { exact: true })).toBeVisible()
+      await expect(panel.getByText('Moke Lake', { exact: true })).toBeVisible()
+      const target = (await section
+        .locator('[data-day-drop] [data-stop-id]')
+        .first()
+        .boundingBox())!
+      await mouseDrag(page, page.getByRole('button', { name: '拖曳「Fergburger」到某一天' }), {
+        x: target.x + target.width / 2,
+        y: target.y + target.height - 6,
+      })
+      await page.mouse.up()
+    } else {
+      await scheduleVia('Fergburger')
+    }
+    await expect.poll(mainNames).toEqual(['Kingston', 'Fergburger'])
+    const ferg = section.locator('[data-stop-id]').filter({ hasText: 'Fergburger' })
+    await expect(ferg.getByRole('link', { name: '到必吃必買看「Fergburger」' })).toBeVisible()
+    await expect
+      .poll(async () => {
+        const response = await request.get(`/api/trips/${s.trip.id}/wishlist`, {
+          headers: s.headers,
+        })
+        const { items } = (await response.json()) as { items: { id: string; status: string }[] }
+        return items.find((item) => item.id === s.itemId)?.status
+      })
+      .toBe('scheduled')
+    if (desktop) await expect(panel.getByText('Fergburger', { exact: true })).toHaveCount(0)
+
+    // The place: its stop takes the type from the place's category (nature → 景點)
+    await scheduleVia('Moke Lake')
+    await expect.poll(mainNames).toEqual(['Kingston', 'Fergburger', 'Moke Lake'])
+    await expect(section.locator('[data-stop-id]').filter({ hasText: 'Moke Lake' })).toContainText(
+      '景點',
+    )
+    if (desktop) await expect(panel.getByText(/口袋名單是空的/)).toBeVisible()
+    await shot(page, `${label}-pocket-scheduled`)
+
+    // 4. The pick done (elsewhere): a check mark on its stop; the tag leads to the pick
+    const done = await request.patch(`/api/trips/${s.trip.id}/wishlist/${s.itemId}`, {
+      headers: s.headers,
+      data: { status: 'done' },
+    })
+    expect(done.status()).toBe(200)
+    await page.reload()
+    await expect(ferg).toHaveAttribute('data-pick-done', 'true')
+    await ferg.getByRole('link', { name: '到必吃必買看「Fergburger」（已完成）' }).click()
+    await expect(page).toHaveURL(new RegExp(`/trips/${s.trip.id}/picks`))
+    const detail = desktop
+      ? page.getByRole('complementary', { name: '細節' })
+      : page.getByRole('dialog', { name: '必吃必買' })
+    await expect(detail.getByRole('heading', { name: 'Fergburger' })).toBeVisible()
+    // Not done after all (the picks page's undo): a done pick stays done when its stop goes
+    const undone = await request.patch(`/api/trips/${s.trip.id}/wishlist/${s.itemId}`, {
+      headers: s.headers,
+      data: { status: 'scheduled' },
+    })
+    expect(undone.status()).toBe(200)
+    await page.goto(`/trips/${s.trip.id}/itinerary`)
+    await expect(ferg).not.toHaveAttribute('data-pick-done', 'true')
+
+    // 5. Deleting the stop puts the pick back in the pocket list
+    await page.getByRole('button', { name: '編輯「Fergburger」' }).click()
+    const pane = desktop
+      ? page.getByRole('complementary', { name: '細節' })
+      : page.getByRole('dialog').filter({ has: page.getByRole('button', { name: '刪除行程點' }) })
+    await pane.getByRole('button', { name: '刪除行程點' }).click()
+    await page
+      .getByRole('dialog', { name: '刪除「Fergburger」？' })
+      .getByRole('button', { name: '刪除' })
+      .click()
+    await expect.poll(mainNames).toEqual(['Kingston', 'Moke Lake'])
+    await expect
+      .poll(async () => {
+        const response = await request.get(`/api/trips/${s.trip.id}/pocket`, {
+          headers: s.headers,
+        })
+        const { items } = (await response.json()) as { items: { id: string }[] }
+        return items.map((item) => item.id)
+      })
+      .toEqual([s.itemId])
+    if (desktop) {
+      await expect(panel.getByText('Fergburger', { exact: true })).toBeVisible()
+    } else {
+      await page.getByRole('button', { name: /^口袋名單（\d+）$/ }).click()
+      await expect(
+        page.getByRole('dialog', { name: '口袋名單' }).getByText('Fergburger', { exact: true }),
+      ).toBeVisible()
+    }
+    // 6. Dragging a stop from the rail into the rainy-day group flips it (desktop: mouse)
+    if (desktop) {
+      const into = (await group.locator('[data-stop-id]').last().boundingBox())!
+      await mouseDrag(page, page.getByRole('button', { name: '拖曳「Moke Lake」排序' }), {
+        x: into.x + into.width / 2,
+        y: into.y + into.height - 4,
+      })
+      await page.mouse.up()
+      await expect.poll(mainNames).toEqual(['Kingston'])
+      await expect.poll(backupNames).toEqual(['Queenstown', 'Glenorchy', 'Moke Lake'])
+      await page.reload()
+      await expect.poll(backupNames).toEqual(['Queenstown', 'Glenorchy', 'Moke Lake'])
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    )
+    await shot(page, `${label}-pocket-back`)
   })
 }

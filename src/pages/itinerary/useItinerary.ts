@@ -3,7 +3,7 @@ import type { RouteRequest } from '../../../shared/api/geo.ts'
 import type { DayWithStops, LegOverride, Place, Stop, Trip } from '../../../shared/api/types.ts'
 import type { DayPatch } from '../../../shared/schema/index.ts'
 import { useToast } from '../../components/index.ts'
-import { itineraryApi } from '../../lib/api.ts'
+import { itineraryApi, wishlistApi } from '../../lib/api.ts'
 import { errorMessageKey } from '../../lib/errors.ts'
 import { useResource } from '../../lib/hooks.ts'
 import { useT } from '../../lib/i18n.ts'
@@ -16,7 +16,9 @@ import {
   type DayLegs,
   type OverrideMode,
 } from '../../lib/itinerary/legs.ts'
+import { applyBackupChanges, type BackupChange } from '../../lib/itinerary/backup.ts'
 import { applyMove, applyMoveResult, type MoveTarget } from '../../lib/itinerary/order.ts'
+import { withNewStop, type PocketRequest } from '../../lib/itinerary/pocket.ts'
 import type { StopValues } from './StopEditor.tsx'
 
 // The itinerary page's data: days with stops, leg overrides and the trip's places, loaded once and
@@ -140,8 +142,10 @@ export function useItinerary(trip: Trip) {
       try {
         await itineraryApi.deleteStop(trip.id, stopId)
         toast.show(t('itinerary.deleted', { name }))
+        return true
       } catch (error) {
         fail(error, snapshot)
+        return false
       }
     },
     [trip.id, update, fail, toast, t],
@@ -161,6 +165,98 @@ export function useItinerary(trip: Trip) {
       }
     },
     [trip.id, update, fail],
+  )
+
+  /**
+   * Into or out of the rainy-day group (e2-t07). A drag between the lists may also move the stop:
+   * the move goes first, then the flag (both optimistic, both put back when one fails).
+   */
+  const placeStop = useCallback(
+    async (stopId: string, target: MoveTarget | null, isBackup: boolean) => {
+      const snapshot = latest.current
+      update((current) => {
+        const moved = target ? applyMove(current.days, stopId, target) : current.days
+        return { ...current, days: applyBackupChanges(moved, [{ stopId, isBackup }]) }
+      })
+      try {
+        if (target) {
+          const { stop, renumbered } = await itineraryApi.moveStop(trip.id, stopId, target)
+          update((current) => ({
+            ...current,
+            days: applyMoveResult(current.days, { ...stop, isBackup }, renumbered),
+          }))
+        }
+        const { stop } = await itineraryApi.patchStop(trip.id, stopId, { isBackup })
+        update((current) => ({ ...current, days: replaceStop(current.days, stopId, stop) }))
+        return true
+      } catch (error) {
+        fail(error, snapshot)
+        return false
+      }
+    },
+    [trip.id, update, fail],
+  )
+
+  /** 「全部換上」／「只加入」 and the menu's 移到備案／移回主行程: one PATCH per changed stop */
+  const setBackup = useCallback(
+    async (changes: readonly BackupChange[]) => {
+      if (changes.length === 0) return true
+      const snapshot = latest.current
+      update((current) => ({ ...current, days: applyBackupChanges(current.days, changes) }))
+      try {
+        const saved = await Promise.all(
+          changes.map((change) =>
+            itineraryApi.patchStop(trip.id, change.stopId, { isBackup: change.isBackup }),
+          ),
+        )
+        update((current) => ({
+          ...current,
+          days: saved.reduce((days, { stop }) => replaceStop(days, stop.id, stop), current.days),
+        }))
+        return true
+      } catch (error) {
+        fail(error, snapshot)
+        return false
+      }
+    },
+    [trip.id, update, fail],
+  )
+
+  /** Days and leg overrides again, without the loading state (after the server placed a stop) */
+  const refreshDays = useCallback(async () => {
+    try {
+      const { days, legs } = await itineraryApi.listDays(trip.id)
+      update((current) => ({ ...current, days, legs }))
+    } catch {
+      // The optimistic state stays; the next load corrects it
+    }
+  }, [trip.id, update])
+
+  /**
+   * A pocket-list entry into a day (e2-t07): an item through /schedule (linked both ways), a place
+   * through POST /stops. Resolves to the new stop, or null when the call failed (already said).
+   */
+  const addFromPocket = useCallback(
+    async (pocket: PocketRequest): Promise<Stop | null> => {
+      try {
+        let stop: Stop
+        if (pocket.kind === 'schedule') {
+          stop = (await wishlistApi.schedule(trip.id, pocket.itemId, pocket.body)).stop
+          if (pocket.isBackup) {
+            stop = (await itineraryApi.patchStop(trip.id, stop.id, { isBackup: true })).stop
+          }
+        } else {
+          stop = (await itineraryApi.createStop(trip.id, pocket.body)).stop
+        }
+        update((current) => ({ ...current, days: withNewStop(current.days, stop) }))
+        void refreshDays()
+        return stop
+      } catch (error) {
+        fail(error, null)
+        return null
+      }
+    },
+    [trip.id, update, fail, refreshDays],
   )
 
   const patchDay = useCallback(
@@ -317,6 +413,9 @@ export function useItinerary(trip: Trip) {
     saveStop,
     deleteStop,
     moveStop,
+    placeStop,
+    setBackup,
+    addFromPocket,
     patchDay,
     addPlace,
     setLeg,

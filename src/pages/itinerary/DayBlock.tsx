@@ -1,12 +1,13 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { forwardRef, type ReactNode } from 'react'
+import { forwardRef, useState, type ReactNode } from 'react'
 import styled, { css } from 'styled-components'
 import type { DayWithStops, Place, Stop, Trip } from '../../../shared/api/types.ts'
 import { formatDate, formatDistance, formatDuration } from '../../../shared/i18n/format.ts'
 import type { Warning } from '../../../shared/itinerary/checks.ts'
 import {
+  BackupGroup,
   Button,
   Chip,
   DragHandle,
@@ -18,6 +19,7 @@ import {
 import { PaletteIcon } from '../../app/icons.tsx'
 import { useT } from '../../lib/i18n.ts'
 import { warnedStops } from '../../lib/itinerary/checks.ts'
+import { backupDropId, splitBackup } from '../../lib/itinerary/backup.ts'
 import { dayDropId } from '../../lib/itinerary/dnd.ts'
 import type { DayLegs, DisplayLeg } from '../../lib/itinerary/legs.ts'
 import { moveDownTarget, moveUpTarget, type MoveTarget } from '../../lib/itinerary/order.ts'
@@ -26,13 +28,15 @@ import { LodgingLine } from '../bookings/LodgingLine.tsx'
 import { color, font, fontSize, fontWeight, radius, space } from '../../styles/tokens.ts'
 import { stopName, warningText } from './labels.ts'
 import { LegRow } from './LegRow.tsx'
-import { StopCard } from './StopCard.tsx'
+import { StopCard, type StopPick } from './StopCard.tsx'
 import { isTempId } from './useItinerary.ts'
 
 // One day of the itinerary (DESIGN.md §4, mockup Screen 2 left pane): header with the number, title,
 // date and driving total against the daily limit, the day's time warnings (e2-t06), tonight's
 // lodging, the rail of stops with legs between them, and the dashed 「＋加行程點」. The rail is a
 // sortable list and the whole day a drop area (e2-t04; the drag context lives on the page).
+// Under the rail, the rainy-day group (e2-t07): its own sortable list, left out of the totals, with
+// 「全部換上」／「只加入」; dragging a stop between the two lists flips its backup flag.
 
 const Section = styled.section<{ $color: string; $muted: boolean }>`
   display: grid;
@@ -202,6 +206,12 @@ export interface DayBlockProps {
   onMoveToDay: (stop: Stop) => void
   onEditLeg?: (leg: DisplayLeg) => void
   onJumpToStop?: (stopId: string) => void
+  /** Into / out of the rainy-day group (the card's menu) */
+  onToggleBackup?: (stop: Stop) => void
+  /** 「全部換上」 (swap) or 「只加入」 (add) the day's backups */
+  onSwapBackup?: (mode: 'swap' | 'add') => void
+  /** A stop that came from a pick: the pick's link and whether it is done (e5-t05) */
+  pickOf?: (stop: Stop) => StopPick | undefined
 }
 
 export const DayBlock = forwardRef<HTMLElement, DayBlockProps>(function DayBlock(
@@ -223,15 +233,26 @@ export const DayBlock = forwardRef<HTMLElement, DayBlockProps>(function DayBlock
     onMoveToDay,
     onEditLeg,
     onJumpToStop,
+    onToggleBackup,
+    onSwapBackup,
+    pickOf,
   },
   ref,
 ) {
   const t = useT()
+  const { main, backup } = splitBackup(day.stops)
+  const [backupOpen, setBackupOpen] = useState(true)
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: dayDropId(day.id),
-    // Only an empty day is a target of its own; otherwise the stops are (multi-list sorting)
-    disabled: !editable || day.stops.length > 0,
+    // Only an empty rail is a target of its own; otherwise the stops are (multi-list sorting)
+    disabled: !editable || main.length > 0,
   })
+  const { setNodeRef: setBackupDropRef, isOver: isOverBackup } = useDroppable({
+    id: backupDropId(day.id),
+    disabled: !editable || (backup.length > 0 && backupOpen),
+  })
+  // The group is there when it has stops, or while something is dragged (to drop into it)
+  const showBackup = backup.length > 0 || (editable && draggingId !== null)
   const unassigned = day.idx === null
   const headingId = `day-${day.id}-heading`
   const summary = legs?.summary
@@ -252,6 +273,55 @@ export const DayBlock = forwardRef<HTMLElement, DayBlockProps>(function DayBlock
       onSelect: target && onJumpToStop ? () => onJumpToStop(target) : undefined,
     }
   })
+
+  const renderStop = (stop: Stop, index: number, list: readonly Stop[]) => {
+    const leg = legFrom.get(stop.id)
+    const pending = isTempId(stop.id)
+    return (
+      <TimelineItem key={stop.id} color={stop.isBackup ? color.line : dayColor}>
+        <SortableStop
+          stop={stop}
+          disabled={!editable || pending}
+          motion={motion}
+          handleLabel={t('itinerary.drag.handle', { name: names.get(stop.id) ?? '' })}
+        >
+          {(handle) => (
+            <>
+              <StopCard
+                stop={stop}
+                place={stop.placeId ? places.get(stop.placeId) : undefined}
+                tz={trip.tz}
+                pending={pending}
+                canMoveUp={index > 0}
+                canMoveDown={index < list.length - 1}
+                handle={handle}
+                warned={warned.has(stop.id)}
+                highlighted={highlightedId === stop.id}
+                pick={pickOf?.(stop)}
+                onOpen={() => onOpenStop(stop)}
+                onMoveUp={() => {
+                  const target = moveUpTarget(list, stop.id)
+                  if (target) onMove(stop, target)
+                }}
+                onMoveDown={() => {
+                  const target = moveDownTarget(list, stop.id)
+                  if (target) onMove(stop, target)
+                }}
+                onMoveToDay={() => onMoveToDay(stop)}
+                onToggleBackup={editable && onToggleBackup ? () => onToggleBackup(stop) : undefined}
+              />
+              {leg && draggingId !== stop.id && (
+                <LegRow
+                  leg={leg}
+                  onEdit={editable && onEditLeg ? () => onEditLeg(leg) : undefined}
+                />
+              )}
+            </>
+          )}
+        </SortableStop>
+      </TimelineItem>
+    )
+  }
 
   let heading: string
   if (unassigned) {
@@ -327,64 +397,61 @@ export const DayBlock = forwardRef<HTMLElement, DayBlockProps>(function DayBlock
       <LodgingLine day={day} trip={trip} editable={editable} />
       <DropArea ref={setDropRef} $over={isOver && day.stops.length === 0} data-day-drop={day.id}>
         {day.stops.length === 0 ? (
+      {!unassigned && (
+        <Lodge>
+          <span>{t('itinerary.lodging.empty')}</span>
+          <Faint>{t('itinerary.lodging.hint')}</Faint>
+        </Lodge>
+      )}
+      <DropArea ref={setDropRef} $over={isOver && main.length === 0} data-day-drop={day.id}>
+        {main.length === 0 ? (
           <Empty>{t('itinerary.emptyDay')}</Empty>
         ) : (
           <SortableContext
             id={day.id}
-            items={day.stops.map((stop) => stop.id)}
+            items={main.map((stop) => stop.id)}
             strategy={verticalListSortingStrategy}
           >
             <Timeline aria-label={heading}>
-              {day.stops.map((stop, index) => {
-                const leg = legFrom.get(stop.id)
-                const pending = isTempId(stop.id)
-                return (
-                  <TimelineItem key={stop.id} color={stop.isBackup ? color.line : dayColor}>
-                    <SortableStop
-                      stop={stop}
-                      disabled={!editable || pending}
-                      motion={motion}
-                      handleLabel={t('itinerary.drag.handle', { name: names.get(stop.id) ?? '' })}
-                    >
-                      {(handle) => (
-                        <>
-                          <StopCard
-                            stop={stop}
-                            place={stop.placeId ? places.get(stop.placeId) : undefined}
-                            tz={trip.tz}
-                            pending={pending}
-                            canMoveUp={index > 0}
-                            canMoveDown={index < day.stops.length - 1}
-                            handle={handle}
-                            warned={warned.has(stop.id)}
-                            highlighted={highlightedId === stop.id}
-                            onOpen={() => onOpenStop(stop)}
-                            onMoveUp={() => {
-                              const target = moveUpTarget(day.stops, stop.id)
-                              if (target) onMove(stop, target)
-                            }}
-                            onMoveDown={() => {
-                              const target = moveDownTarget(day.stops, stop.id)
-                              if (target) onMove(stop, target)
-                            }}
-                            onMoveToDay={() => onMoveToDay(stop)}
-                          />
-                          {leg && draggingId !== stop.id && (
-                            <LegRow
-                              leg={leg}
-                              onEdit={editable && onEditLeg ? () => onEditLeg(leg) : undefined}
-                            />
-                          )}
-                        </>
-                      )}
-                    </SortableStop>
-                  </TimelineItem>
-                )
-              })}
+              {main.map((stop, index) => renderStop(stop, index, main))}
             </Timeline>
           </SortableContext>
         )}
       </DropArea>
+      {showBackup && (
+        <BackupGroup
+          title={t('itinerary.backup.title')}
+          count={backup.length}
+          open={backupOpen}
+          onToggle={() => setBackupOpen((open) => !open)}
+          dropRef={setBackupDropRef}
+          over={isOverBackup}
+          emptyText={t('itinerary.backup.empty')}
+          dayId={day.id}
+          actions={
+            editable && onSwapBackup && backup.length > 0 ? (
+              <>
+                <Button size="sm" onClick={() => onSwapBackup('swap')}>
+                  {t('itinerary.backup.swap')}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => onSwapBackup('add')}>
+                  {t('itinerary.backup.add')}
+                </Button>
+              </>
+            ) : undefined
+          }
+        >
+          <SortableContext
+            id={backupDropId(day.id)}
+            items={backup.map((stop) => stop.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <Timeline aria-label={t('itinerary.backup.listLabel', { day: heading })}>
+              {backup.map((stop, index) => renderStop(stop, index, backup))}
+            </Timeline>
+          </SortableContext>
+        </BackupGroup>
+      )}
       <AddStop type="button" onClick={onAddStop}>
         {t('itinerary.addStop')}
       </AddStop>

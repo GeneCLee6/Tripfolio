@@ -1,17 +1,39 @@
-import { DndContext, useDroppable } from '@dnd-kit/core'
+import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import styled, { css } from 'styled-components'
 import type { GeoPoint } from '../../../shared/api/geo.ts'
 import type { DayWithStops, Stop } from '../../../shared/api/types.ts'
 import type { Warning } from '../../../shared/itinerary/checks.ts'
-import { formatDate } from '../../../shared/i18n/format.ts'
-import { Button, Dialog, EmptyState, Skeleton, useToast } from '../../components/index.ts'
+import { formatDate, formatMoney } from '../../../shared/i18n/format.ts'
+import { isCurrencyCode } from '../../../shared/money/currencies.ts'
+import {
+  Button,
+  Dialog,
+  DragHandle,
+  EmptyState,
+  PocketPanel,
+  Sheet,
+  Skeleton,
+  useToast,
+  type PocketEntry,
+} from '../../components/index.ts'
 import { useDetailPane, useTripContext } from '../../app/trip-context.ts'
 import { errorMessageKey } from '../../lib/errors.ts'
 import { useMediaQuery } from '../../lib/hooks.ts'
 import { useT } from '../../lib/i18n.ts'
 import { checkItineraryDay } from '../../lib/itinerary/checks.ts'
+import { swapInChanges } from '../../lib/itinerary/backup.ts'
+import type { SectionTarget } from '../../lib/itinerary/dnd.ts'
 import type { DisplayLeg } from '../../lib/itinerary/legs.ts'
+import { placeName } from '../../lib/itinerary/places.ts'
+import {
+  endOfDay,
+  parsePocketDragId,
+  pocketDragId,
+  pocketRequest,
+  stopTypeForPlace,
+  type PocketSource,
+} from '../../lib/itinerary/pocket.ts'
 import { useCan } from '../../lib/role.ts'
 import { moveToDayTarget, type MoveTarget } from '../../lib/itinerary/order.ts'
 import { focusRing } from '../../styles/mixins.ts'
@@ -31,14 +53,17 @@ import { PageHeading, Stack } from '../parts.tsx'
 import { DayBlock } from './DayBlock.tsx'
 import { DayEditor } from './DayEditor.tsx'
 import { LegEditor } from './LegEditor.tsx'
-import { colorOfDay, stopName } from './labels.ts'
+import { colorOfDay, STOP_TYPE_LABEL, stopName } from './labels.ts'
 import { StopEditor } from './StopEditor.tsx'
 import { isTempId, useItinerary } from './useItinerary.ts'
+import { usePocket } from './usePocket.ts'
 import { EDGE_NEXT, EDGE_PREV, useStopDrag } from './useStopDrag.ts'
 
 // /trips/:id/itinerary (e2-t02, DESIGN.md §4 日程頁): a sticky strip of day chips, then the days.
 // Phones show one day at a time with previous / next; wider screens scroll through every day and
 // the chip of the day in view lights up. Unassigned days (outside the trip's dates) come last, muted.
+// The pocket list (e2-t07) sits beside the days on desktop, its entries dragged into a day; below
+// desktop it opens as a Sheet from the 「口袋名單」 button and 「排進…」 picks the day.
 
 const TOP_BAR = 56
 /** The trip layout's bottom navigation on phones (src/app/TripLayout.tsx) */
@@ -178,6 +203,67 @@ const DayList = styled.div`
   gap: ${space.sm}px;
 `
 
+/** Desktop: the days and the pocket list side by side */
+const Board = styled.div<{ $side: boolean }>`
+  display: grid;
+  gap: ${space.lg}px;
+  grid-template-columns: ${({ $side }) => ($side ? 'minmax(0, 1fr) 248px' : 'minmax(0, 1fr)')};
+  align-items: start;
+`
+
+const Aside = styled.aside`
+  position: sticky;
+  top: ${TOP_BAR + 64}px;
+  display: grid;
+  gap: ${space.sm}px;
+  max-height: calc(100vh - ${TOP_BAR + 80}px);
+  padding: ${space.md}px;
+  overflow-y: auto;
+  border: 1px solid ${color.line};
+  border-radius: ${radius.card}px;
+  background: ${color.card};
+`
+
+const AsideTitle = styled.h2`
+  margin: 0;
+  font-size: ${fontSize.md}px;
+  font-weight: ${fontWeight.bold};
+`
+
+const PocketBar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`
+
+const OverlayCard = styled.div`
+  max-width: 240px;
+  padding: ${space.sm}px ${space.md}px;
+  border: 1px solid ${color.fjord};
+  border-radius: ${radius.card - 2}px;
+  background: ${color.card};
+  box-shadow: 0 8px 24px ${color.shadow};
+  font-size: ${fontSize.sm}px;
+  font-weight: ${fontWeight.semibold};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: grabbing;
+`
+
+/** The grip of a pocket entry (desktop): drags it into a day */
+function PocketGrip({ entry, label }: { entry: PocketEntry; label: string }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: entry.key })
+  return (
+    <DragHandle
+      ref={setNodeRef}
+      label={label}
+      dragging={isDragging}
+      {...attributes}
+      {...listeners}
+    />
+  )
+}
+
 export default function ItineraryPage() {
   const t = useT()
   const { trip } = useTripContext()
@@ -194,6 +280,37 @@ export default function ItineraryPage() {
   const can = useCan()
   const editable = can('editContent')
   const motion = useMediaQuery(media.motion)
+  const desktop = useMediaQuery(media.desktop)
+  const pocket = usePocket(trip.id)
+  const [pocketOpen, setPocketOpen] = useState(false)
+  const [scheduling, setScheduling] = useState<PocketEntry | null>(null)
+
+  const pocketEntries = useMemo<PocketEntry[]>(() => {
+    if (!pocket.data) return []
+    return [
+      ...pocket.data.items.map((item) => ({
+        key: pocketDragId({ kind: 'item', id: item.id }),
+        kind: 'item' as const,
+        name: item.name,
+        category: item.category,
+        price:
+          item.estMinor !== null && item.currency && isCurrencyCode(item.currency)
+            ? formatMoney(item.estMinor, item.currency, t.locale)
+            : undefined,
+      })),
+      ...pocket.data.places.map((place) => {
+        const type = stopTypeForPlace(place)
+        return {
+          key: pocketDragId({ kind: 'place', id: place.id }),
+          kind: 'place' as const,
+          name: placeName(place, t.locale),
+          stopType: type,
+          typeLabel: t(STOP_TYPE_LABEL[type]),
+        }
+      }),
+    ]
+  }, [pocket.data, t])
+  const entryOf = (key: string) => pocketEntries.find((entry) => entry.key === key)
 
   const dataDays = useMemo(() => data?.days ?? [], [data?.days])
   const nameOf = (stop: Stop) =>
@@ -209,6 +326,7 @@ export default function ItineraryPage() {
     days: dataDays,
     dayLabel: dayLabelOf,
     stopLabel: (stopId) => {
+      if (parsePocketDragId(stopId)) return entryOf(stopId)?.name ?? ''
       const stop = dataDays.flatMap((day) => day.stops).find((item) => item.id === stopId)
       return stop ? nameOf(stop) : ''
     },
@@ -219,7 +337,27 @@ export default function ItineraryPage() {
     },
     showDay: (dayId) => setSelectedId(dayId),
     onMove: (stopId, target) => void itinerary.moveStop(stopId, target),
+    onPlace: (stopId, target, isBackup) => void itinerary.placeStop(stopId, target, isBackup),
+    onPocketDrop: (source, target) => void dropPocket(source, target),
   })
+
+  /** A pocket entry into a day (drag or 「排進…」), then the pocket list again */
+  async function dropPocket(source: PocketSource, target: SectionTarget) {
+    const place = source.kind === 'place' ? pocket.byId.places.get(source.id) : undefined
+    const name = entryOf(pocketDragId(source))?.name ?? ''
+    const day = dataDays.find((item) => item.id === target.dayId)
+    const stop = await itinerary.addFromPocket(pocketRequest(source, target, place))
+    pocket.reload()
+    if (stop && day) toast.show(t('itinerary.pocket.added', { name, day: dayLabelOf(day) }))
+  }
+
+  const pickOf = (stop: Stop) =>
+    stop.wishlistItemId
+      ? {
+          href: `/trips/${encodeURIComponent(trip.id)}/picks?item=${encodeURIComponent(stop.wishlistItemId)}`,
+          done: pocket.data?.statuses.get(stop.wishlistItemId) === 'done',
+        }
+      : undefined
 
   // Time checks per day (e2-t06): pure, from the saved data
   const warnings = useMemo(() => {
@@ -282,8 +420,10 @@ export default function ItineraryPage() {
 
   // The editor lives in the detail pane, outside this tree: hand it the latest actions
   const actions = useRef(itinerary)
+  const reloadPocket = useRef(pocket.reload)
   useLayoutEffect(() => {
     actions.current = itinerary
+    reloadPocket.current = pocket.reload
   })
 
   const biasFor = useCallback(
@@ -317,10 +457,15 @@ export default function ItineraryPage() {
           onDelete={
             stop
               ? () =>
-                  actions.current.deleteStop(
-                    stop.id,
-                    stopName(stop, stop.placeId ? placesById.get(stop.placeId) : undefined, t),
-                  )
+                  void actions.current
+                    .deleteStop(
+                      stop.id,
+                      stopName(stop, stop.placeId ? placesById.get(stop.placeId) : undefined, t),
+                    )
+                    .then((ok) => {
+                      // A stop from a pick (or with a place) frees it: back in the pocket list
+                      if (ok) reloadPocket.current()
+                    })
               : undefined
           }
           onPlaceCreated={(place) => actions.current.addPlace(place)}
@@ -456,35 +601,88 @@ export default function ItineraryPage() {
               </Button>
             </Pager>
           )}
+          {!desktop && (
+            <PocketBar>
+              <Button size="sm" onClick={() => setPocketOpen(true)}>
+                {t('itinerary.pocket.open', { n: pocketEntries.length })}
+              </Button>
+            </PocketBar>
+          )}
           <DndContext {...drag.context}>
-            <Days>
-              {shownDays.map((day) => (
-                <DayBlock
-                  key={day.id}
-                  ref={(element) => {
-                    if (element) sections.current.set(day.id, element)
-                    else sections.current.delete(day.id)
-                  }}
-                  day={day}
-                  dayColor={colors.get(day.id)!}
-                  trip={trip}
-                  legs={dayLegs.get(day.id)}
-                  places={placesById}
-                  onEditDay={() => editDay(day)}
-                  onAddStop={() => openStop(day, null)}
-                  onOpenStop={(stop) => openStop(day, stop)}
-                  onMove={move}
-                  onMoveToDay={(stop) => setMoving(stop)}
-                  warnings={warnings.get(day.id)}
-                  editable={editable}
-                  motion={motion}
-                  draggingId={drag.activeId}
-                  highlightedId={highlightedId}
-                  onEditLeg={(leg) => editLeg(day, leg)}
-                  onJumpToStop={jumpToStop}
-                />
-              ))}
-            </Days>
+            <Board $side={desktop}>
+              <Days>
+                {shownDays.map((day) => (
+                  <DayBlock
+                    key={day.id}
+                    ref={(element) => {
+                      if (element) sections.current.set(day.id, element)
+                      else sections.current.delete(day.id)
+                    }}
+                    day={day}
+                    dayColor={colors.get(day.id)!}
+                    trip={trip}
+                    legs={dayLegs.get(day.id)}
+                    places={placesById}
+                    onEditDay={() => editDay(day)}
+                    onAddStop={() => openStop(day, null)}
+                    onOpenStop={(stop) => openStop(day, stop)}
+                    onMove={move}
+                    onMoveToDay={(stop) => setMoving(stop)}
+                    warnings={warnings.get(day.id)}
+                    editable={editable}
+                    motion={motion}
+                    draggingId={drag.activeId}
+                    highlightedId={highlightedId}
+                    onEditLeg={(leg) => editLeg(day, leg)}
+                    onJumpToStop={jumpToStop}
+                    onToggleBackup={(stop) =>
+                      void itinerary.setBackup([{ stopId: stop.id, isBackup: !stop.isBackup }])
+                    }
+                    onSwapBackup={(mode) => {
+                      const source = dataDays.find((item) => item.id === day.id)
+                      if (!source) return
+                      void itinerary.setBackup(swapInChanges(source.stops, mode)).then((ok) => {
+                        if (ok)
+                          toast.show(
+                            t(
+                              mode === 'swap'
+                                ? 'itinerary.backup.swapped'
+                                : 'itinerary.backup.added',
+                            ),
+                          )
+                      })
+                    }}
+                    pickOf={pickOf}
+                  />
+                ))}
+              </Days>
+              {desktop && (
+                <Aside aria-labelledby="pocket-heading" data-pocket-panel="">
+                  <AsideTitle id="pocket-heading">{t('itinerary.pocket.title')}</AsideTitle>
+                  <PocketPanel
+                    entries={pocketEntries}
+                    loading={pocket.resource.status === 'loading'}
+                    draggingKey={drag.activeId}
+                    renderHandle={
+                      editable
+                        ? (entry) => (
+                            <PocketGrip
+                              entry={entry}
+                              label={t('itinerary.pocket.drag', { name: entry.name })}
+                            />
+                          )
+                        : undefined
+                    }
+                    onSchedule={editable ? setScheduling : undefined}
+                  />
+                </Aside>
+              )}
+            </Board>
+            <DragOverlay dropAnimation={null}>
+              {drag.activeId && parsePocketDragId(drag.activeId) ? (
+                <OverlayCard>{entryOf(drag.activeId)?.name}</OverlayCard>
+              ) : null}
+            </DragOverlay>
             {!wide && drag.activeId && position > 0 && (
               <EdgeZone id={EDGE_PREV} side="top" label={t('itinerary.drag.prevDay')} />
             )}
@@ -539,6 +737,52 @@ export default function ItineraryPage() {
                   </Button>
                 )
               })}
+        </DayList>
+      </Dialog>
+      <Sheet
+        open={pocketOpen}
+        onClose={() => setPocketOpen(false)}
+        title={t('itinerary.pocket.title')}
+      >
+        <PocketPanel
+          entries={pocketEntries}
+          loading={pocket.resource.status === 'loading'}
+          onSchedule={
+            editable
+              ? (entry) => {
+                  setPocketOpen(false)
+                  setScheduling(entry)
+                }
+              : undefined
+          }
+        />
+      </Sheet>
+      <Dialog
+        open={Boolean(scheduling)}
+        onClose={() => setScheduling(null)}
+        title={scheduling ? t('itinerary.pocket.scheduleTitle', { name: scheduling.name }) : ''}
+      >
+        <DayList>
+          {scheduling &&
+            ordered.map((day) => (
+              <Button
+                key={day.id}
+                block
+                onClick={() => {
+                  const source = parsePocketDragId(scheduling.key)
+                  setScheduling(null)
+                  if (!source) return
+                  const target = dataDays.find((item) => item.id === day.id) ?? day
+                  if (!wide) setSelectedId(day.id)
+                  void dropPocket(source, endOfDay(target))
+                }}
+              >
+                {day.idx !== null
+                  ? `${t('day.short', { n: day.idx })}${day.title ? ` · ${day.title}` : ''}`
+                  : t('itinerary.unassigned.headingNoDate')}
+                {day.date ? ` · ${formatDate(day.date, t.locale)}` : ''}
+              </Button>
+            ))}
         </DayList>
       </Dialog>
     </Column>

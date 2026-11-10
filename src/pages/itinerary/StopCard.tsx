@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import styled, { css } from 'styled-components'
 import type { Place, Stop } from '../../../shared/api/types.ts'
 import { formatMoney } from '../../../shared/i18n/format.ts'
@@ -22,7 +23,8 @@ import { BOOKING_LABEL, STOP_TYPE_LABEL, stopName, stopTimeText } from './labels
 // One stop on the day's rail (e2-t03, mockup Screen 2): name and time, a one-line note, and tags for
 // type, booking, cost and the rainy-day plan. The card opens the editor; the grip on the left drags
 // it (e2-t04) and the ⋯ menu moves it (the touch and pointer-free alternative). A warning mark sits
-// next to the name when a time check (e2-t06) is about this stop.
+// next to the name when a time check (e2-t06) is about this stop. A stop that came from a pick
+// carries a 「必吃必買」 tag linking back to it, and a check mark once the pick is done (e5-t05).
 
 const Card = styled.div<{
   $backup: boolean
@@ -197,6 +199,51 @@ const MenuItem = styled.button`
   ${focusRing}
 `
 
+const PickLink = styled(Link)`
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: ${space.xs}px;
+  padding: 1px ${space.sm}px;
+  border: 1px solid ${color.tussock};
+  border-radius: ${radius.pill}px;
+  background: ${color.card};
+  color: ${color.tussock};
+  font-size: ${fontSize.sm - 2}px;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+  ${focusRing}
+`
+
+const Done = styled.span`
+  display: inline-flex;
+  align-items: center;
+  margin-right: ${space.xs}px;
+  color: ${color.success};
+  vertical-align: -2px;
+`
+
+const CheckIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+)
+
 const MoreIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <circle cx="5" cy="12" r="1.8" />
@@ -226,6 +273,11 @@ const PhotoStrip = styled.div`
 `
 
 const STRIP_THUMBS = 3
+/** The pick a stop came from (e5-t05): where it lives on the picks page, and whether it is done */
+export interface StopPick {
+  href: string
+  done: boolean
+}
 
 export interface StopCardProps {
   stop: Stop
@@ -246,6 +298,10 @@ export interface StopCardProps {
   warned?: boolean
   /** Picked from the day's warning list: outlined for a moment */
   highlighted?: boolean
+  /** The pick this stop came from */
+  pick?: StopPick
+  /** 移到備案／移回主行程 (editors only) */
+  onToggleBackup?: () => void
 }
 
 export function StopCard({
@@ -262,6 +318,8 @@ export function StopCard({
   handle,
   warned = false,
   highlighted = false,
+  pick,
+  onToggleBackup,
 }: StopCardProps) {
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -287,7 +345,7 @@ export function StopCard({
     }
   }, [menuOpen])
 
-  const pick = (action?: () => void) => () => {
+  const choose = (action?: () => void) => () => {
     setMenuOpen(false)
     action?.()
   }
@@ -300,6 +358,8 @@ export function StopCard({
       $highlighted={highlighted}
       data-stop-id={stop.id}
       data-warned={warned || undefined}
+      data-backup={stop.isBackup || undefined}
+      data-pick-done={pick?.done || undefined}
     >
       <Open
         type="button"
@@ -309,6 +369,11 @@ export function StopCard({
         }
       >
         <Name>
+          {pick?.done && (
+            <Done title={t('itinerary.pick.done')}>
+              <CheckIcon />
+            </Done>
+          )}
           {warned && (
             <Warned title={t('itinerary.check.stopMark')}>
               <WarningIcon size={14} />
@@ -334,6 +399,18 @@ export function StopCard({
           <MoneyTag>{formatMoney(stop.costMinor, stop.currency, t.locale)}</MoneyTag>
         )}
         {stop.isBackup && <Tag>{t('itinerary.stop.backup')}</Tag>}
+        {pick && (
+          <PickLink
+            to={pick.href}
+            aria-label={
+              pick.done
+                ? t('itinerary.pick.linkDone', { name })
+                : t('itinerary.pick.link', { name })
+            }
+          >
+            {t('itinerary.pick.tag')}
+          </PickLink>
+        )}
       </Tags>
       {photos.length > 0 && (
         <PhotoStrip
@@ -365,20 +442,30 @@ export function StopCard({
         />
         {menuOpen && (
           <Menu id={menuId} role="menu">
-            <MenuItem role="menuitem" type="button" disabled={!canMoveUp} onClick={pick(onMoveUp)}>
+            <MenuItem
+              role="menuitem"
+              type="button"
+              disabled={!canMoveUp}
+              onClick={choose(onMoveUp)}
+            >
               {t('itinerary.stop.moveUp')}
             </MenuItem>
             <MenuItem
               role="menuitem"
               type="button"
               disabled={!canMoveDown}
-              onClick={pick(onMoveDown)}
+              onClick={choose(onMoveDown)}
             >
               {t('itinerary.stop.moveDown')}
             </MenuItem>
-            <MenuItem role="menuitem" type="button" onClick={pick(onMoveToDay)}>
+            <MenuItem role="menuitem" type="button" onClick={choose(onMoveToDay)}>
               {t('itinerary.stop.moveToDay')}
             </MenuItem>
+            {onToggleBackup && (
+              <MenuItem role="menuitem" type="button" onClick={choose(onToggleBackup)}>
+                {stop.isBackup ? t('itinerary.stop.toMain') : t('itinerary.stop.toBackup')}
+              </MenuItem>
+            )}
           </Menu>
         )}
       </MenuAnchor>

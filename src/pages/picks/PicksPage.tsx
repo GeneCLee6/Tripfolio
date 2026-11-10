@@ -1,4 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import styled from 'styled-components'
 import type { DayWithStops, Member, WishlistItemView } from '../../../shared/api/types.ts'
 import { formatDate } from '../../../shared/i18n/format.ts'
@@ -217,6 +218,27 @@ export default function PicksPage() {
         />
       ),
     })
+
+  // ?item=<id>: the pick tag on a stop links here (e5-t05); open that pick once it is loaded
+  const [params, setParams] = useSearchParams()
+  const linked = params.get('item')
+  const openLinked = useRef(openDetail)
+  useLayoutEffect(() => {
+    openLinked.current = openDetail
+  })
+  useEffect(() => {
+    if (!linked || state.status !== 'ready') return
+    const item = state.items.find((other) => other.id === linked)
+    if (item) openLinked.current(item)
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('item')
+        return next
+      },
+      { replace: true },
+    )
+  }, [linked, state.status, state.items, setParams])
 
   const schedule = async (item: WishlistItemView, day: DayWithStops) => {
     setScheduling(null)
