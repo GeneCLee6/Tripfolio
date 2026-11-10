@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { IconButton, LanguageSwitch, Sheet, ThemeSwitch } from '../components/index.ts'
 import { useT } from '../lib/i18n.ts'
+import { OfflineBadge, UpdatePrompt } from '../lib/offline/OfflineStatus.tsx'
 import { focusRing } from '../styles/mixins.ts'
 import {
   color,
@@ -133,6 +134,7 @@ export function TopBar({ tripName, trailing }: { tripName?: string; trailing?: R
         </Brand>
         {tripName && <TripName>{tripName}</TripName>}
         <Spacer />
+        <OfflineBadge />
         <Switches>
           <LanguageSwitch />
           <ThemeSwitch />
@@ -146,6 +148,7 @@ export function TopBar({ tripName, trailing }: { tripName?: string; trailing?: R
           />
         </PhoneOnly>
       </Inner>
+      <UpdatePrompt />
       <Sheet open={open} onClose={() => setOpen(false)} title={t('shell.preferences')}>
         <SheetBody>
           <LanguageSwitch size="md" />

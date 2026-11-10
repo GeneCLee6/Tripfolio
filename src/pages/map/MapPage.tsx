@@ -1,4 +1,5 @@
 import {
+  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -59,6 +60,9 @@ const BOTTOM_NAV = 64
 
 type View = 'trip' | 'day'
 
+// 下載離線地圖 (e3-t06) loads on the first tap
+const OfflineMapSheet = lazy(() => import('../../lib/offline/OfflineMapSheet.tsx'))
+
 const HINT_KEYS: Partial<Record<MapLayerKey, MessageKey>> = {
   pocket: 'mapPage.layerHint.pocket',
   lodging: 'mapPage.layerHint.lodging',
@@ -96,6 +100,11 @@ export default function MapPage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [drop, setDrop] = useState<MapPoint | null>(null)
   const [forceMap, setForceMap] = useState(false)
+  const [offlineMap, setOfflineMap] = useState({ loaded: false, open: false })
+  const offlinePoints = useMemo(
+    () => (data ? [...data.stops, ...data.pocket, ...data.lodging, ...data.picks, ...data.fuel] : []),
+    [data],
+  )
 
   const days = useMemo(() => data?.days ?? [], [data])
   // Day N defaults to the first day with something on the map
@@ -280,7 +289,21 @@ export default function MapPage() {
           // The card of a pin whose layer was just hidden would float over nothing
           setSelectedId(null)
         }}
+        onOfflineMap={() => {
+          setLayersOpen(false)
+          setOfflineMap({ loaded: true, open: true })
+        }}
       />
+      {offlineMap.loaded && (
+        <Suspense fallback={null}>
+          <OfflineMapSheet
+            open={offlineMap.open}
+            onClose={() => setOfflineMap({ loaded: true, open: false })}
+            tripId={trip.id}
+            points={offlinePoints}
+          />
+        </Suspense>
+      )}
 
       <Sheet open={pickerOpen} onClose={() => setPickerOpen(false)} title={t('mapPage.dayPicker')}>
         <DayStrip>
@@ -334,12 +357,14 @@ function LayerPanel({
   open,
   onOpenChange,
   onChange,
+  onOfflineMap,
 }: {
   layers: MapLayers
   counts: Record<MapLayerKey, number>
   open: boolean
   onOpenChange: (open: boolean) => void
   onChange: (update: (current: MapLayers) => MapLayers) => void
+  onOfflineMap: () => void
 }) {
   const t = useT()
   const panelId = useId()
@@ -396,6 +421,9 @@ function LayerPanel({
               </Toggle>
             )
           })}
+          <Button size="sm" onClick={onOfflineMap}>
+            {t('offline.map.open')}
+          </Button>
         </Panel>
       )}
     </TopRight>

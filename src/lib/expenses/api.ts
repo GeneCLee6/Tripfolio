@@ -11,6 +11,9 @@ import type {
 import type { Rev } from '../../../shared/api/types.ts'
 import type { ExpenseCategory, expenseCreateSchema } from '../../../shared/schema/expense.ts'
 import { ApiError, isApiError, request } from '../api.ts'
+import { queueExpense } from '../offline/expenses.ts'
+import { isNetworkError, onMutationSent, replayNow } from '../offline/sync.ts'
+import { isOnline, reportNetworkFailure } from '../offline/useOnline.ts'
 import { getToken } from '../tokens.ts'
 
 // Typed calls for the expense API (worker/trips/expenses.ts, e7-t01). Uses src/lib/api.ts's
@@ -92,17 +95,39 @@ export type ExpenseWrite =
   { id?: undefined; body: ExpenseCreateBody } | { id: string; body: ExpensePatchBody }
 
 /**
- * Every expense write of the form goes through here, so the offline queue (e10-t05) can wrap this
- * one function: queue when offline, replay later.
+ * Every expense write of the form goes through here. Offline (or when the request fails on the
+ * network) the write is queued (src/lib/offline/, e10-t05) and the answer is provisional: the
+ * expense's id starts with `pending-`, `rev` is -1. The queue sends it, in order, once the
+ * connection is back; the list then reloads through notifyExpensesChanged.
  */
 export async function submitExpense(tripId: string, write: ExpenseWrite): Promise<ExpenseResponse> {
-  const response =
-    write.id === undefined
-      ? await expensesApi.create(tripId, write.body)
-      : await expensesApi.patch(tripId, write.id, write.body)
+  const token = tokenFor(tripId)
+  const urls = { create: `${base(tripId)}/expenses`, one: (id: string) => one(tripId, id) }
+  if (!isOnline() || (write.id !== undefined && write.id.startsWith('pending-'))) {
+    const queued = await queueExpense(tripId, token, write, urls)
+    // An edit of an expense made offline, with the connection back: send it now
+    if (isOnline()) void replayNow()
+    return queued
+  }
+  let response: ExpenseResponse
+  try {
+    response =
+      write.id === undefined
+        ? await expensesApi.create(tripId, write.body)
+        : await expensesApi.patch(tripId, write.id, write.body)
+  } catch (error) {
+    if (!isNetworkError(error)) throw error
+    reportNetworkFailure()
+    return queueExpense(tripId, token, write, urls)
+  }
   notifyExpensesChanged(tripId)
   return response
 }
+
+// A queued expense write reached the server: lists reload
+onMutationSent((mutation) => {
+  if (mutation.entity.type === 'expense') notifyExpensesChanged(mutation.entity.tripId)
+})
 
 /** 422 fx_unavailable: no rate is known for that currency and day; ask for one and send again */
 export function isFxUnavailable(

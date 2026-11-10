@@ -11,6 +11,8 @@ import { safeColor } from '../lib/colors.ts'
 import { errorMessageKey, isAccessError } from '../lib/errors.ts'
 import { useMediaQuery, useResource } from '../lib/hooks.ts'
 import { useT } from '../lib/i18n.ts'
+import { InstallBanner } from '../lib/offline/InstallBanner.tsx'
+import { notifyTripOpened } from '../lib/offline/register.ts'
 import { useCan } from '../lib/role.ts'
 import { removeToken } from '../lib/tokens.ts'
 import { focusRing } from '../styles/mixins.ts'
@@ -412,6 +414,10 @@ export function TripLayout() {
   }, [error, id])
 
   const { status, data, reload, set } = resource
+  // The Service Worker keeps the data of the last 3 trips opened (e10-t05)
+  useEffect(() => {
+    if (status === 'ready') notifyTripOpened(id)
+  }, [status, id])
   const context = useMemo<TripContextValue | null>(
     () =>
       status === 'ready' && data
@@ -463,6 +469,14 @@ export function TripLayout() {
             </SideNav>
           </Side>
           <Main id="main">
+            {pathname.replace(/\/+$/, '') === tripPath(id) && (
+              <InstallBanner
+                tripId={id}
+                startDate={context.trip.startDate}
+                endDate={context.trip.endDate}
+                tz={context.trip.tz}
+              />
+            )}
             <ErrorBoundary resetKey={pathname}>
               <Suspense fallback={<Skeleton $height={160} />}>
                 <Outlet />
