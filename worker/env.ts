@@ -25,4 +25,13 @@ export interface Env {
   ORS_API_KEY?: string
   /** Exchange rate provider base URL (wrangler var; open.er-api.com, no key; e7-t03) */
   FX_API_URL?: string
+  /** The operator key for GET /api/admin/usage (e11-t05), a secret:
+   * `npx wrangler secret put ADMIN_KEY`. Unset = the usage page answers 503 admin_disabled */
+  ADMIN_KEY?: string
+  /** Optional Cloudflare GraphQL Analytics token (Account Analytics: Read), a secret; with the
+   * account id it adds Workers / D1 / DO numbers to the usage page (DEPLOY.md §14) */
+  CF_ANALYTICS_TOKEN?: string
+  /** The Cloudflare account id for the analytics query (var or secret; either name works) */
+  CF_ACCOUNT_ID?: string
+  CLOUDFLARE_ACCOUNT_ID?: string
 }

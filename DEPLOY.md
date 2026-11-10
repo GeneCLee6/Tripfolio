@@ -322,3 +322,71 @@ for i in $(seq 1 11); do curl -s -o /dev/null -w "%{http_code} " -X POST $BASE/a
 ```
 
 本機實測（2026-11-09，`vite preview`）：`/api/health`、`/s/:token` 的標頭如上；`POST /api/trips` 第 11 次回 429（當時還沒有本機例外，`rateLimits` 列 `ip:trip-create:127.0.0.1` 計到 11）。**正式站的 `curl -I` 要等第一次部署後做**。
+
+## 14. 用量頁與 Cloudflare Analytics token（e11-t05）
+
+用量頁在 `/admin/usage?key=<ADMIN_KEY>`，資料來自 `GET /api/admin/usage?key=…`（`worker/admin/usage.ts`）。它是**全站**的數字，不屬於任何旅程，所以不用 memberToken，而是用一把只有部署者知道的金鑰：
+
+- `ADMIN_KEY` 沒設 → `503 admin_disabled`（頁面顯示「用量頁停用中」）；金鑰錯 → `403`；每個 IP 每分鐘 10 次（錯的金鑰也算，擋猜測；本機 loopback 不限）。
+- 頁面上沒有任何成員個資；會出現旅程名稱（R2 用量前五名），所以金鑰不要外流。金鑰只放在網址，不會存在裝置上；用完關分頁即可。
+
+### 14.1 設定 `ADMIN_KEY`（必要）
+
+```sh
+# 產生一把夠長的隨機金鑰，然後設成 secret（正式與預覽各一次）
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+npx wrangler secret put ADMIN_KEY
+npx wrangler secret put ADMIN_KEY --env preview
+```
+
+本機：在 repo 根目錄的 `.dev.vars`（已在 `.gitignore`，**不要 commit**）加一行 `ADMIN_KEY=local-admin-key-e2e`，`e2e/admin.spec.ts` 預設用這個值（或用環境變數 `ADMIN_KEY` 覆寫）。
+
+### 14.2 Cloudflare Analytics token（選用）
+
+不設的話，頁面的 Cloudflare 區塊顯示「需要設定 token」，`cf` 回 `null`，其他指標照常。要看 Workers 請求、D1 讀寫列數、DO 時數，就：
+
+1. Cloudflare 儀表板 → My Profile → API Tokens → Create Token → Custom token。
+2. 權限只給 **Account → Account Analytics → Read**（不要給 Edit 類權限）；Account Resources 選這個帳號。
+3. 設成 secret，並設帳號 ID（儀表板右側的 Account ID；不是機密，用 secret 或 var 都可以，變數名 `CF_ACCOUNT_ID` 或 `CLOUDFLARE_ACCOUNT_ID` 擇一）：
+
+```sh
+npx wrangler secret put CF_ANALYTICS_TOKEN
+npx wrangler secret put CF_ACCOUNT_ID
+# 預覽環境同樣再做一次 --env preview
+```
+
+查詢失敗（權限不足、帳號 ID 錯）時 `cfStatus: 'error'`，頁面顯示提示，Worker 記一行 `usage_cf_failed`。
+
+Worker 送到 `https://api.cloudflare.com/client/v4/graphql` 的查詢（`CF_USAGE_QUERY`，近 24 小時；D1 是按日的資料集，所以用昨天＋今天的 UTC 日期）：
+
+```graphql
+query TripfolioUsage($account: String!, $since: Time!, $until: Time!, $sinceDate: Date!, $untilDate: Date!) {
+  viewer {
+    accounts(filter: { accountTag: $account }) {
+      workersInvocationsAdaptive(limit: 10000, filter: { datetime_geq: $since, datetime_leq: $until }) {
+        sum { requests }
+      }
+      d1AnalyticsAdaptiveGroups(limit: 10000, filter: { date_geq: $sinceDate, date_leq: $untilDate }) {
+        sum { rowsRead rowsWritten }
+      }
+      durableObjectsPeriodicGroups(limit: 10000, filter: { datetimeMinute_geq: $since, datetimeMinute_leq: $until }) {
+        sum { activeTime }
+      }
+    }
+  }
+}
+```
+
+`activeTime` 是微秒，頁面換成秒，再以每個物件 128 MB 換成 GB-s 對照免費額度。
+
+### 14.3 指標與上限
+
+| 指標 | 來源 | 上限 |
+| --- | --- | --- |
+| 外部 API 今日（photon／nominatim／ors／fx／og） | `apiUsage` 當天 UTC 加總 | ors 2,000、fx 100（代理強制）；photon 5,000、nominatim 2,000、og 1,000（公平使用，自訂預算，只拿來警示） |
+| R2 容量 | `attachments.bytes + thumbBytes`（含尚未清除的已刪附件；不含備份 bucket） | 10 GB；每旅程對照 1.5 GB |
+| D1 今日寫入（估計） | `rateLimits` 今天的計數＋`apiUsage` 今天的計數＋今天的 `expenseHistory` 列（下限） | 100,000 |
+| D1 各表筆數、旅程狀態 | `COUNT(*)`；進行中／封存／已刪（30 天內）／待清除（超過 30 天） | — |
+| Workers 請求、D1 讀寫列數、DO 時數 | Cloudflare GraphQL（14.2） | 100,000 請求、500 萬讀、10 萬寫、13,000 GB-s／日 |
+
+任何指標 ≥ 80% 會出現在 `warnings`、頁面頂端的警示列與該條的「接近上限」（超過 100% 為「超過上限」），並在 Worker 日誌記一行 `{"event":"usage_warning",…}`（`wrangler tail` 看得到）。日誌只在有人打開用量頁時才記；每日 cron 主動檢查還沒做。數 `COUNT(*)` 會掃整張表，算在 D1 讀取裡，這也是限流的原因之一。

@@ -1,4 +1,5 @@
 import type { HealthResponse } from '../shared/health.ts'
+import { adminUsage } from './admin/usage.ts'
 import type { Env } from './env.ts'
 import { ApiError, errorResponse, json } from './http.ts'
 import * as media from './media.ts'
@@ -101,6 +102,8 @@ const api = new Router()
     const body: HealthResponse = { ok: true, version: c.env.APP_VERSION ?? 'local' }
     return json(body)
   })
+  // Operator usage page (e11-t05): ADMIN_KEY in ?key=, worker/admin/usage.ts
+  .add('GET', '/api/admin/usage', adminUsage)
   // Export / import, clone, restore, calendars (e8-t03, e1-t07, e8-t05). Before /api/trips/:id so
   // that /api/trips/deleted is not taken for a trip id
   .add('GET', '/api/trips/deleted', listDeletedTrips)
