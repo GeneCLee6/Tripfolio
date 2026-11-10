@@ -69,8 +69,6 @@ depends_on: [E1, E10]
   - _G2a 進度：表單、五種分法（單元測試）、清單已完成；Playwright 375／1440 從按「＋」到存檔 4 個操作（＋ → 金額 → 餐飲 → 儲存），只是近似 10 秒、未在真手機實測；收據上傳與連行程點有 UI 但未跑 e2e；**離線記帳待 e10-t05**。因此暫不勾。_
 - [ ] AC-7.2 — 多幣別：自動取當日匯率、手動覆寫、批次套用、旅程預設匯率；結算以主幣；分計算以整數分且總和一致（測試）。
   - 進度（e7-t03）：自動匯率已有——每日 cron（約 17:00 UTC，接在備份後）＋記帳時查不到就即時補抓一次；手動覆寫、批次套用（`apply-rate`）、旅程預設匯率在 e7-t01 已完成。**介面未做**（e7-t02 的匯率欄、422 needsRate 提示），所以 AC 還不勾。
-- [ ] AC-7.3 — 公基金：出資、池付、結餘、退還方式二選一、併入結算（測試）。
-- [ ] AC-7.4 — 餘額與結算：餘額即時正確；最少轉帳建議（測試含 2–8 人）；部分結清；結算紀錄。
 - [x] AC-7.3 — 公基金：出資、池付、結餘、退還方式二選一、併入結算（測試）。（`tests/shared/money/balances-settle.test.ts` 按比例／平均／透支；`e2e/balances.spec.ts` 經 API 出資與池付後，介面的結餘、預估退還與每人餘額等於 `GET /balances`，切換退還方式後退還數字改變；出資的新增／編輯／刪除走 Sheet）
 - [x] AC-7.4 — 餘額與結算：餘額即時正確；最少轉帳建議（測試含 2–8 人）；部分結清；結算紀錄。（最少轉帳在 `tests/shared/money/balances-settle.test.ts` 2–8 人；`e2e/balances.spec.ts` 375／1440：每次寫入後重抓 `GET /balances` 且畫面數字一致、部分結清後該筆建議縮小、結算紀錄出現並可刪除還原）
 - [x] AC-7.5 — 統計與匯出：日／類別／人、預算進度、實付 vs 分攤；CSV 在 Excel 正常開。（`e2e/stats.spec.ts` 375／1440：3 人 5 筆跨 3 天，總花費、每人平均、依日每根長條、依類別排序與百分比合計 100、依人實付／應分攤都等於 `GET /expenses/summary`；下載的 CSV 有 UTF-8 BOM、CRLF、每欄加引號，解析回來 5 列且含逗號與引號的說明不變，主幣金額合計等於總額；「含公基金與結算」多兩段。**預算進度待 E9**：目前顯示「尚未設定預算」與停用的進度條；**Excel 只驗格式、未在 Excel 手動開過**。）
@@ -82,15 +80,10 @@ depends_on: [E1, E10]
 
 - [x] `e7-t01` schema（`expenses`、`expenseShares`、`poolContributions`、`settlements`、`expenseHistory`、`fxRates`）；`split()` 與 `balances()` 純函式與測試 · AC-7.1, 7.4 · M · ← e1-t03 · `#G1a`（純函式先前已在 `feat/shared-pure-core` 完成；這次是 migration 0007 與 API）
 - [x] `e7-t03` 匯率：Worker 代理匯率 API、每日快取、手動覆寫與批次套用、旅程預設匯率 · AC-7.2 · S · ← e7-t01 · `#G1b`（自動抓取；手動覆寫、批次套用、旅程預設匯率已在 e7-t01）
-- [ ] `e7-t04` 公基金：出資、池付、結餘卡、退還方式 · AC-7.3 · S · ← e7-t01
-- [ ] `e7-t03` 匯率：Worker 代理匯率 API、每日快取、手動覆寫與批次套用、旅程預設匯率 · AC-7.2 · S · ← e7-t01
 - [x] `e7-t04` 公基金：出資、池付、結餘卡、退還方式 · AC-7.3 · S · ← e7-t01 · `#G3a`（API 在 e7-t01；介面是餘額頁裡的 `PoolCard`：結餘、出資紀錄增改刪、退還方式 `PATCH /pool/settings`、預估退還）
-- [ ] `e7-t02` 記一筆表單（手機優先、數字鍵盤、最近類別、幣別記憶、相機收據、連行程點）＋離線佇列 · AC-7.1 · M · ← e7-t01, e10-t05
-- [ ] `e7-t08` 花費清單頁（依日分組、篩選、搜尋、顯示行程點與收據） · AC-7.1 · S · ← e7-t02
 - [x] `e7-t05` 餘額頁、最少轉帳結算建議、部分結清、結算紀錄 · AC-7.4 · M · ← e7-t01, e7-t04 · `#G3a`（`src/pages/balances/`，掛在 `/trips/:id/expenses/balances`；`BalanceRow`、`SettleCard`、`PoolCard`、`MyBalanceChip`；「怎麼算的」說明餘數與公基金退還）
 - [x] `e7-t02` 記一筆表單（手機優先、數字鍵盤、最近類別、幣別記憶、相機收據、連行程點）＋離線佇列 · AC-7.1 · M · ← e7-t01, e10-t05 · `#G2a`（表單完成；**離線佇列未做**，留給 e10-t05：所有寫入都經 `src/lib/expenses/api.ts` 的 `submitExpense()`，佇列包這一個函式即可）
 - [x] `e7-t08` 花費清單頁（依日分組、篩選、搜尋、顯示行程點與收據） · AC-7.1 · S · ← e7-t02 · `#G2a`
-- [ ] `e7-t05` 餘額頁、最少轉帳結算建議、部分結清、結算紀錄 · AC-7.4 · M · ← e7-t01, e7-t04
 - [x] `e7-t07` 修改歷史與還原、軟刪 · AC-7.6 · S · ← e7-t02 · `#G3b`（`src/pages/expenses/history/`：`HistoryPage` 掛在 `/trips/:id/expenses/history`，整趟金錢紀錄依日分組、可篩花費／公基金／結算、欄位前後對照；「已刪除的花費」可取消刪除；`ExpenseHistorySheet` 列出單筆每一版、確認後還原；清單的列選單（右鍵／長按）有「查看修改紀錄」）
 - [x] `e7-t06` 統計頁（日／類別／人、預算進度、實付 vs 分攤）與 CSV 匯出 · AC-7.5 · M · ← e7-t02 · `#H1a`（`src/pages/stats/` 掛在 `/trips/:id/expenses/stats`；數字全來自 `GET /expenses/summary`；`src/lib/stats/` 純函式（補空白日、最大餘數百分比、實付 vs 分攤、CSV）；元件 `BarList`、`SegmentBar`、`Sparkline`；預算進度等 E9）
 
