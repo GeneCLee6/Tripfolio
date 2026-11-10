@@ -1,5 +1,15 @@
 import type { HealthResponse } from '../shared/health.ts'
 import { adminUsage } from './admin/usage.ts'
+import {
+  authLogout,
+  authMe,
+  authTrips,
+  getMemberLink,
+  googleCallback,
+  googleStart,
+  linkMember,
+  unlinkMember,
+} from './auth-google.ts'
 import type { Env } from './env.ts'
 import { ApiError, errorResponse, json } from './http.ts'
 import * as media from './media.ts'
@@ -139,6 +149,15 @@ const api = new Router()
   .add('GET', '/api/trips/:id', getTrip)
   .add('PATCH', '/api/trips/:id', patchTrip)
   .add('DELETE', '/api/trips/:id', deleteTrip)
+  // Optional Google sign-in (e1-t06): worker/auth-google.ts, DEPLOY.md §13
+  .add('GET', '/api/auth/google/start', googleStart)
+  .add('GET', '/api/auth/google/callback', googleCallback)
+  .add('GET', '/api/auth/me', authMe)
+  .add('POST', '/api/auth/logout', authLogout)
+  .add('POST', '/api/auth/trips', authTrips)
+  .add('GET', '/api/trips/:id/members/me/link', getMemberLink)
+  .add('POST', '/api/trips/:id/members/me/link', linkMember)
+  .add('DELETE', '/api/trips/:id/members/me/link', unlinkMember)
   // Members, invites, joining
   .add('POST', '/api/trips/:id/members', createMember)
   .add('PATCH', '/api/trips/:id/members/:mid', patchMember)

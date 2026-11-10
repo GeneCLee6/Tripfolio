@@ -8,6 +8,8 @@ import { PlusIcon } from '../components/icons.tsx'
 import { Page } from '../app/TopBar.tsx'
 import { tripPath } from '../app/sections.ts'
 import { api } from '../lib/api.ts'
+import { AccountBar } from '../lib/auth/AccountBar.tsx'
+import { syncAuthTrips } from '../lib/auth/auth.ts'
 import { safeColor } from '../lib/colors.ts'
 import { errorMessageKey } from '../lib/errors.ts'
 import { useMediaQuery, useNow, useResource } from '../lib/hooks.ts'
@@ -173,7 +175,10 @@ export default function TripListPage() {
   const navigate = useNavigate()
   const wide = useMediaQuery(media.tablet)
   const [creating, setCreating] = useState(false)
-  const resource = useResource('trips', (signal) => api.listTrips(signal))
+  // Signed in with Google (e1-t06): first store the tokens minted for the account's linked trips
+  const resource = useResource('trips', (signal) =>
+    syncAuthTrips().then(() => api.listTrips(signal)),
+  )
   const nowMs = useNow()
 
   const startCreate = () => (wide ? setCreating(true) : navigate('/trips/new'))
@@ -242,6 +247,7 @@ export default function TripListPage() {
           lead={t('trips.intro')}
           actions={hasTrips ? newButton : undefined}
         />
+        <AccountBar />
         {content}
       </Stack>
       <TripFormDialog

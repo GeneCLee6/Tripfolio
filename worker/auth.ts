@@ -120,3 +120,106 @@ export async function authTrip(
   if (minRole !== 'viewer' && !allowArchived) requireWritable(auth)
   return auth
 }
+
+// ---- Google sign-in sessions (e1-t06, worker/auth-google.ts) ----------------------------------
+// A session is optional and never replaces the memberToken: it only lists the account's trips and
+// links the account to members. The tf_session cookie holds a 128-bit random value (same shape as
+// a memberToken); D1 stores its SHA-256 as sessions.id.
+
+export const SESSION_COOKIE = 'tf_session'
+/** 30 days, sliding: a session used again after a day gets another 30 days */
+export const SESSION_TTL_MS = 30 * 24 * 3600 * 1000
+const SESSION_SLIDE_AFTER_MS = 24 * 3600 * 1000
+
+/** The clock for sessions and OAuth checks, swappable in tests */
+export const sessionDeps = { now: () => Date.now() }
+
+/** One cookie's value from the Cookie header, or null */
+export function readCookie(request: Request, name: string): string | null {
+  const header = request.headers.get('cookie')
+  if (!header) return null
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=')
+    if (eq < 0) continue
+    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim()
+  }
+  return null
+}
+
+/** A Set-Cookie value with the flags every auth cookie carries */
+export function authCookie(name: string, value: string, maxAgeS: number, path = '/'): string {
+  return `${name}=${value}; Max-Age=${maxAgeS}; Path=${path}; HttpOnly; Secure; SameSite=Lax`
+}
+
+export const sessionCookie = (value: string, maxAgeS = SESSION_TTL_MS / 1000) =>
+  authCookie(SESSION_COOKIE, value, maxAgeS)
+
+export const clearSessionCookie = () => authCookie(SESSION_COOKIE, '', 0)
+
+export interface SessionUser {
+  id: string
+  email: string | null
+  name: string | null
+  picture: string | null
+}
+
+export interface SessionAuth {
+  user: SessionUser
+  /** sessions.id: the cookie's hash */
+  sessionId: string
+  /** The raw cookie value (only to re-set the cookie when the session slid) */
+  cookie: string
+  /** True when this lookup extended expiresAt: the caller should re-send the cookie */
+  slid: boolean
+}
+
+/**
+ * tf_session cookie → the signed-in user, or null when there is no cookie, it is malformed, unknown
+ * or expired. Slides the expiry when the session was last extended more than a day ago.
+ */
+export async function resolveSession(
+  db: D1Database,
+  request: Request,
+): Promise<SessionAuth | null> {
+  const cookie = readCookie(request, SESSION_COOKIE)
+  if (!cookie || !isTokenShaped(cookie)) return null
+  const sessionId = await hashToken(cookie)
+  const now = sessionDeps.now()
+  const row = await db
+    .prepare(
+      `SELECT s.id AS sessionId, s.expiresAt AS expiresAt, u.id AS id, u.email AS email,
+              u.name AS name, u.picture AS picture
+         FROM sessions s JOIN users u ON u.id = s.userId
+        WHERE s.id = ? AND s.expiresAt > ?`,
+    )
+    .bind(sessionId, new Date(now).toISOString())
+    .first<Row>()
+  if (!row || !timingSafeEqual(String(row.sessionId), sessionId)) return null
+  let slid = false
+  if (Date.parse(String(row.expiresAt)) - now < SESSION_TTL_MS - SESSION_SLIDE_AFTER_MS) {
+    await db
+      .prepare('UPDATE sessions SET expiresAt = ? WHERE id = ?')
+      .bind(new Date(now + SESSION_TTL_MS).toISOString(), sessionId)
+      .run()
+    slid = true
+  }
+  const text = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null)
+  return {
+    user: {
+      id: String(row.id),
+      email: text(row.email),
+      name: text(row.name),
+      picture: text(row.picture),
+    },
+    sessionId,
+    cookie,
+    slid,
+  }
+}
+
+/** The session or 401 `unauthorized` */
+export async function requireSession(db: D1Database, request: Request): Promise<SessionAuth> {
+  const session = await resolveSession(db, request)
+  if (!session) throw unauthorized('not signed in')
+  return session
+}

@@ -201,6 +201,22 @@ export const zhTW = {
   // Share links (e1-t05)
   // shares.* → shared/i18n/pages/settings.*.ts (lazy)
 
+  'auth.signIn': '用 Google 登入，換手機也找得到旅程',
+  'auth.signedInAs': '已登入：{name}',
+  'auth.signOut': '登出',
+  'auth.failed': 'Google 登入沒有完成，請再試一次。',
+  'auth.account.title': '帳號',
+  'auth.account.body': '登入 Google 並把這個身分綁到帳號後，換手機登入同一個帳號，就會在旅程清單看到這趟旅程，並以這個身分繼續。',
+  'auth.account.google': 'Google 帳號',
+  'auth.account.signIn': '用 Google 登入',
+  'auth.account.link': '把這個身分綁到我的 Google 帳號',
+  'auth.account.linked': '「{name}」已綁定到 {account}。',
+  'auth.account.linkedToOther': '你的帳號目前綁的是這趟旅程的另一位成員；綁定這個身分會取代它。',
+  'auth.account.unlink': '解除綁定',
+  'auth.account.linkDone': '已綁定到你的 Google 帳號',
+  'auth.account.unlinkDone': '已解除綁定',
+  'auth.account.loadError': '讀不到綁定狀態，請稍後再試。',
+
   'member.you': '你',
   'role.owner': '擁有者',
   'role.editor': '編輯者',

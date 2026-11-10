@@ -47,7 +47,11 @@
     "PHOTON_URL": "https://photon.komoot.io/api/",
     "NOMINATIM_URL": "https://nominatim.openstreetmap.org/search",
     "ORS_URL": "https://api.openrouteservice.org",
-    "FX_API_URL": "https://open.er-api.com"
+    "FX_API_URL": "https://open.er-api.com",
+    // Optional Google sign-in (e1-t06, DEPLOY.md §13): empty client id = off. The client secret is
+    // a secret: `npx wrangler secret put GOOGLE_CLIENT_SECRET`. APP_ORIGIN builds the redirect_uri
+    "GOOGLE_CLIENT_ID": "",
+    "APP_ORIGIN": "https://tripfolio.genelee-pro.workers.dev"
   },
   // Staging and pull request previews (DEPLOY.md §2): separate Workers, so each has its own Durable
   // Object storage and never touches production's. Bindings and vars are not inherited from the
@@ -82,7 +86,11 @@
         "PHOTON_URL": "https://photon.komoot.io/api/",
         "NOMINATIM_URL": "https://nominatim.openstreetmap.org/search",
         "ORS_URL": "https://api.openrouteservice.org",
-        "FX_API_URL": "https://open.er-api.com"
+        "FX_API_URL": "https://open.er-api.com",
+        // Google sign-in only works on this staging origin (PR previews have their own hosts,
+        // which are not registered redirect URIs)
+        "GOOGLE_CLIENT_ID": "",
+        "APP_ORIGIN": "https://tripfolio-preview.genelee-pro.workers.dev"
       }
     }
   }

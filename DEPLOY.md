@@ -166,7 +166,7 @@ npx wrangler rollback <version-id> --message "rollback: <原因>"
 | 名稱 | 批次 | 用途 |
 | --- | --- | --- |
 | `ORS_API_KEY` | B2 之前 | OpenRouteService 路線（擁有者註冊後 `npx wrangler secret put ORS_API_KEY`） |
-| Google OAuth 用戶端 | H3 | Google 登入（選用） |
+| `GOOGLE_CLIENT_SECRET` | H3（e1-t06） | Google 登入（選用）；用戶端 ID 是 `wrangler.jsonc` 的 var `GOOGLE_CLIENT_ID`，見 §13 |
 
 只用 `wrangler secret put` 放在 Worker，**不進前端、不進 repo**。PR 預覽是每次新建的 Worker，不會自動有這些 secret；需要時由該批次在 `preview.yml` 加一步，沒設定就 notice 跳過。
 
@@ -390,3 +390,46 @@ query TripfolioUsage($account: String!, $since: Time!, $until: Time!, $sinceDate
 | Workers 請求、D1 讀寫列數、DO 時數 | Cloudflare GraphQL（14.2） | 100,000 請求、500 萬讀、10 萬寫、13,000 GB-s／日 |
 
 任何指標 ≥ 80% 會出現在 `warnings`、頁面頂端的警示列與該條的「接近上限」（超過 100% 為「超過上限」），並在 Worker 日誌記一行 `{"event":"usage_warning",…}`（`wrangler tail` 看得到）。日誌只在有人打開用量頁時才記；每日 cron 主動檢查還沒做。數 `COUNT(*)` 會掃整張表，算在 D1 讀取裡，這也是限流的原因之一。
+
+## 13. Google 登入（選用，e1-t06）
+
+程式已在（`worker/auth-google.ts`、`migrations/0010_users.sql`），**預設關閉**：`GOOGLE_CLIENT_ID` 是空字串時 `/api/auth/google/start` 與 `/api/auth/me` 回 503 `auth_disabled`，前端完全不顯示登入按鈕與設定頁「帳號」卡。三樣都設好才會開：`GOOGLE_CLIENT_ID`（var）、`GOOGLE_CLIENT_SECRET`（secret）、`APP_ORIGIN`（var，已填）。
+
+### 13.1 Google Cloud Console（擁有者做一次）
+
+1. <https://console.cloud.google.com/> 建一個專案（例如 `tripfolio`）。
+2. 「APIs & Services → OAuth consent screen」（新版叫 Google Auth Platform → Branding／Audience／Data access）：User type **External**；App name「旅誌 Tripfolio」、support email、developer email；scopes 只要 `openid`、`.../auth/userinfo.email`、`.../auth/userinfo.profile`（都是非敏感，不需審核）。發布狀態可以留在 **Testing** 並把朋友的 Gmail 加進 Test users（上限 100 人，但 Testing 狀態的授權 7 天會過期要重登）；要免重登就按 **Publish app**（只用基本 scope，不用送審）。
+3. 「Credentials → Create credentials → OAuth client ID」：Application type **Web application**。
+   - Authorized JavaScript origins：`https://tripfolio.genelee-pro.workers.dev`（staging 要測再加 `https://tripfolio-preview.genelee-pro.workers.dev`）。
+   - **Authorized redirect URIs**（要一字不差）：
+     - `https://tripfolio.genelee-pro.workers.dev/api/auth/google/callback`
+     - （選用）`https://tripfolio-preview.genelee-pro.workers.dev/api/auth/google/callback`
+4. 記下 Client ID（`…apps.googleusercontent.com`）與 Client secret。
+
+### 13.2 放進 Worker
+
+```sh
+# Client ID 不是祕密：寫進 wrangler.jsonc 的 vars.GOOGLE_CLIENT_ID（頂層＝正式；env.preview 也有一份）走 PR
+# Client secret 是祕密：
+npx wrangler secret put GOOGLE_CLIENT_SECRET               # 正式
+npx wrangler secret put GOOGLE_CLIENT_SECRET --env preview # staging（要測才放）
+```
+
+`APP_ORIGIN` 已在 `wrangler.jsonc`（正式 `https://tripfolio.genelee-pro.workers.dev`、preview `https://tripfolio-preview.genelee-pro.workers.dev`）；網址若改了要同時改這裡與 Console 的 redirect URI。`redirect_uri` 與登入後的跳轉一律由 `APP_ORIGIN` 組，不看請求的 host。**PR 預覽**（`tripfolio-pr-<號>`）的網址不在 redirect URI 清單上、也沒有 secret，所以預覽站上登入一律關閉；要測就用 staging。`GOOGLE_CLIENT_SECRET` 同時是 OAuth state cookie 的 HMAC 金鑰，換 secret 只會讓正在登入中（10 分鐘內）的人要重按一次。
+
+### 13.3 行為與安全
+
+- 流程：`GET /api/auth/google/start` → 302 到 Google（`scope=openid email profile`、`state`、`nonce`、PKCE S256；三者放在簽章過的 `tf_oauth` cookie，10 分鐘，`Path=/api/auth/google`）→ `GET /api/auth/google/callback` 驗 state、用 `GOOGLE_CLIENT_SECRET`＋`code_verifier` 換 token、用 Google JWKS（快取依 `max-age`）驗 `id_token` 的簽章、`iss`、`aud`、`exp`、`nonce` → upsert `users` → 建 `sessions`（30 天、使用就延長）→ `tf_session` cookie `HttpOnly; Secure; SameSite=Lax; Path=/` → 302 回 `APP_ORIGIN/`。失敗回 `/?signin=failed`（清單頁顯示「Google 登入沒有完成」）。
+- `GET /api/auth/me`、`POST /api/auth/logout`、`POST /api/auth/trips`（列出帳號綁定的旅程；這台裝置還沒有該旅程有效 token 的，**當場發一個新的 memberToken**，所以換手機登入就找得回；每帳號 10 次／分）、`GET/POST/DELETE /api/trips/:id/members/me/link`（memberToken＋session，把「這台裝置在這趟旅程的身分」綁到帳號；每帳號每趟旅程一位）。`/api/auth/trips` 用 POST 而非 GET：`SameSite=Lax` 只擋跨站的非 GET，發 token 的請求不該能被跨站導覽觸發。
+- 登入**不取代** memberToken：每個 `/api/trips/:id/*` 仍要 Bearer token。log 只記失敗原因代碼，不記 code、token、email。D1 只存 session cookie 的 SHA-256。
+- 限流：start／callback 每 IP 30 次／分（`ip:auth-google:*`），`/api/auth/trips` 每帳號 10 次／分（`user:auth-trips:*`），都在同一張 `rateLimits`。
+- **清理（留給 cleanup cron，e11-t06 的後續）**：`DELETE FROM sessions WHERE expiresAt < now`；`userMembers` 沒有 tripId 與外鍵（旅程清除刪 members 時不會被擋），孤兒用 `DELETE FROM userMembers WHERE memberId NOT IN (SELECT id FROM members)` 掃掉。現在不清也不影響正確性（過期 session 查不到、孤兒連結 join 不到成員）。
+
+### 13.4 上線後驗證（AC-1.4 要做完這段才能勾）
+
+1. `curl -s $BASE/api/auth/me` → 設定前 503 `auth_disabled`；設定後 401 `unauthorized`。
+2. 手機 A：清單頁按「用 Google 登入，換手機也找得到旅程」→ 選帳號 → 回到清單、顯示頭像與名字。
+3. 進一趟旅程 → 設定 →「帳號」卡 →「把這個身分綁到我的 Google 帳號」→ 顯示「已綁定到 <email>」。
+4. 手機 B（或無痕視窗，沒有任何 token）：登入同一個帳號 → 清單出現那趟旅程，點進去身分是同一位成員。
+5. 登出 → 按鈕回來；`tf_session` cookie 消失（DevTools → Application → Cookies）。
+

@@ -194,6 +194,22 @@ export const en: Record<AppMessageKey, string> = {
   // Share links (e1-t05)
   // shares.* → shared/i18n/pages/settings.*.ts (lazy)
 
+  'auth.signIn': 'Sign in with Google to find your trips on any phone',
+  'auth.signedInAs': 'Signed in as {name}',
+  'auth.signOut': 'Sign out',
+  'auth.failed': 'Google sign-in did not finish. Please try again.',
+  'auth.account.title': 'Account',
+  'auth.account.body': 'Sign in with Google and link this identity to your account: on a new phone, sign in with the same account and this trip shows up in your list, as this person.',
+  'auth.account.google': 'Google account',
+  'auth.account.signIn': 'Sign in with Google',
+  'auth.account.link': 'Link this identity to my Google account',
+  'auth.account.linked': '“{name}” is linked to {account}.',
+  'auth.account.linkedToOther': 'Your account is linked to another member of this trip; linking this identity replaces it.',
+  'auth.account.unlink': 'Unlink',
+  'auth.account.linkDone': 'Linked to your Google account',
+  'auth.account.unlinkDone': 'Unlinked',
+  'auth.account.loadError': 'Could not load the link status. Try again later.',
+
   'member.you': 'You',
   'role.owner': 'Owner',
   'role.editor': 'Editor',

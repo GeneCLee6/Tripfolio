@@ -9,6 +9,7 @@ import { useTripContext } from '../app/trip-context.ts'
 import { api } from '../lib/api.ts'
 import { useMediaQuery } from '../lib/hooks.ts'
 import { useT } from '../lib/i18n.ts'
+import { AccountSection } from '../lib/auth/AccountSection.tsx'
 import { useApiErrorToast, useCan } from '../lib/role.ts'
 import { color, font, fontSize, media, space } from '../styles/tokens.ts'
 import { IdentitySection } from './members/IdentitySection.tsx'
@@ -195,6 +196,9 @@ export default function TripSettingsPage() {
           }}
         />
       )}
+
+      {/* Google account link (e1-t06) */}
+      <AccountSection />
     </Stack>
   )
 }

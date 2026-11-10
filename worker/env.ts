@@ -34,4 +34,12 @@ export interface Env {
   /** The Cloudflare account id for the analytics query (var or secret; either name works) */
   CF_ACCOUNT_ID?: string
   CLOUDFLARE_ACCOUNT_ID?: string
+  /** Google OAuth client id (wrangler var; empty = Google sign-in off, e1-t06, DEPLOY.md §13) */
+  GOOGLE_CLIENT_ID?: string
+  /** Google OAuth client secret, a secret: `npx wrangler secret put GOOGLE_CLIENT_SECRET`. Also keys
+   * the HMAC of the short-lived OAuth state cookie. Without it sign-in stays off */
+  GOOGLE_CLIENT_SECRET?: string
+  /** The site's own origin (wrangler var), e.g. https://tripfolio.genelee-pro.workers.dev: the
+   * OAuth redirect_uri and the post-login redirect are built from it, never from the request */
+  APP_ORIGIN?: string
 }
