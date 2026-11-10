@@ -3,6 +3,11 @@
 // react-router-dom, which the share page must not load. PhotoUploader too: it pulls in the upload
 // pipeline and zod (shared/schema), which must stay out of the app's first screen.
 export { amountText, initialOf, parseAmount } from './text.ts'
+export {
+  AttachmentList,
+  type AttachmentListItem,
+  type AttachmentListProps,
+} from './AttachmentList.tsx'
 export { Avatar, AvatarGroup } from './Avatar.tsx'
 export { BackupGroup, type BackupGroupProps } from './BackupGroup.tsx'
 export { BalanceRow, type BalanceRowProps, type BalanceTone } from './BalanceRow.tsx'

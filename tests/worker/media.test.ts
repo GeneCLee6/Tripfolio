@@ -405,6 +405,32 @@ describe('content upload', () => {
 })
 
 describe('list, patch, delete, usage', () => {
+  it('filters by bookingId / lodgingId (e4-t04 confirmations)', async () => {
+    const s = await setup()
+    const forBooking = await upload(s, {
+      kind: 'document',
+      mime: 'application/pdf',
+      size: 30,
+      extra: { bookingId: 'bk_1' },
+    })
+    const forLodging = await upload(s, {
+      kind: 'document',
+      mime: 'image/png',
+      size: 20,
+      extra: { lodgingId: 'lg_1' },
+    })
+    await upload(s)
+    const list = (q: string) =>
+      call<AttachmentListResponse>('GET', `${s.base}/attachments${q}`, s.viewer).then((r) =>
+        r.body.attachments.map((x) => x.id),
+      )
+    expect(await list('?bookingId=bk_1')).toEqual([forBooking.attachment.id])
+    expect(await list('?lodgingId=lg_1')).toEqual([forLodging.attachment.id])
+    expect(await list('?kind=document&lodgingId=lg_1')).toEqual([forLodging.attachment.id])
+    expect(await list('?lodgingId=other')).toEqual([])
+    expect((await call('GET', `${s.base}/attachments?bookingId=`, s.viewer)).status).toBe(422)
+  })
+
   it('filters by kind/day/stop, moves, changes visibility and soft-deletes', async () => {
     const s = await setup()
     const [day1, day2] = s.dayIds

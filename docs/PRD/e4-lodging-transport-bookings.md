@@ -49,8 +49,8 @@ depends_on: [E2, E3, E6]
 ## 驗收條件
 
 - [x] AC-4.1 — 住宿：多晚一筆、日程頁每日顯示今晚住宿與退房時間、付款狀態與取消期限；露營車欄位。（`e2e/bookings.spec.ts` 375／1440：從 Day 1「還沒安排住宿」加兩晚假日公園＋有電 → Day 1／2 今晚住、Day 3 退房 10:00；預訂總覽顯示未付與取消期限）
-- [ ] AC-4.2 — 交通預訂：航班／租車／渡輪／鐵路／巴士表單、自動行程點（跨日班機兩天）、改預訂同步行程點。（表單全做了；e2e 驗了跨日班機兩天各一個行程點、包車兩天兩個、刪除時保留行程點；租車／渡輪／鐵路／巴士表單只有 `tests/src/bookings/form.test.ts` 的 body 對應，改預訂同步只有 Worker 測試——補一段「編輯租車改日期 → 行程點跟著移」的 e2e 再勾）
-- [ ] AC-4.3 — 附件：上傳與預覽；分享頁可隱藏。
+- [x] AC-4.2 — 交通預訂：航班／租車／渡輪／鐵路／巴士表單、自動行程點（跨日班機兩天）、改預訂同步行程點。（表單全做了；e2e 驗了跨日班機兩天各一個行程點、包車兩天兩個、刪除時保留行程點；租車／渡輪／鐵路／巴士表單只有 `tests/src/bookings/form.test.ts` 的 body 對應，改預訂同步只有 Worker 測試——補一段「編輯租車改日期 → 行程點跟著移」的 e2e 再勾）（#H1c 補上：`e2e/bookings.spec.ts` 375／1440 編輯租車，取車／還車日期各延一天 → `pickup`／`dropoff` 行程點從 Day 1／3 移到 Day 2／4）
+- [x] AC-4.3 — 附件：上傳與預覽；分享頁可隱藏。（#F1c：住宿與預訂表單的「確認信／附件」區，走 E6 通道 `kind:'document'`＋`lodgingId`／`bookingId`，`GET /attachments?bookingId=|lodgingId=` 篩選；`AttachmentList` 列出類型／大小／日期，點開以 `fetchBlob` → object URL 開新分頁，可刪除；標示「不會出現在分享頁」。文件一律 members-only、分享頁 payload 不含（`e2e/bookings.spec.ts` 375／1440：上傳 PDF → 列出 → 開啟 → `/api/share/<token>` 沒有它的 id、`?s=` 讀不到 → 刪除）
 - [x] AC-4.4 — 期限：取消／付款／入住截止在首頁「即將到期」列出，排序正確。（排序由 Worker 決定、`tests/worker/bookings.test.ts`；首頁 e2e 看到住宿的付款、取消期限、入住三列與「3 天後」；`includePast` 切換「顯示已過期」）
 - [x] AC-4.5 — 時區：航班兩地時間並列且正確（含跨日）；有測試。（`tests/src/bookings/form.test.ts`：SYD→AKL 跨日、TPE→AKL、NZ 夏令結束；e2e：TPE 13:00 GMT+8 → 05:00 (+1 天) GMT+13，存的 UTC 相差 11 小時）
 
@@ -64,13 +64,13 @@ depends_on: [E2, E3, E6]
   - `src/pages/bookings/LodgingLine.tsx`（日程標頭：今晚住＋入住時間、營地類型與設施、價格、連住第幾晚；退房日「退房 10:00」；沒有就「今晚住：— · 還沒安排住宿」，點了開 `LodgingSheet`）；`src/lib/bookings/lodging-store.ts`（一趟一次 `GET /lodgings` 補設施等欄位；存檔後重讀 `/days` 覆蓋各天的 `lodging`／`checkout`，離開日程就丟掉——日程頁自己的資料不會被通知）；衝突以 toast 告知；預訂總覽 `/trips/:id/bookings` 住宿／交通／活動三組。
 - [x] `e4-t03` 交通預訂表單（航班／租車／包車／渡輪與船班／鐵路／巴士）、自動行程點與同步、時區並列與測試 · AC-4.2, 4.5 · M · ← e2-t03, e4-t01 · #D3b／#F1a
   - `BookingSheet`（lazy；先選類型再依 type 給欄位；航班出發／抵達各自時區 Select、預設旅程時區，其他 type 用旅程時區；前端算好 UTC＋`startTz`／`endTz` 送出；`bookingCreateSchema` 驗證）；存檔 toast 列出建立的行程點（`stops[].slot`）與 `skippedDates`；刪除問「保留自動建立的行程點？」→ `?keepStops=1`；「誰先付」只顯示、一鍵記帳按鈕停用等 e4-t06；金額在有匯率時附主幣別約值。
-- [ ] `e4-t04` 附件上傳與預覽（走 E6 通道）、分享頁隱藏 · AC-4.3 · S · ← e6-t01, e4-t02
+- [x] `e4-t04` 附件上傳與預覽（走 E6 通道）、分享頁隱藏 · AC-4.3 · S · ← e6-t01, e4-t02 · #F1c（附件沒有存檔名，列表以「PDF 文件 N／圖片 N」稱呼；要檔名得加欄位）
 - [x] `e4-t05` 期限清單與首頁「即將到期」 · AC-4.4 · S · ← e4-t02, e4-t03 · #D3b／#F1a
   - `DeadlinesBlock`：`/deadlines?withinDays=14`、「顯示已過期」加 `includePast=1`；每列類型圖示、取消期限／付款／入住 chip、`Intl.RelativeTimeFormat` 的「3 天後」／「已過 2 天」，點了到預訂總覽。
 
 ### M2
 
-- [ ] `e4-t06` 預訂總覽表與「誰先付 → 建立花費」 · AC-4.1 · S · ← e7-t02, e4-t03
+- [x] `e4-t06` 預訂總覽表與「誰先付 → 建立花費」 · AC-4.1 · S · ← e7-t02, e4-t03 · #H1c（每列「誰先付 → 記帳」：選成員或公基金 → 記一筆表單預填金額／幣別、類別（住宿 lodging、航班租車包車渡輪鐵路巴士 transport、活動 tickets）、說明＝標題、日期＝入住日或出發當地日、`bookingId`；住宿沒有自己的欄位，`bookingId` 放住宿 id。`GET /expenses` 沒有 bookingId 篩選，「已記帳」由前端從清單判斷。e2e 375／1440）
 
 ## 風險與對策
 

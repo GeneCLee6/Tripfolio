@@ -53,8 +53,9 @@ depends_on: [E1, E3, E6]
 - [x] AC-5.1 — 項目：所有欄位可編、照片與地點可選、狀態流轉正確。（#D2：表單在細節欄／Sheet；照片走 e6-t01 通道、地點用 PlacePicker；完成／改回／放棄／恢復與排入／拉回在 `e2e/picks.spec.ts` 375／1440 驗過）
 - [ ] AC-5.2 — 檢視：卡片牆、依類別／地區／日程分組、地圖層。（#D2：卡片牆、依類別／依日程分組、地圖 picks 圖層已接；**依地區（最近的住宿城市）未做**，等 E4 住宿 UI）
 - [x] AC-5.3 — 投票與認領：按想去顯示誰想去、可依票數排序；購物項目可認領與填數量。（#D2，`e2e/picks.spec.ts`）
-- [ ] AC-5.4 — 排進日程與記帳：拖入日程建行程點並保留連結；完成可一鍵帶出記帳表單。（#D2：從卡片「排進這天」建行程點並互指、「拉回口袋名單」刪行程點，已驗；日程側拖曳與完成一鍵記帳待 e2-t04／e5-t05）
+- [x] AC-5.4 — 排進日程與記帳：拖入日程建行程點並保留連結；完成可一鍵帶出記帳表單。（#D2：從卡片「排進這天」建行程點並互指、「拉回口袋名單」刪行程點，已驗；日程側拖曳與完成一鍵記帳待 e2-t04／e5-t05）
   - 進度（#C1p／#H1b 部分）：日程側口袋名單拖入／排進已完成並驗證（見 E2 AC-2.5）；來自項目的行程點有「必吃必買」標籤連回必吃必買頁（`?item=<id>` 開細節），項目完成時行程點名稱前有 ✓（Playwright 375／1440 驗證）。預填對應已寫成純函式 `src/lib/picks/expense.ts`（金額＝預估價與幣別、備註＝名稱、類別 eat→food、buy→shopping、see／experience→tickets、`wishlistItemId`、`stopId`）並有單元測試。**一鍵記帳未接**：`ExpenseFormSheet` 沒有預填（`initial`）prop，表單（`src/lib/expenses/form.ts`）也沒有 `wishlistItemId` 欄位，要先由 E7 的負責批次補上，所以本 AC 與 e5-t05 不勾。
+  - #H1b 補齊：`ExpenseFormSheet` 加 `initial` prop（`src/lib/expenses/form.ts` 的 `withInitial()`；表單與 `toCreateBody` 多 `wishlistItemId`／`bookingId`）。卡片 ⋯ 選單與細節欄的「完成並記帳」開出預填的記一筆表單，**存檔後**才 PATCH `status:'done'`，取消則狀態不變；「標記完成（不記帳）」保留舊行為。`e2e/picks.spec.ts` 375／1440：取消 → 仍是想去；從細節欄完成並記帳 → 金額 18.00 NZD、說明、類別餐飲預填 → 儲存 → 卡片已完成、`GET /expenses` 那筆帶 `wishlistItemId`。分攤沿用表單預設（我付、全員平分），需求裡「依類別預填只有我／全員」未做。
 
 ## Task 拆分
 
@@ -70,7 +71,7 @@ depends_on: [E1, E3, E6]
 
 ### M2
 
-- [ ] `e5-t05` 排進日程的狀態同步與完成一鍵記帳 · AC-5.4 · S · ← e2-t07, e7-t02
+- [x] `e5-t05` 排進日程的狀態同步與完成一鍵記帳 · AC-5.4 · S · ← e2-t07, e7-t02 · #C1p／#H1b
 
 ## 風險與對策
 

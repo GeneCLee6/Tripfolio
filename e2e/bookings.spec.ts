@@ -15,6 +15,11 @@ async function shot(page: Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
 }
 
+// A minimal one-page PDF, so the upload needs no fixture file
+const PDF = Buffer.from(
+  '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
+)
+
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
 const START = 10
 
@@ -180,5 +185,226 @@ for (const [label, width, height] of [
       const block = await dayBlock(page, n, desktop)
       await expect(block.locator('[data-stop-id]').filter({ hasText: 'CI 53 TPE→AKL' })).toHaveCount(1)
     }
+  })
+}
+
+// e4-t06, e4-t04, AC-4.2: 誰先付 → 記帳 on a rental (Mei paid) and a lodging (the pool paid) →
+// expenses linked by bookingId and 「已記帳」 badges; editing the rental's dates moves its stops; a
+// confirmation PDF on the lodging is listed, opens in a new tab, and is absent from the share
+// payload — at phone and desktop widths.
+for (const [label, width, height] of [
+  ['phone', 375, 812],
+  ['desktop', 1440, 900],
+] as const) {
+  test(`${label}: who paid → expense, rental dates move stops, lodging attachment`, async ({
+    page,
+    request,
+    context,
+  }) => {
+    await page.setViewportSize({ width, height })
+    const created = await request.post('/api/trips', {
+      data: {
+        name: `Booking money ${label}`,
+        destination: 'New Zealand',
+        startDate: inDays(START),
+        endDate: inDays(START + 3),
+        tz: 'Pacific/Auckland',
+        localCurrencies: ['NZD'],
+        style: 'campervan',
+        owner: { name: 'Gene', color: '#0F6E74' },
+      },
+    })
+    expect(created.status()).toBe(201)
+    const { trip, memberToken, days } = (await created.json()) as {
+      trip: { id: string }
+      memberToken: string
+      days: { id: string; idx: number | null }[]
+    }
+    const dayId = (n: number) => days.find((day) => day.idx === n)!.id
+    const headers = { authorization: `Bearer ${memberToken}` }
+    const api = (path: string) => `/api/trips/${trip.id}${path}`
+    const mei = await request.post(api('/members'), {
+      headers,
+      data: { name: 'Mei', color: '#B5654A' },
+    })
+    const meiId = ((await mei.json()) as { member: { id: string } }).member.id
+    const fx = await request.put(api('/fx/overrides'), { headers, data: { NZD: 0.91 } })
+    expect(fx.ok()).toBe(true)
+    const rentalRes = await request.post(api('/bookings'), {
+      headers,
+      data: {
+        type: 'rental',
+        title: 'Jucy Condo',
+        details: { company: 'Jucy', vehicle: 'Condo' },
+        startLocal: `${inDays(START)}T10:00`,
+        endLocal: `${inDays(START + 2)}T16:00`,
+        priceMinor: 60000,
+        currency: 'NZD',
+        payerMemberId: meiId,
+      },
+    })
+    expect(rentalRes.status()).toBe(201)
+    const rental = ((await rentalRes.json()) as { booking: { id: string } }).booking
+    const lodgingRes = await request.post(api('/lodgings'), {
+      headers,
+      data: {
+        name: 'Lake Tekapo Motels',
+        checkIn: inDays(START),
+        checkOut: inDays(START + 2),
+        priceMinor: 32000,
+        currency: 'NZD',
+      },
+    })
+    expect(lodgingRes.status()).toBe(201)
+    const lodging = ((await lodgingRes.json()) as { lodging: { id: string } }).lodging
+    await page.addInitScript(
+      ([id, value]) =>
+        localStorage.setItem('tripfolio.memberTokens', JSON.stringify({ [id]: value })),
+      [trip.id, memberToken],
+    )
+    await page.goto(`/trips/${trip.id}/bookings`)
+    const rentalRow = page.locator(`[data-booking-row="${rental.id}"]`)
+    const lodgingRow = page.locator(`[data-booking-row="${lodging.id}"]`)
+    await expect(rentalRow).toContainText('Mei 先付')
+    await expect(rentalRow.locator('[data-expense-logged]')).toHaveCount(0)
+    const expenseSheet = page.getByRole('dialog', { name: '記一筆' })
+
+    // 1. The rental: Mei is preselected (the booking's payer) → the sheet is prefilled → save
+    await rentalRow.getByRole('button', { name: '「Jucy Condo」誰先付 → 記帳' }).click()
+    let who = page.getByRole('dialog', { name: '「Jucy Condo」誰先付？' })
+    await expect(who.getByRole('radio', { name: 'Mei' })).toHaveAttribute('aria-checked', 'true')
+    await who.getByRole('button', { name: '下一步：記一筆' }).click()
+    await expect(expenseSheet).toBeVisible()
+    await expect(expenseSheet.getByLabel('金額')).toHaveValue('600.00')
+    await expect(expenseSheet.getByLabel('幣別')).toHaveValue('NZD')
+    await expect(expenseSheet.getByLabel('說明')).toHaveValue('Jucy Condo')
+    await expect(expenseSheet.getByRole('radio', { name: '交通' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await shot(page, `${label}-booking-expense`)
+    await expenseSheet.getByRole('button', { name: '儲存' }).click()
+    await expect(expenseSheet).toBeHidden()
+    await expect(rentalRow.locator('[data-expense-logged]')).toContainText('已記帳')
+
+    // 2. The lodging: the pool paid
+    await lodgingRow.getByRole('button', { name: '「Lake Tekapo Motels」誰先付 → 記帳' }).click()
+    who = page.getByRole('dialog', { name: '「Lake Tekapo Motels」誰先付？' })
+    await expect(who.getByRole('radio', { name: 'Gene' })).toHaveAttribute('aria-checked', 'true')
+    await who.getByRole('radio', { name: '公基金' }).click()
+    await who.getByRole('button', { name: '下一步：記一筆' }).click()
+    await expect(expenseSheet.getByLabel('金額')).toHaveValue('320.00')
+    await expect(expenseSheet.getByRole('radio', { name: '住宿' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await expenseSheet.getByRole('button', { name: '儲存' }).click()
+    await expect(expenseSheet).toBeHidden()
+    await expect(lodgingRow.locator('[data-expense-logged]')).toContainText('已記帳')
+
+    const { expenses } = (await (await request.get(api('/expenses'), { headers })).json()) as {
+      expenses: {
+        bookingId: string | null
+        amountMinor: number
+        category: string
+        pool: boolean
+        payerMemberId: string | null
+        date: string
+      }[]
+    }
+    expect(expenses.find((e) => e.bookingId === rental.id)).toMatchObject({
+      amountMinor: 60000,
+      category: 'transport',
+      pool: false,
+      payerMemberId: meiId,
+      date: inDays(START),
+    })
+    expect(expenses.find((e) => e.bookingId === lodging.id)).toMatchObject({
+      amountMinor: 32000,
+      category: 'lodging',
+      pool: true,
+    })
+    // The badge comes from the server too, after a reload
+    await page.reload()
+    await expect(rentalRow.locator('[data-expense-logged]')).toContainText('已記帳')
+    await expect(lodgingRow.locator('[data-expense-logged]')).toContainText('已記帳')
+    await shot(page, `${label}-bookings-logged`)
+
+    // 3. AC-4.2: edit the rental's dates one day later → its pickup and drop-off stops move
+    const stopDays = async () => {
+      const res = await request.get(api('/bookings'), { headers })
+      const body = (await res.json()) as {
+        bookings: { id: string; stops: { slot: string; dayId: string }[] }[]
+      }
+      const found = body.bookings.find((b) => b.id === rental.id)!
+      return Object.fromEntries(found.stops.map((stop) => [stop.slot, stop.dayId]))
+    }
+    expect(await stopDays()).toEqual({ pickup: dayId(1), dropoff: dayId(3) })
+    await page.getByRole('button', { name: '編輯「Jucy Condo」' }).click()
+    let sheet = page.getByRole('dialog', { name: '編輯預訂' })
+    await sheet.getByLabel('取車日期').fill(inDays(START + 1))
+    await sheet.getByLabel('還車日期').fill(inDays(START + 3))
+    await sheet.getByRole('button', { name: '儲存' }).click()
+    await expect(sheet).toBeHidden()
+    await expect.poll(stopDays).toEqual({ pickup: dayId(2), dropoff: dayId(4) })
+
+    // 4. e4-t04: a confirmation PDF on the lodging
+    await page.getByRole('button', { name: '編輯「Lake Tekapo Motels」' }).click()
+    sheet = page.getByRole('dialog', { name: '編輯住宿' })
+    const section = sheet.locator('[data-booking-attachments]')
+    await expect(section).toContainText('不會出現在分享頁')
+    await expect(section).toContainText('還沒有附件。')
+    await section.locator('input[type="file"]').setInputFiles({
+      name: 'confirmation.pdf',
+      mimeType: 'application/pdf',
+      buffer: PDF,
+    })
+    const rows = section.locator('[data-attachment-id]')
+    await expect(rows).toHaveCount(1, { timeout: 15_000 })
+    await expect(rows.first()).toContainText('PDF 文件 1')
+    await expect(rows.first()).toContainText(/PDF · \d+/)
+    if (SHOTS) await section.screenshot({ path: `${SHOTS}/${label}-lodging-attachment.png` })
+    const attachmentId = (await rows.first().getAttribute('data-attachment-id'))!
+    // It opens in a new tab from an object URL; headless Chromium has no PDF viewer, so the tab
+    // turns the blob into a download instead of showing it
+    const opened = new Promise<string>((resolve) => {
+      context.once('page', (tab) => {
+        tab.once('download', (download) => resolve(download.url()))
+        tab.on('framenavigated', (frame) => {
+          if (frame.url().startsWith('blob:')) resolve(frame.url())
+        })
+      })
+    })
+    await rows.first().getByRole('button', { name: '開啟「PDF 文件 1」' }).click()
+    expect(await opened).toMatch(/^blob:http/)
+    for (const other of context.pages()) if (other !== page) await other.close()
+    const listed = await request.get(api(`/attachments?lodgingId=${lodging.id}`), { headers })
+    const { attachments } = (await listed.json()) as {
+      attachments: { id: string; kind: string; visibility: string }[]
+    }
+    expect(attachments).toEqual([
+      expect.objectContaining({ id: attachmentId, kind: 'document', visibility: 'members-only' }),
+    ])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    )
+
+    // Never on the share page: the public payload does not carry it, nor can the token read it
+    const share = await request.post(api('/shares'), { headers, data: {} })
+    expect(share.status()).toBe(201)
+    const { shareToken } = (await share.json()) as { shareToken: string }
+    const payload = await request.get(`/api/share/${shareToken}`)
+    expect(payload.status()).toBe(200)
+    const text = JSON.stringify(await payload.json())
+    expect(text).toContain('Lake Tekapo Motels')
+    expect(text).not.toContain(attachmentId)
+    expect((await request.get(`/api/media/${attachmentId}?s=${shareToken}`)).status()).not.toBe(
+      200,
+    )
+
+    // Deleting it from the list
+    await rows.first().getByRole('button', { name: '刪除「PDF 文件 1」' }).click()
+    await expect(rows).toHaveCount(0)
+    await expect(section).toContainText('還沒有附件。')
   })
 }

@@ -325,6 +325,23 @@ export const zhTW = {
   'bookings.deadlines.all': '查看全部預訂',
   'bookings.deadlines.emptyBody': '{days} 天內的取消期限、付款與入住截止會出現在這裡。',
   'bookings.deadlines.error': '期限載入失敗',
+  'bookings.attachments.title': '確認信／附件',
+  'bookings.attachments.notice': '只有旅伴看得到，不會出現在分享頁。',
+  'bookings.attachments.add': '上傳確認信或截圖',
+  'bookings.attachments.uploading': '上傳中…',
+  'bookings.attachments.empty': '還沒有附件。',
+  'bookings.attachments.saveFirst': '先儲存，就能加確認信或截圖。',
+  'bookings.attachments.tooLarge': '檔案太大（上限 20 MB）',
+  'bookings.attachments.unsupported': '只接受 PDF 或圖片',
+  'bookings.attachments.error': '上傳失敗，請再試一次',
+  'bookings.attachments.loadError': '附件載入失敗',
+  'bookings.attachments.openError': '打不開這個附件',
+  'bookings.attachments.deleted': '已刪除附件',
+  'attachments.namePdf': 'PDF 文件 {n}',
+  'attachments.nameImage': '圖片 {n}',
+  'attachments.open': '開啟「{name}」',
+  'attachments.delete': '刪除「{name}」',
+  'attachments.meta': '{type} · {size} · {date}',
 
   // Balances, settlements and the shared pool (e7-t04, e7-t05)
   // balances.* → shared/i18n/pages/balances.*.ts (lazy; keys other files use stay below)

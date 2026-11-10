@@ -287,7 +287,11 @@ export async function completeAttachment(c: RouteContext): Promise<Response> {
   return json(body)
 }
 
-/** GET /api/trips/:id/attachments?kind=&dayId=&stopId= (viewer): ready, not deleted */
+/**
+ * GET /api/trips/:id/attachments?kind=&dayId=&stopId=&bookingId=&lodgingId= (viewer): ready, not
+ * deleted. bookingId / lodgingId list a booking's confirmations (e4-t04); they are read here
+ * because shared/schema's attachmentListQuery strips them.
+ */
 export async function listAttachments(c: RouteContext): Promise<Response> {
   const auth = await authTrip(c.request, c.env.DB, c.params.id, 'viewer')
   const parsed = attachmentListQuery.safeParse(Object.fromEntries(c.url.searchParams))
@@ -297,6 +301,13 @@ export async function listAttachments(c: RouteContext): Promise<Response> {
   for (const field of ['kind', 'dayId', 'stopId'] as const) {
     const value = parsed.data[field]
     if (value === undefined) continue
+    where.push(`${field} = ?`)
+    values.push(value)
+  }
+  for (const field of ['bookingId', 'lodgingId'] as const) {
+    const value = c.url.searchParams.get(field)
+    if (value === null) continue
+    if (value.length < 1 || value.length > 64) throw invalid(`bad ${field}`)
     where.push(`${field} = ?`)
     values.push(value)
   }

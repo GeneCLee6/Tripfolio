@@ -248,7 +248,7 @@ for (const [label, width, height] of [
 
     // 9. Status: done and back, dropped and restored
     await fergMenu.click()
-    await page.getByRole('menuitem', { name: '標為完成' }).click()
+    await page.getByRole('menuitem', { name: '標記完成（不記帳）' }).click()
     await expect(ferg).toContainText('已完成')
     await fergMenu.click()
     await page.getByRole('menuitem', { name: '改回未完成' }).click()
@@ -260,5 +260,57 @@ for (const [label, width, height] of [
     await page.getByRole('menuitem', { name: '恢復' }).click()
     await expect(ferg).toContainText('口袋名單')
     expect((await wishlist(request, s)).find((i) => i.name === 'Fergburger')?.status).toBe('wish')
+
+    // 10. 完成並記帳 (e5-t05): the 記一筆 form opens prefilled; cancelling leaves the status alone,
+    // saving logs the expense (linked by wishlistItemId) and marks the pick done
+    const fx = await request.put(`/api/trips/${s.tripId}/fx/overrides`, {
+      headers: s.headers,
+      data: { NZD: 0.91 },
+    })
+    expect(fx.ok()).toBe(true)
+    const expenseSheet = page.getByRole('dialog', { name: '記一筆' })
+    await fergMenu.click()
+    await page.getByRole('menuitem', { name: '完成並記帳' }).click()
+    await expect(expenseSheet).toBeVisible()
+    await expect(expenseSheet.getByLabel('金額')).toHaveValue('18.00')
+    await expenseSheet.getByRole('button', { name: '取消' }).click()
+    await expect(expenseSheet).toBeHidden()
+    await expect(ferg).toContainText('口袋名單')
+    expect((await wishlist(request, s)).find((i) => i.name === 'Fergburger')?.status).toBe('wish')
+
+    await ferg.getByRole('button', { name: 'Fergburger', exact: true }).click()
+    const pickPane = pane(page, desktop, '必吃必買')
+    await pickPane.getByRole('button', { name: '完成並記帳' }).click()
+    await expect(expenseSheet).toBeVisible()
+    await expect(expenseSheet.getByLabel('金額')).toHaveValue('18.00')
+    await expect(expenseSheet.getByLabel('幣別')).toHaveValue('NZD')
+    await expect(expenseSheet.getByLabel('說明')).toHaveValue('Fergburger')
+    await expect(expenseSheet.getByRole('radio', { name: '餐飲' })).toHaveAttribute('aria-checked', 'true')
+    await shot(page, `${label}-picks-done-expense`)
+    await expenseSheet.getByRole('button', { name: '儲存' }).click()
+    await expect(expenseSheet).toBeHidden()
+    await expect(page.getByRole('status').filter({ hasText: '已記一筆 NZ$18.00' })).toBeVisible()
+    await expect(ferg).toContainText('已完成')
+    await expect
+      .poll(async () => (await wishlist(request, s)).find((i) => i.name === 'Fergburger')?.status)
+      .toBe('done')
+    const listed = await request.get(`/api/trips/${s.tripId}/expenses`, { headers: s.headers })
+    const { expenses } = (await listed.json()) as {
+      expenses: { amountMinor: number; currency: string; category: string; note: string; wishlistItemId: string | null }[]
+    }
+    const fergId = (
+      (await (await request.get(`/api/trips/${s.tripId}/wishlist`, { headers: s.headers })).json()) as {
+        items: { id: string; name: string }[]
+      }
+    ).items.find((i) => i.name === 'Fergburger')!.id
+    expect(expenses).toEqual([
+      expect.objectContaining({
+        amountMinor: 1800,
+        currency: 'NZD',
+        category: 'food',
+        note: 'Fergburger',
+        wishlistItemId: fergId,
+      }),
+    ])
   })
 }

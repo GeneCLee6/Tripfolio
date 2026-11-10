@@ -37,6 +37,7 @@ import { focusRing } from '../../styles/mixins.ts'
 import { color, fontSize, fontWeight, radius, space } from '../../styles/tokens.ts'
 import { Stack } from '../parts.tsx'
 import { listText, slotLabelText, tripCurrencies } from './labels.ts'
+import { BookingAttachments } from './Attachments.tsx'
 import { Check, Checks, Folded, Group, Hint, Pair, PlaceField, TzSelect } from './parts.tsx'
 import { useTripPlaces } from './use-trip-places.ts'
 
@@ -547,6 +548,7 @@ export default function BookingSheet({ trip, members, booking, onClose, onSaved 
               onChange={(event) => set('note', event.target.value)}
             />
           </Folded>
+          <BookingAttachments tripId={trip.id} owner={booking ? { bookingId: booking.id } : null} />
           {Object.keys(errors).length > 0 && <Hint $tone="danger">{t('bookings.form.fixErrors')}</Hint>}
         </Stack>
       </form>

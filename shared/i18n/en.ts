@@ -318,6 +318,23 @@ export const en: Record<AppMessageKey, string> = {
   'bookings.deadlines.all': 'All bookings',
   'bookings.deadlines.emptyBody': 'Cancel-by, payment and check-in deadlines in the next {days} days show up here.',
   'bookings.deadlines.error': 'Couldn\'t load the deadlines',
+  'bookings.attachments.title': 'Confirmations & attachments',
+  'bookings.attachments.notice': 'Only trip members can see these; they never appear on the share page.',
+  'bookings.attachments.add': 'Upload a confirmation or screenshot',
+  'bookings.attachments.uploading': 'Uploading…',
+  'bookings.attachments.empty': 'No attachments yet.',
+  'bookings.attachments.saveFirst': 'Save first, then add confirmations or screenshots.',
+  'bookings.attachments.tooLarge': 'File too large (20 MB max)',
+  'bookings.attachments.unsupported': 'Only PDFs or images',
+  'bookings.attachments.error': 'Upload failed, please try again',
+  'bookings.attachments.loadError': 'Couldn\'t load the attachments',
+  'bookings.attachments.openError': 'Couldn\'t open this attachment',
+  'bookings.attachments.deleted': 'Attachment deleted',
+  'attachments.namePdf': 'PDF document {n}',
+  'attachments.nameImage': 'Image {n}',
+  'attachments.open': 'Open “{name}”',
+  'attachments.delete': 'Delete “{name}”',
+  'attachments.meta': '{type} · {size} · {date}',
 
   // Balances, settlements and the shared pool (e7-t04, e7-t05)
   // balances.* → shared/i18n/pages/balances.*.ts (lazy; keys other files use stay below)

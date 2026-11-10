@@ -123,6 +123,8 @@ export interface PickActions {
   schedule: (item: WishlistItemView) => void
   unschedule: (item: WishlistItemView) => void
   setStatus: (item: WishlistItemView, status: WishlistItemView['status']) => void
+  /** 「完成並記帳」: open the prefilled 記一筆 form; the pick is done once it is saved */
+  complete: (item: WishlistItemView) => void
   remove: (item: WishlistItemView) => void
   vote: (item: WishlistItemView, on: boolean) => void
 }
@@ -287,9 +289,14 @@ export function PickDetail({ itemId, store, trip, me, members, canEdit, actions 
               {t('picks.action.reopen')}
             </Button>
           ) : item.status !== 'dropped' ? (
-            <Button size="sm" variant="primary" onClick={() => actions.setStatus(item, 'done')}>
-              {t('picks.action.done')}
-            </Button>
+            <>
+              <Button size="sm" variant="primary" onClick={() => actions.complete(item)}>
+                {t('picks.action.done')}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => actions.setStatus(item, 'done')}>
+                {t('picks.action.doneNoExpense')}
+              </Button>
+            </>
           ) : null}
           {item.status === 'wish' && (
             <Button size="sm" variant="ghost" onClick={() => actions.setStatus(item, 'dropped')}>

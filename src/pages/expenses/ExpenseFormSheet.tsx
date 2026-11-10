@@ -42,8 +42,10 @@ import {
   previewSplit,
   toCreateBody,
   toggleParticipant,
+  withInitial,
   withMethod,
   type ExpenseForm,
+  type ExpenseInitial,
   type FormProblem,
 } from '../../lib/expenses/form.ts'
 import { loadRecent, rememberExpense } from '../../lib/expenses/recent.ts'
@@ -224,6 +226,11 @@ export interface ExpenseFormSheetProps {
   onClose: () => void
   /** Edit this expense; omitted: log a new one */
   expense?: ExpenseView | null
+  /**
+   * A new expense starts with these (the pick's 「完成」, a booking's 「誰先付」); read when the
+   * sheet opens. Ignored when editing.
+   */
+  initial?: ExpenseInitial | null
   /** After a successful save (the list may want the row at once) */
   onSaved?: (expense: ExpenseView, created: boolean) => void
   /** Editing only: a 刪除 button that hands the expense back (the page confirms and deletes) */
@@ -238,6 +245,7 @@ export function ExpenseFormSheet({
   open,
   onClose,
   expense,
+  initial,
   onSaved,
   onDelete,
 }: ExpenseFormSheetProps) {
@@ -277,8 +285,10 @@ export function ExpenseFormSheet({
     <>
       {open && (
         <ExpenseFormBody
-          key={generation}
+          // Not a bare number: the undo bar beside it is keyed by its own counter (1, 2, …)
+          key={`form-${generation}`}
           expense={expense ?? null}
+          initial={initial ?? null}
           onClose={onClose}
           onSaved={saved}
           onDelete={onDelete}
@@ -293,11 +303,13 @@ export default ExpenseFormSheet
 
 function ExpenseFormBody({
   expense,
+  initial,
   onClose,
   onSaved,
   onDelete,
 }: {
   expense: ExpenseView | null
+  initial: ExpenseInitial | null
   onClose: () => void
   onSaved: (expense: ExpenseView, created: boolean) => void
   onDelete?: (expense: ExpenseView) => void
@@ -310,14 +322,16 @@ function ExpenseFormBody({
   const fileId = useId()
   const recent = useMemo(() => loadRecent(trip.id), [trip.id])
   const [form, setForm] = useState<ExpenseForm>(() =>
-    expense ? formFromExpense(expense, members) : newExpenseForm({ trip, me, members, recent }),
+    expense
+      ? formFromExpense(expense, members)
+      : withInitial(newExpenseForm({ trip, me, members, recent }), initial),
   )
   const [problem, setProblem] = useState<FormProblem | null>(null)
   const [splitOpen, setSplitOpen] = useState(() =>
     Boolean(expense && expense.splitMethod !== 'equal'),
   )
   const [moreOpen, setMoreOpen] = useState(() =>
-    Boolean(expense?.stopId || expense?.receiptAttachmentId),
+    Boolean(expense?.stopId || expense?.receiptAttachmentId || (!expense && initial?.stopId)),
   )
   const [rateOpen, setRateOpen] = useState(() => expense?.fxSource === 'manual')
   const [needsRate, setNeedsRate] = useState(false)

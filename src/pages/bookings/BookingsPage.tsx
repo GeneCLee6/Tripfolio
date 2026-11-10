@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 import type { Booking, Lodging } from '../../../shared/api/bookings.ts'
 import { formatDate, formatDateRange, formatMoney, formatTime } from '../../../shared/i18n/format.ts'
@@ -7,9 +7,11 @@ import { convertMinor } from '../../../shared/money/fx.ts'
 import {
   BookingTypeIcon,
   Button,
+  Chip,
   Dialog,
   EmptyState,
   IconButton,
+  MemberPicker,
   PayStatusChip,
   Skeleton,
   useToast,
@@ -18,6 +20,9 @@ import { TrashIcon } from '../../components/icons.tsx'
 import { useTripContext } from '../../app/trip-context.ts'
 import { balancesApi } from '../../lib/balances/api.ts'
 import { bookingsApi } from '../../lib/bookings/api.ts'
+import { bookingExpensePrefill, loggedBookingIds, type Bookable } from '../../lib/bookings/expense.ts'
+import { expensesApi, onExpensesChanged } from '../../lib/expenses/api.ts'
+import { POOL, type ExpenseInitial } from '../../lib/expenses/form.ts'
 import { daysBetween, dualTimes, groupOf, type BookingGroup } from '../../lib/bookings/form.ts'
 import { useResource } from '../../lib/hooks.ts'
 import { useT, type Translate } from '../../lib/i18n.ts'
@@ -30,10 +35,13 @@ import { listText, slotLabelText } from './labels.ts'
 // /trips/:id/bookings — 預訂總覽 (e4-t02, e4-t03): every lodging, transport and activity booking
 // grouped 住宿／交通／活動, with its date, amount (and the base-currency approximation), payment
 // state, who pays first and the cancel-by. Editors add, edit and delete; deleting a booking asks
-// whether to keep the stops it created. The one-click expense from 「誰先付」 is e4-t06.
+// whether to keep the stops it created. 「誰先付 → 記帳」 (e4-t06): pick the member (or the pool)
+// who paid, and the 記一筆 form opens prefilled with the booking; rows with an expense linked by
+// `bookingId` show 「已記帳」.
 
 const LodgingSheet = lazy(() => import('./LodgingSheet.tsx'))
 const BookingSheet = lazy(() => import('./BookingSheet.tsx'))
+const ExpenseFormSheet = lazy(() => import('../expenses/ExpenseFormSheet.tsx'))
 
 interface Data {
   lodgings: Lodging[]
@@ -149,7 +157,7 @@ export default function BookingsPage() {
   const t = useT()
   const toast = useToast()
   const showError = useApiErrorToast()
-  const { trip, members } = useTripContext()
+  const { trip, me, members } = useTripContext()
   const can = useCan()
   const canEdit = can('editContent')
   const resource = useResource<Data>(`bookings:${trip.id}`, async (signal) => {
@@ -182,6 +190,26 @@ export default function BookingsPage() {
   const [sheet, setSheet] = useState<Sheet>(null)
   const [pending, setPending] = useState<Pending>(null)
   const [busy, setBusy] = useState(false)
+  // 誰先付 → 記帳: the row being logged, who paid, and the prefilled sheet (mounted once loaded)
+  const [paying, setPaying] = useState<{ item: Bookable; payer: string } | null>(null)
+  const [logging, setLogging] = useState<ExpenseInitial | null>(null)
+  const [expenseLoaded, setExpenseLoaded] = useState(false)
+  const [savedNow, setSavedNow] = useState<ReadonlySet<string>>(() => new Set())
+  const expenses = useResource(`bookings-expenses:${trip.id}`, (signal) =>
+    expensesApi.list(trip.id, {}, signal).then((res) => loggedBookingIds(res.expenses)),
+  )
+  const reloadExpenses = expenses.reload
+  useEffect(
+    () => onExpensesChanged((tripId) => tripId === trip.id && reloadExpenses()),
+    [trip.id, reloadExpenses],
+  )
+  const isLogged = (id: string) =>
+    savedNow.has(id) || (expenses.status === 'ready' && expenses.data.has(id))
+  const startPaying = (item: Bookable) =>
+    setPaying({
+      item,
+      payer: (item.kind === 'booking' ? item.booking.payerMemberId : null) ?? me.id,
+    })
   const memberName = (id: string | null) => (id ? members.find((m) => m.id === id)?.name : undefined)
 
   const cancelText = (iso: string | null) =>
@@ -219,6 +247,26 @@ export default function BookingsPage() {
       </Actions>
     ) : null
 
+  const expenseControls = (item: Bookable, id: string, title: string): ReactNode => (
+    <>
+      {isLogged(id) && (
+        <span data-expense-logged="">
+          <Chip tone="success">{t('bookings.row.logged')}</Chip>
+        </span>
+      )}
+      {canEdit && (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={t('bookings.row.toExpenseFor', { title })}
+          onClick={() => startPaying(item)}
+        >
+          {t('bookings.row.toExpense')}
+        </Button>
+      )}
+    </>
+  )
+
   const lodgingRow = (lodging: Lodging) => {
     const nights = daysBetween(lodging.checkIn, lodging.checkOut)
     const amount = amountText(lodging.priceMinor, lodging.currency, trip.baseCurrency, rates, t)
@@ -238,6 +286,7 @@ export default function BookingsPage() {
         <Money>
           {amount && <Amount>{amount}</Amount>}
           <PayStatusChip status={lodging.payStatus} />
+          {expenseControls({ kind: 'lodging', lodging }, lodging.id, lodging.name)}
           {cancelText(lodging.cancelBy) && <Muted>{cancelText(lodging.cancelBy)}</Muted>}
         </Money>
         {actions(
@@ -292,11 +341,7 @@ export default function BookingsPage() {
           {amount && <Amount>{amount}</Amount>}
           <PayStatusChip status={booking.payStatus} />
           <Muted>{payer ? t('bookings.row.payer', { name: payer }) : t('bookings.row.noPayer')}</Muted>
-          {payer && (
-            <Button size="sm" variant="ghost" disabled title={t('bookings.row.expenseSoon')}>
-              {t('bookings.row.toExpense')}
-            </Button>
-          )}
+          {expenseControls({ kind: 'booking', booking }, booking.id, booking.title)}
           {cancelText(booking.cancelBy) && <Muted>{cancelText(booking.cancelBy)}</Muted>}
         </Money>
         {actions(
@@ -379,6 +424,57 @@ export default function BookingsPage() {
           />
         )}
       </Suspense>
+      <Dialog
+        open={paying !== null}
+        onClose={() => setPaying(null)}
+        title={t('bookings.payFirst.title', {
+          title: paying
+            ? paying.item.kind === 'lodging'
+              ? paying.item.lodging.name
+              : paying.item.booking.title
+            : '',
+        })}
+        actions={
+          <>
+            <Button onClick={() => setPaying(null)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (!paying) return
+                setLogging(bookingExpensePrefill(paying.item, paying.payer, trip.tz))
+                setExpenseLoaded(true)
+                setPaying(null)
+              }}
+            >
+              {t('bookings.payFirst.next')}
+            </Button>
+          </>
+        }
+      >
+        {paying && (
+          <MemberPicker
+            label={t('bookings.payFirst.who')}
+            mode="single"
+            members={members}
+            selected={[paying.payer]}
+            extra={{ id: POOL, label: t('term.sharedFund') }}
+            onSelect={(payer) => setPaying((current) => (current ? { ...current, payer } : current))}
+          />
+        )}
+      </Dialog>
+      {expenseLoaded && (
+        <Suspense fallback={null}>
+          <ExpenseFormSheet
+            open={logging !== null}
+            initial={logging}
+            onClose={() => setLogging(null)}
+            onSaved={(expense) => {
+              const id = expense.bookingId ?? logging?.bookingId
+              if (id) setSavedNow((current) => new Set([...current, id]))
+            }}
+          />
+        </Suspense>
+      )}
       <Dialog
         open={pending !== null}
         onClose={() => setPending(null)}

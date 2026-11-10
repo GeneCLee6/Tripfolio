@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import styled from 'styled-components'
 import type { DayWithStops, Member, WishlistItemView } from '../../../shared/api/types.ts'
@@ -21,6 +21,7 @@ import {
 import { useDetailPane, useTripContext } from '../../app/trip-context.ts'
 import { errorMessageKey } from '../../lib/errors.ts'
 import { useT } from '../../lib/i18n.ts'
+import { expensePrefill } from '../../lib/picks/expense.ts'
 import { CATEGORY_LABEL } from '../../lib/picks/labels.ts'
 import {
   filterPicks,
@@ -123,6 +124,9 @@ const DayGrid = styled.div`
   gap: ${space.sm}px;
 `
 
+// 完成即記帳 (e5-t05): the 記一筆 sheet loads on the first 「完成並記帳」
+const ExpenseFormSheet = lazy(() => import('../expenses/ExpenseFormSheet.tsx'))
+
 const SORTS: readonly PickSort[] = ['newest', 'votes', 'price']
 const GROUPINGS: readonly PickGrouping[] = ['none', 'category', 'day']
 
@@ -143,6 +147,9 @@ export default function PicksPage() {
   const [scheduling, setScheduling] = useState<WishlistItemView | null>(null)
   const [unscheduling, setUnscheduling] = useState<WishlistItemView | null>(null)
   const [deleting, setDeleting] = useState<WishlistItemView | null>(null)
+  // The pick being logged; the sheet stays mounted once loaded (its 復原 bar outlives it)
+  const [logging, setLogging] = useState<WishlistItemView | null>(null)
+  const [sheetLoaded, setSheetLoaded] = useState(false)
 
   const membersById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members])
   const dayOfStop = useMemo(() => stopDays(state.days), [state.days])
@@ -178,6 +185,13 @@ export default function PicksPage() {
   const setStatus = (item: WishlistItemView, status: WishlistStatus) =>
     void store.patch(item.id, { status }).catch(showError)
 
+  // 「完成並記帳」: the 記一筆 form prefilled from the pick; saving it marks the pick done,
+  // cancelling leaves the status alone
+  const complete = (item: WishlistItemView) => {
+    setSheetLoaded(true)
+    setLogging(item)
+  }
+
   const vote = (item: WishlistItemView, on: boolean) =>
     void store.vote(item.id, me.id, on).catch(showError)
 
@@ -187,6 +201,7 @@ export default function PicksPage() {
     schedule: (item) => setScheduling(item),
     unschedule: (item) => setUnscheduling(item),
     setStatus,
+    complete,
     remove: (item) => setDeleting(item),
     vote,
   }
@@ -199,6 +214,7 @@ export default function PicksPage() {
     schedule: (item) => latest.current?.schedule(item),
     unschedule: (item) => latest.current?.unschedule(item),
     setStatus: (item, status) => latest.current?.setStatus(item, status),
+    complete: (item) => latest.current?.complete(item),
     remove: (item) => latest.current?.remove(item),
     vote: (item, on) => latest.current?.vote(item, on),
   }))
@@ -393,6 +409,7 @@ export default function PicksPage() {
                         onSchedule={() => setScheduling(item)}
                         onUnschedule={() => setUnscheduling(item)}
                         onStatus={(status) => setStatus(item, status)}
+                        onComplete={() => complete(item)}
                         onDelete={() => setDeleting(item)}
                         onVote={(on) => vote(item, on)}
                       />
@@ -445,6 +462,19 @@ export default function PicksPage() {
           </Stack>
         )}
       </Sheet>
+
+      {sheetLoaded && (
+        <Suspense fallback={null}>
+          <ExpenseFormSheet
+            open={Boolean(logging)}
+            initial={logging ? expensePrefill(logging) : null}
+            onClose={() => setLogging(null)}
+            onSaved={() => {
+              if (logging && logging.status !== 'done') setStatus(logging, 'done')
+            }}
+          />
+        </Suspense>
+      )}
 
       <Dialog
         open={Boolean(unscheduling)}
@@ -527,6 +557,7 @@ interface PickTileProps {
   onSchedule: () => void
   onUnschedule: () => void
   onStatus: (status: WishlistStatus) => void
+  onComplete: () => void
   onDelete: () => void
   onVote: (on: boolean) => void
 }
@@ -544,6 +575,7 @@ function PickTile({
   onSchedule,
   onUnschedule,
   onStatus,
+  onComplete,
   onDelete,
   onVote,
 }: PickTileProps) {
@@ -568,7 +600,14 @@ function PickTile({
     })
   else if (item.status === 'dropped')
     menu.push({ key: 'restore', label: t('picks.action.restore'), onSelect: () => onStatus('wish') })
-  else menu.push({ key: 'done', label: t('picks.action.done'), onSelect: () => onStatus('done') })
+  else {
+    menu.push({ key: 'done', label: t('picks.action.done'), onSelect: onComplete })
+    menu.push({
+      key: 'doneNoExpense',
+      label: t('picks.action.doneNoExpense'),
+      onSelect: () => onStatus('done'),
+    })
+  }
   if (item.status === 'wish')
     menu.push({ key: 'drop', label: t('picks.action.drop'), onSelect: () => onStatus('dropped') })
   menu.push({ key: 'delete', label: t('picks.action.delete'), danger: true, onSelect: onDelete })

@@ -70,6 +70,10 @@ export interface ExpenseForm {
   receiptAttachmentId: string | null
   stopId: string | null
   dayId: string | null
+  /** The pick it was logged from (完成即記帳, e5-t05) */
+  wishlistItemId: string | null
+  /** The booking (or lodging) it was logged from (誰先付 → 記帳, e4-t06) */
+  bookingId: string | null
   /** The rate field's text (1 currency = rate base currency) */
   fxRate: string
   /** The rate was typed (or asked for), so it is sent as a manual rate */
@@ -163,9 +167,48 @@ export function newExpenseForm({
     receiptAttachmentId: null,
     stopId: null,
     dayId: null,
+    wishlistItemId: null,
+    bookingId: null,
     fxRate: '',
     rateEdited: false,
   }
+}
+
+/**
+ * What another page may start the 記一筆 form with (the pick's 「完成」, the booking's 「誰先付」).
+ * `payerMemberId` is a member id or POOL. Fields left out (or null) keep the blank form's default;
+ * a currency the table does not know is ignored.
+ */
+export interface ExpenseInitial {
+  amountMinor?: number | null
+  currency?: string | null
+  category?: ExpenseCategory | null
+  note?: string | null
+  date?: string | null
+  payerMemberId?: string | null
+  stopId?: string | null
+  dayId?: string | null
+  wishlistItemId?: string | null
+  bookingId?: string | null
+}
+
+/** A blank form with `initial` laid over it */
+export function withInitial(form: ExpenseForm, initial: ExpenseInitial | null | undefined): ExpenseForm {
+  if (!initial) return form
+  const next = { ...form }
+  if (initial.amountMinor != null && initial.amountMinor > 0) next.amountMinor = initial.amountMinor
+  if (initial.currency && isCurrencyCode(initial.currency)) next.currency = initial.currency
+  if (initial.category) next.category = initial.category
+  if (initial.note) next.note = initial.note.slice(0, 2000)
+  if (initial.date && /^\d{4}-\d{2}-\d{2}$/.test(initial.date)) next.date = initial.date
+  if (initial.payerMemberId) next.payer = initial.payerMemberId
+  if (initial.stopId) {
+    next.stopId = initial.stopId
+    next.dayId = initial.dayId ?? null
+  }
+  if (initial.wishlistItemId) next.wishlistItemId = initial.wishlistItemId
+  if (initial.bookingId) next.bookingId = initial.bookingId
+  return next
 }
 
 const numberText = (value: number): string => String(Number(value.toFixed(6)))
@@ -202,6 +245,8 @@ export function formFromExpense(
     receiptAttachmentId: expense.receiptAttachmentId,
     stopId: expense.stopId,
     dayId: expense.dayId,
+    wishlistItemId: expense.wishlistItemId,
+    bookingId: expense.bookingId,
     fxRate: expense.fxSource === 'base' ? '' : numberText(expense.fxRate),
     rateEdited: false,
   }
@@ -364,6 +409,8 @@ interface CommonFields {
   stopId: string | null
   dayId: string | null
   receiptAttachmentId: string | null
+  wishlistItemId: string | null
+  bookingId: string | null
   fxRate?: number
 }
 
@@ -383,6 +430,8 @@ function commonFields(form: ExpenseForm, options: BodyOptions): Result<CommonFie
     stopId: form.stopId,
     dayId: form.dayId,
     receiptAttachmentId: form.receiptAttachmentId,
+    wishlistItemId: form.wishlistItemId,
+    bookingId: form.bookingId,
   }
   if (form.currency !== options.baseCurrency && (form.rateEdited || options.needsRate)) {
     const rate = parseRate(form.fxRate)

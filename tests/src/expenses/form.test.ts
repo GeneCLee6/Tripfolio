@@ -21,9 +21,11 @@ import {
   toCreateBody,
   toPatchBody,
   toggleParticipant,
+  withInitial,
   withMethod,
   type ExpenseForm,
 } from '../../../src/lib/expenses/form.ts'
+import { expensePrefill } from '../../../src/lib/picks/expense.ts'
 import { clearRecent, loadRecent, rememberExpense } from '../../../src/lib/expenses/recent.ts'
 
 // The 記一筆 form as data (e7-t02) and the list helpers (e7-t08)
@@ -107,9 +109,20 @@ describe('request body for each split method', () => {
         stopId: null,
         dayId: null,
         receiptAttachmentId: null,
+        wishlistItemId: null,
+        bookingId: null,
         pool: false,
         payerMemberId: 'gene',
       },
+    })
+  })
+
+  it('carries the pick and booking links (e5-t05, e4-t06)', () => {
+    const body = toCreateBody(filled({ wishlistItemId: 'w1', bookingId: 'b1' }), base)
+    expect(body).toMatchObject({ ok: true, value: { wishlistItemId: 'w1', bookingId: 'b1' } })
+    expect(toPatchBody(filled({ wishlistItemId: 'w1' }), base)).toMatchObject({
+      ok: true,
+      value: { wishlistItemId: 'w1', bookingId: null },
     })
   })
 
@@ -466,5 +479,59 @@ describe('the list', () => {
     expect(secondaryMinor(4095, 'AUD', null, 0.05)).toBeNull()
     expect(secondaryMinor(4095, 'AUD', 'AUD', 1)).toBeNull()
     expect(secondaryMinor(4095, 'AUD', 'TWD', null)).toBeNull()
+  })
+})
+
+describe('prefill (initial)', () => {
+  it('lays a pick’s prefill over the blank form', () => {
+    const form = withInitial(
+      blank(),
+      expensePrefill({
+        id: 'w1',
+        name: 'Fergburger',
+        category: 'eat',
+        estMinor: 1800,
+        currency: 'NZD',
+        stopId: 's1',
+      }),
+    )
+    expect(form).toMatchObject({
+      amountMinor: 1800,
+      currency: 'NZD',
+      category: 'food',
+      note: 'Fergburger',
+      stopId: 's1',
+      dayId: null,
+      wishlistItemId: 'w1',
+      bookingId: null,
+      payer: 'gene',
+      date: '2026-11-10',
+    })
+    expect(toCreateBody(form, { baseCurrency: 'AUD' })).toMatchObject({
+      ok: true,
+      value: { wishlistItemId: 'w1', stopId: 's1', amountMinor: 1800, category: 'food' },
+    })
+  })
+
+  it('keeps defaults for missing or unknown values; pool and date and booking id apply', () => {
+    const form = withInitial(blank(), {
+      amountMinor: null,
+      currency: 'XXX',
+      category: 'lodging',
+      note: 'Holiday Park',
+      date: '2026-12-20',
+      payerMemberId: POOL,
+      bookingId: 'lg1',
+    })
+    expect(form).toMatchObject({
+      amountMinor: null,
+      currency: 'NZD',
+      category: 'lodging',
+      date: '2026-12-20',
+      payer: POOL,
+      bookingId: 'lg1',
+    })
+    expect(withInitial(blank(), { date: '20 Dec' }).date).toBe('2026-11-10')
+    expect(withInitial(blank(), null)).toEqual(blank())
   })
 })

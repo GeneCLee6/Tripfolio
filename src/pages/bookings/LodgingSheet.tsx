@@ -27,6 +27,7 @@ import { useT } from '../../lib/i18n.ts'
 import { useApiErrorToast } from '../../lib/role.ts'
 import { Stack } from '../parts.tsx'
 import { tripCurrencies } from './labels.ts'
+import { BookingAttachments } from './Attachments.tsx'
 import { Check, Checks, Folded, Group, Hint, Pair, PlaceField } from './parts.tsx'
 import { useTripPlaces } from './use-trip-places.ts'
 
@@ -301,6 +302,7 @@ export default function LodgingSheet({ trip, lodgingId, lodging: given, date, on
               onChange={(event) => set('note', event.target.value)}
             />
           </Folded>
+          <BookingAttachments tripId={trip.id} owner={existing ? { lodgingId: existing.id } : null} />
           {waiting && <Hint>{t('common.loading')}</Hint>}
         </Stack>
       </form>
