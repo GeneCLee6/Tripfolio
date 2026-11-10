@@ -129,6 +129,18 @@ export default function TripSettingsPage() {
       <SharesSection />
       <IdentitySection />
 
+      <Card as="section" aria-labelledby="settings-tools">
+        <Stack $gap="md">
+          <SectionTitle id="settings-tools">{t('places.settings.tools')}</SectionTitle>
+          <Row>
+            <Note>{t('places.settings.libraryBody')}</Note>
+            <Button size="sm" onClick={() => navigate(`${tripPath(trip.id)}/places`)}>
+              {t('places.settings.library')}
+            </Button>
+          </Row>
+        </Stack>
+      </Card>
+
       <Card as="section" aria-labelledby="settings-archive">
         <Stack $gap="md">
           <SectionTitle id="settings-archive">{t('settings.archiveTitle')}</SectionTitle>
