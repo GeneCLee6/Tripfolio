@@ -73,7 +73,7 @@ worktree 開分支、只讀需要的段落、lint+typecheck+test+build 只看最
 | 批 | Task | 內容 | 前提 |
 | --- | --- | --- | --- |
 | [ ] H1（`e7-t06` 已完成 #H1a；`e5-t05` 在 #C1p 進行中；剩 `e4-t06`） | `e7-t06` `e4-t06` `e5-t05` | 統計頁與 CSV；預訂總覽「誰先付 → 建立花費」；必吃必買完成一鍵記帳 | G3 |
-| [ ] H2（`e3-t06` #H2b、`e2-t08a` #H2a 已完成；剩 `e2-t08b` 接頁面） | `e2-t08a` `e2-t08b` `e3-t06` | `TripDO` 與 patch 廣播；`useTrip()` 欄位級合併與離線重送（兩台裝置實測）；離線瓦片 | G2 |
+| [x] H2（#H2a、#H2b、#H2c，local） | `e2-t08a` `e2-t08b` `e3-t06` | `TripDO` 與 patch 廣播；`useTrip()` 欄位級合併與離線重送（兩台裝置實測）；離線瓦片 | G2 |
 | [x] H3（#H3a、#H3c，local） | `e11-t04` `e1-t06` | 速率限制、token 規格、上傳限制、文件驗權、`apiUsage`；Google 登入與綁定成員。**M2 完成：實際出遊一趟全程記帳與結算** | H1, H2；總 PRD Q2 |
 
 ## Phase I · M3 旅前準備
