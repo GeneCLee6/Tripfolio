@@ -9,6 +9,7 @@ import {
   formatTime,
   formatTzAbbrev,
 } from '../../shared/i18n/format.ts'
+import '../../shared/i18n/pages/dev.ts'
 import type { Locale } from '../../shared/i18n/t.ts'
 import type { CurrencyCode } from '../../shared/money/currencies.ts'
 import {

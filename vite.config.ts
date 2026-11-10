@@ -73,5 +73,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    // Registers the page catalogs (shared/i18n/pages/) for tests that render a page's parts directly
+    setupFiles: ['tests/setup.ts'],
   },
 })

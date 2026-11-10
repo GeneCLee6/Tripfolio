@@ -1,4 +1,5 @@
-import type { MessageKey } from './zh-TW.ts'
+import type { PageMessageKey } from './pages/keys.ts'
+import type { MessageKey as CatalogMessageKey } from './zh-TW.ts'
 
 // The translation core: the catalog registry, the current locale, t() and tp(). Pure (no React, no
 // DOM, no storage) so the Worker and tests can use it; the React hooks, browser detection and the
@@ -7,13 +8,15 @@ import type { MessageKey } from './zh-TW.ts'
 // It imports no catalog: each entry registers the one it ships. shared/i18n/t.ts registers the full
 // app catalog (the app and everything that imports t.ts); share/catalog.ts registers only the share
 // catalog, so the share bundle stays small (RULES.md §2). Code that the share page loads imports
-// this file, never t.ts.
+// this file, never t.ts. Keys only one lazy page uses are in shared/i18n/pages/; that page's entry
+// registers them when its chunk loads (pages/register.ts).
 
 export type Locale = 'zh-TW' | 'en'
 /** Older name for Locale, kept for existing callers */
 export type Language = Locale
 export type MessageParams = Record<string, string | number>
-export type { MessageKey }
+/** Every key t() accepts: the app and share catalogs plus the page catalogs (shared/i18n/pages/) */
+export type MessageKey = CatalogMessageKey | PageMessageKey
 
 /** Supported locales, in switcher order; zh-TW is the source and the default (DESIGN.md §5) */
 export const LOCALES: readonly Locale[] = ['zh-TW', 'en']

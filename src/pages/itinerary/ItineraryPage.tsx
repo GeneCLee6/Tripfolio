@@ -5,6 +5,7 @@ import type { GeoPoint } from '../../../shared/api/geo.ts'
 import type { DayWithStops, Stop } from '../../../shared/api/types.ts'
 import type { Warning } from '../../../shared/itinerary/checks.ts'
 import { formatDate, formatMoney } from '../../../shared/i18n/format.ts'
+import '../../../shared/i18n/pages/itinerary.ts'
 import { isCurrencyCode } from '../../../shared/money/currencies.ts'
 import {
   Button,

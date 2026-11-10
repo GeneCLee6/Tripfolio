@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 import type { Booking, Lodging } from '../../../shared/api/bookings.ts'
 import { formatDate, formatDateRange, formatMoney, formatTime } from '../../../shared/i18n/format.ts'
+import '../../../shared/i18n/pages/bookings.ts'
 import { convertMinor } from '../../../shared/money/fx.ts'
 import {
   BookingTypeIcon,

@@ -1,10 +1,14 @@
 // Translations gate (CLAUDE.md rule 1, docs/DESIGN.md i18n rules, RULES.md §2). The catalog is
-// split in three (app, common, share) so the share page ships only what it uses; this checks:
+// split in three (app, common, share) so the share page ships only what it uses, plus page catalogs
+// (shared/i18n/pages/<page>.zh-TW.ts + .en.ts) that a lazy page's entry registers so its keys stay
+// out of the first screen; this checks:
 //   1. each en file has exactly the keys of its zh-TW file (the source), with the same placeholders
-//      and no empty values;
-//   2. the share page's import graph (from share/main.tsx) never loads the app catalog, uses only
-//      keys from zh-TW.common.ts + zh-TW.share.ts, and every key there is used by it;
-//   3. src/ asks t() only for keys of the app catalog (zh-TW.ts + zh-TW.common.ts);
+//      and no empty values (page catalogs included);
+//   2. the share page's import graph (from share/main.tsx) never loads the app or a page catalog,
+//      uses only keys from zh-TW.common.ts + zh-TW.share.ts, and every key there is used by it;
+//   3. src/ asks t() only for keys of the app catalog (zh-TW.ts + zh-TW.common.ts) or of the page
+//      catalog of a page the file belongs to; a page key used by a file that can load without that
+//      page fails, naming the key to move back to zh-TW.ts;
 //   4. no key is written in two catalog files;
 //   5. src/ and share/ have no bare user-visible strings (JSX text, visible attributes, CJK
 //      outside comments).
@@ -23,14 +27,33 @@ const COMMON_ZH = 'shared/i18n/zh-TW.common.ts' // Keys both the app and the sha
 const COMMON_EN = 'shared/i18n/en.common.ts'
 const SHARE_ZH = 'shared/i18n/zh-TW.share.ts' // The share page's own keys
 const SHARE_EN = 'shared/i18n/en.share.ts'
+// Page catalogs: shared/i18n/pages/<page>.zh-TW.ts + <page>.en.ts, registered by <page>.ts, which the
+// page's lazy entry module imports
+const PAGES_DIR = 'shared/i18n/pages'
+const PAGES = existsSync(PAGES_DIR)
+  ? readdirSync(PAGES_DIR)
+      .filter((file) => file.endsWith('.zh-TW.ts'))
+      .sort()
+      .map((file) => {
+        const name = file.slice(0, -'.zh-TW.ts'.length)
+        return {
+          name,
+          zh: `${PAGES_DIR}/${file}`,
+          en: `${PAGES_DIR}/${name}.en.ts`,
+          register: `${PAGES_DIR}/${name}.ts`,
+        }
+      })
+  : []
 const CATALOG_FILES = [
   [ZH, EN],
   [COMMON_ZH, COMMON_EN],
   [SHARE_ZH, SHARE_EN],
+  ...PAGES.map((page) => [page.zh, page.en]),
 ]
 const SHARE_ENTRY = 'share/main.tsx'
-// Modules that carry the app catalog; the share page must not load them
-const APP_CATALOG_MODULES = ['shared/i18n/t.ts', ZH, EN]
+const APP_ENTRY = 'src/main.tsx'
+// Modules that carry the app catalog or a page catalog; the share page must not load them
+const APP_CATALOG_MODULES = ['shared/i18n/t.ts', ZH, EN, ...PAGES.flatMap((page) => [page.register, page.zh, page.en])]
 const SOURCE_ROOTS = ['src', 'share']
 
 const USER_VISIBLE_ATTRIBUTES = new Set(['aria-label', 'title', 'placeholder', 'alt', 'label'])
@@ -375,11 +398,12 @@ function parseModule(file) {
   return parsed
 }
 
-// The files an entry loads, as posix paths; `via` maps each to the first file that imports it
-function importGraph(entry) {
+// The files `entries` load, as posix paths; `via` maps each to the first file that imports it.
+// Files in `skip` (posix paths) are not entered, nor is anything only they import.
+function importGraph(entries, skip = new Set()) {
   const via = new Map()
   function visit(file, wanted, from) {
-    if (!/\.tsx?$/.test(file) || !existsSync(file)) return
+    if (!/\.tsx?$/.test(file) || !existsSync(file) || skip.has(toPosix(file))) return
     const { imports, barrel } = parseModule(file)
     if (barrel && wanted) {
       for (const { names, file: target } of imports) {
@@ -392,8 +416,19 @@ function importGraph(entry) {
     via.set(toPosix(file), from)
     for (const { names, file: target } of imports) visit(target, names, toPosix(file))
   }
-  visit(resolve(entry), null, null)
+  for (const entry of [entries].flat()) visit(resolve(entry), null, null)
   return via
+}
+
+// The files that belong to a page: loaded by its entry module(s) but unreachable from the app entry
+// without going through one of them. A page catalog registered by the entry is always there when
+// these run, since lazy() evaluates the entry's chunk before the page renders. A file the entry
+// loads that something else also loads (a shared component, a sheet another page opens) does not
+// belong, because it can render before the page catalog is registered.
+function pageFiles(entries) {
+  const skip = new Set(entries)
+  const outside = importGraph(APP_ENTRY, skip)
+  return new Set([...importGraph(entries).keys()].filter((file) => !outside.has(file)))
 }
 
 const LITERAL = /'([\w.-]+)'|"([\w.-]+)"/g
@@ -418,7 +453,7 @@ function usedKeys(source, catalog) {
 const definedKeys = (file) =>
   [...readFileSync(file, 'utf8').matchAll(/^\s*'([^']+)'\s*:/gm)].map((match) => match[1])
 
-function checkSplit(sourceFiles, { app, common, share }) {
+function checkSplit(sourceFiles, { app, common, share, pages }) {
   // (1) Each zh-TW file and its en file write the same keys; (4) no key is written twice
   for (const [zhFile, enFile] of CATALOG_FILES) {
     const [zhKeys, enKeys] = [definedKeys(zhFile), definedKeys(enFile)]
@@ -446,7 +481,7 @@ function checkSplit(sourceFiles, { app, common, share }) {
       problems.push(`${file} is loaded by the share page (imported by ${graph.get(file)}): that ships the whole app catalog; import shared/i18n/core.ts there instead of t.ts`)
     }
   }
-  const all = { ...app, ...share }
+  const all = { ...app, ...share, ...Object.assign({}, ...pages.map((page) => page.catalog)) }
   const used = new Set()
   for (const file of graph.keys()) {
     if (CATALOG_FILES.flat().includes(file)) continue
@@ -463,12 +498,48 @@ function checkSplit(sourceFiles, { app, common, share }) {
     }
   }
 
-  // (3) src/ asks only for keys the app catalog has; the share page's own keys are not registered there
-  for (const file of sourceFiles.filter((path) => path.startsWith('src/'))) {
+  // (3) Each page catalog belongs to the files of the page whose entry imports its register module
+  const appFiles = sourceFiles.filter((path) => path.startsWith('src/'))
+  for (const page of pages) {
+    page.entries = appFiles.filter((file) =>
+      parseModule(resolve(file)).imports.some(({ file: target }) => toPosix(target) === page.register),
+    )
+    if (page.entries.length === 0) {
+      problems.push(`${page.register}: no file in src/ imports it, so ${page.zh} is never registered (import it from the page's lazy entry module)`)
+    }
+    page.files = pageFiles(page.entries)
+    for (const file of page.entries) {
+      if (!page.files.has(file)) {
+        problems.push(`${file} imports ${page.register} but is not a lazy page entry (it loads on the first screen or with another page): import page catalogs only from a lazy page's entry module`)
+      }
+    }
+  }
+  const has = (catalog, key) => key in catalog || `${key}.other` in catalog
+  const moveBack = (file, key, page) =>
+    `${file}: '${key}' is a page key (${page.zh}) but this file can load without ${page.entries.join(' / ') || 'its page'}: move '${key}' back to ${ZH} and ${EN}, or use it only inside that page`
+
+  // src/ asks only for keys of the app catalog or of a page catalog it belongs to; the share page's
+  // own keys are not registered there
+  for (const file of appFiles) {
     const source = stripComments(readFileSync(file, 'utf8'))
+    const reported = new Set()
     for (const match of source.matchAll(/(?<![\w.])(?:t|tp|t\.plural)\(\s*'([^']+)'/g)) {
       const key = match[1]
-      if (!(key in app) && !(`${key}.other` in app)) problems.push(`${file}: '${key}' is not in the app catalog (${ZH}, ${COMMON_ZH})`)
+      if (has(app, key)) continue
+      const page = pages.find((candidate) => has(candidate.catalog, key))
+      if (!page) {
+        problems.push(`${file}: '${key}' is not in the app catalog (${ZH}, ${COMMON_ZH}) or a page catalog (${PAGES_DIR}/)`)
+      } else if (!page.files.has(file)) {
+        problems.push(moveBack(file, key, page))
+        reported.add(key)
+      }
+    }
+    // Key maps and template prefixes count too (labels.ts files hold keys without calling t())
+    for (const page of pages) {
+      if (page.files.has(file)) continue
+      for (const key of usedKeys(source, page.catalog)) {
+        if (!reported.has(key)) problems.push(moveBack(file, key, page))
+      }
     }
     for (const key of usedKeys(source, share)) {
       problems.push(`${file}: '${key}' is a share page key (${SHARE_ZH}); the app does not register it`)
@@ -492,12 +563,23 @@ const zhCommon = await load(COMMON_ZH, 'zhTWCommon')
 const enCommon = await load(COMMON_EN, 'enCommon')
 const zhShare = await load(SHARE_ZH, 'zhTWShare')
 const enShare = await load(SHARE_EN, 'enShare')
+// A page catalog exports <camelName>ZhTW and <camelName>En (trip-form → tripFormZhTW, tripFormEn)
+const pages = []
+for (const page of PAGES) {
+  const camel = page.name.replace(/-(\w)/g, (_, letter) => letter.toUpperCase())
+  pages.push({
+    ...page,
+    catalog: await load(page.zh, `${camel}ZhTW`),
+    enCatalog: await load(page.en, `${camel}En`),
+  })
+}
 
 // zh and en are the app catalogs as registered (common spread in)
 checkParity(zh, ZH, en, EN)
 checkParity(zhCommon, COMMON_ZH, enCommon, COMMON_EN)
 checkParity(zhShare, SHARE_ZH, enShare, SHARE_EN)
-const split = checkSplit(sourceFiles, { app: zh, common: zhCommon, share: zhShare })
+for (const page of pages) checkParity(page.catalog, page.zh, page.enCatalog, page.en)
+const split = checkSplit(sourceFiles, { app: zh, common: zhCommon, share: zhShare, pages })
 for (const file of sourceFiles) checkSource(file)
 
 for (const problem of problems) console.log(problem)
@@ -509,6 +591,9 @@ if (problems.length > 0) {
   const own = Object.keys(zh).length - Object.keys(zhCommon).length
   console.log(
     `ok   check-i18n: ${own} app + ${Object.keys(zhCommon).length} common + ${Object.keys(zhShare).length} share keys; ` +
-      `share page loads ${split.graphFiles} files and ${split.shareKeys} keys; ${sourceFiles.length} source files`,
+      `share page loads ${split.graphFiles} files and ${split.shareKeys} keys; ${sourceFiles.length} source files` +
+      pages
+        .map((page) => `\n     page ${page.name}: ${Object.keys(page.catalog).length} keys for ${page.files.size} files after ${page.entries.join(', ')}`)
+        .join(''),
   )
 }
