@@ -4,6 +4,9 @@ import type {
   ExpensesResponse,
   FxResponse,
   FxUnavailableDetails,
+  HistoryEntity,
+  HistoryResponse,
+  SummaryResponse,
 } from '../../../shared/api/expenses.ts'
 import type { Rev } from '../../../shared/api/types.ts'
 import type { ExpenseCategory, expenseCreateSchema } from '../../../shared/schema/expense.ts'
@@ -120,4 +123,74 @@ export function onExpensesChanged(listener: Listener): () => void {
 
 export function notifyExpensesChanged(tripId: string): void {
   for (const listener of listeners) listener(tripId)
+}
+
+// Statistics and history (e7-t06, e7-t07): the summary, the change log, deleted expenses and
+// restoring a version. Restores go through `notifyExpensesChanged` like every other write.
+
+export type SummaryBy = SummaryResponse['by']
+
+export const expenseLogApi = {
+  /** GET /expenses/summary?by=&from=&to=: base-currency totals (member rows add paid and share) */
+  summary(
+    tripId: string,
+    by: SummaryBy,
+    range: { from?: string | null; to?: string | null } = {},
+    signal?: AbortSignal,
+  ): Promise<SummaryResponse> {
+    const params = new URLSearchParams({ by })
+    if (range.from) params.set('from', range.from)
+    if (range.to) params.set('to', range.to)
+    return request('GET', `${base(tripId)}/expenses/summary?${params}`, {
+      token: tokenFor(tripId),
+      signal,
+    })
+  },
+
+  /** GET /expenses/:eid/history: every version of one expense, oldest first */
+  history(tripId: string, expenseId: string, signal?: AbortSignal): Promise<HistoryResponse> {
+    return request('GET', `${one(tripId, expenseId)}/history`, { token: tokenFor(tripId), signal })
+  },
+
+  /** GET /expense-history?entity=&limit=: the trip's money log, newest first */
+  tripHistory(
+    tripId: string,
+    query: { entity?: HistoryEntity; limit?: number } = {},
+    signal?: AbortSignal,
+  ): Promise<HistoryResponse> {
+    const params = new URLSearchParams()
+    if (query.entity) params.set('entity', query.entity)
+    if (query.limit) params.set('limit', String(query.limit))
+    const search = params.size ? `?${params}` : ''
+    return request('GET', `${base(tripId)}/expense-history${search}`, {
+      token: tokenFor(tripId),
+      signal,
+    })
+  },
+
+  /** GET /expenses?deleted=1: the soft-deleted expenses only */
+  listDeleted(tripId: string, signal?: AbortSignal): Promise<ExpensesResponse> {
+    return request('GET', `${base(tripId)}/expenses?deleted=1`, { token: tokenFor(tripId), signal })
+  },
+
+  /** POST /expenses/:eid/restore {}: undelete */
+  async undelete(tripId: string, expenseId: string): Promise<ExpenseResponse> {
+    const response = await expensesApi.restore(tripId, expenseId)
+    notifyExpensesChanged(tripId)
+    return response
+  },
+
+  /** POST /expenses/:eid/restore { historyId }: bring back the version that entry recorded */
+  async restoreVersion(
+    tripId: string,
+    expenseId: string,
+    historyId: string,
+  ): Promise<ExpenseResponse> {
+    const response = await request<ExpenseResponse>('POST', `${one(tripId, expenseId)}/restore`, {
+      token: tokenFor(tripId),
+      body: { historyId },
+    })
+    notifyExpensesChanged(tripId)
+    return response
+  },
 }

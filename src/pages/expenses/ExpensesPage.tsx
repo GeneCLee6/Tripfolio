@@ -43,6 +43,7 @@ import {
 import { PageHeading, Stack } from '../parts.tsx'
 import { ExpenseFormSheet } from './ExpenseFormSheet.tsx'
 import { ExpenseRow } from './ExpenseRow.tsx'
+import { ExpenseHistorySheet } from './history/ExpenseHistorySheet.tsx'
 import { categoryLabel, type RowMoney } from './labels.ts'
 import { useUndoBar } from './UndoBar.tsx'
 
@@ -226,6 +227,7 @@ export default function ExpensesPage() {
     expense: null,
   })
   const [confirm, setConfirm] = useState<ExpenseView | null>(null)
+  const [historyFor, setHistoryFor] = useState<string | null>(null)
 
   const remove = async (expense: ExpenseView) => {
     setConfirm(null)
@@ -263,6 +265,12 @@ export default function ExpensesPage() {
           <>
             <ButtonLink to="balances" variant="secondary">
               {t('expenses.balancesLink')}
+            </ButtonLink>
+            <ButtonLink to="stats" variant="secondary">
+              {t('stats.link')}
+            </ButtonLink>
+            <ButtonLink to="history" variant="ghost">
+              {t('history.link')}
             </ButtonLink>
             {canEdit ? (
               <AddOnWide>
@@ -430,6 +438,15 @@ export default function ExpensesPage() {
         title={t('expenses.deleteTitle')}
         actions={
           <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setHistoryFor(confirm?.id ?? null)
+                setConfirm(null)
+              }}
+            >
+              {t('history.sheet.open')}
+            </Button>
             <Button variant="ghost" onClick={() => setConfirm(null)}>
               {t('common.cancel')}
             </Button>
@@ -441,6 +458,11 @@ export default function ExpensesPage() {
       >
         {t('expenses.deleteBody')}
       </Dialog>
+      <ExpenseHistorySheet
+        open={historyFor !== null}
+        expenseId={historyFor}
+        onClose={() => setHistoryFor(null)}
+      />
       {bar}
     </Stack>
   )

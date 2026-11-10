@@ -16,6 +16,8 @@ const TripSettingsPage = lazy(() => import('../pages/TripSettingsPage.tsx'))
 const PhotosPage = lazy(() => import('../pages/photos/PhotosPage.tsx'))
 const PlacesPage = lazy(() => import('../pages/places/PlacesPage.tsx'))
 const BalancesPage = lazy(() => import('../pages/balances/BalancesPage.tsx'))
+const StatsPage = lazy(() => import('../pages/stats/StatsPage.tsx'))
+const HistoryPage = lazy(() => import('../pages/expenses/history/HistoryPage.tsx'))
 const JoinPage = lazy(() => import('../pages/JoinPage.tsx'))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.tsx'))
 
@@ -86,6 +88,8 @@ function AppRoutes() {
           <Route path="photos" element={<PhotosPage />} />
           <Route path="places" element={<PlacesPage />} />
           <Route path="expenses/balances" element={<BalancesPage />} />
+          <Route path="expenses/stats" element={<StatsPage />} />
+          <Route path="expenses/history" element={<HistoryPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         {UiShowcase && (
