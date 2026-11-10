@@ -9,6 +9,7 @@ import { copyText, DEFAULT_SHARE_OPTIONS, SHARE_OPTION_KEYS, shareUrl } from '..
 import { color, fontSize, fontWeight, space } from '../../styles/tokens.ts'
 import { Stack } from '../parts.tsx'
 import { Note } from '../members/MembersSection.tsx'
+import { ShareCalendarFeed } from '../lifecycle/CalendarSection.tsx'
 
 // Settings → 分享連結 → 建立 (e1-t05). Two steps in one dialog: the options (money and addresses
 // hidden by default, recap off), then the new link, shown this once (POST /shares is the only
@@ -75,12 +76,14 @@ export function ShareDialog({ tripId, onClose, onCreated }: ShareDialogProps) {
   const [options, setOptions] = useState<ShareOptions>(DEFAULT_SHARE_OPTIONS)
   const [busy, setBusy] = useState(false)
   const [url, setUrl] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
 
   async function create() {
     setBusy(true)
     try {
       const response = await sharesApi.create(tripId, options)
       setUrl(shareUrl(response.shareToken, window.location.origin))
+      setToken(response.shareToken)
       onCreated()
     } catch (error) {
       showError(error)
@@ -126,6 +129,7 @@ export function ShareDialog({ tripId, onClose, onCreated }: ShareDialogProps) {
               {t('shares.open')}
             </OpenLink>
           </div>
+          {token && <ShareCalendarFeed shareToken={token} />}
         </Stack>
       </Dialog>
     )

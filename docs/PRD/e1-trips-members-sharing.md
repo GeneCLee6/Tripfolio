@@ -60,8 +60,9 @@ depends_on: [E10, E11]
 - [x] AC-1.3 — 權限與分享：owner／editor／viewer 在 API 層生效；分享連結唯讀、可選隱藏金額／地址／訂位代號、可撤銷。 · #B3m、#share、#C1s（角色：#B3m Playwright 驗證檢視者 `PATCH` 回 403、介面依 `useCan()` 隱藏；伺服器端隱藏：#share `worker/share.ts` 依 `hideMoney`／`hideAddresses` 直接不送欄位、Playwright 看過；分享介面：#C1s `e2e/shares.spec.ts` 375／1440 px 對本機 Worker＋D1：owner 建立分享（預設隱藏金額＋地址、回顧預設關）→ 網址只顯示一次、可複製、可在新分頁開啟 → 關閉後頁面不再有 token、清單只列日期與選項 chip → 無 token 的瀏覽器開 `/s/<token>` 看到旅程名稱 → 經邀請加入的編輯者看不到建立按鈕、`GET /shares` 回 403 → owner 確認後撤銷 → `/s/<token>` 顯示「這個連結已失效或不存在」）
 - [ ] AC-1.4 — 選用 Google 登入：跨裝置看到自己的旅程清單；可綁定既有成員。
   - 進度（#H3c，`e1-t06`）：程式與測試完成（`tests/worker/auth-google.test.ts` 用假 D1＋假 Google token 端點／JWKS 驗 PKCE、state、id_token 的 aud／exp／nonce／iss／簽章、session cookie 旗標、滑動到期、登出、綁定／解除、`/api/auth/trips` 只替綁定的成員發 token；`e2e/auth.spec.ts` 驗未設定時完全不出現登入介面，並以 `page.route` 模擬登入後的頭像、合併旅程、設定頁「帳號」卡）。**要等擁有者照 `DEPLOY.md` §13 建 Google OAuth 用戶端、設 `GOOGLE_CLIENT_ID`（var）與 `GOOGLE_CLIENT_SECRET`（secret），並在正式站做完 §13.4 的兩台裝置實測才勾。**
-- [ ] AC-1.5 — 生命週期：封存、複製為範本（可清空）、軟刪除 30 天可還原。
-  - 進度（#F3a）：封存（#A3b／#A3f）早已完成；複製為範本與還原的 API 完成並有測試（`tests/worker/clone.test.ts`：預設清空成員／花費／照片、可選保留、權限、30 天內還原、逾期 410、已刪清單）。設定頁的「複製為範本」「已刪除的旅程／還原」介面還沒做，所以不勾。
+- [x] AC-1.5 — 生命週期：封存、複製為範本（可清空）、軟刪除 30 天可還原。 · #F3a、#F3b
+  - 進度（#F3a）：封存（#A3b／#A3f）早已完成；複製為範本與還原的 API 完成並有測試（`tests/worker/clone.test.ts`：預設清空成員／花費／照片、可選保留、權限、30 天內還原、逾期 410、已刪清單）。
+  - 介面（#F3b，`src/pages/lifecycle/`、`src/lib/lifecycle/`）：設定頁「旅程檔案」卡（在「工具」之前）：複製為範本（`CloneSheet`：名稱、新出發日、保留旅伴／花費／照片，花費會連帶旅伴）、刪除旅程（owner，確認框說明 30 天可還原）；旅程列表底下「已刪除的旅程」（`GET /api/trips/deleted`，刪除日、永久刪除日與剩餘天數、owner 才有「還原」）。因為 `GET /api/trips` 不回已刪旅程、`api.listTrips()` 會把它的 token 從裝置清掉，`src/lib/lifecycle/graveyard.ts` 會把離開主 token 庫的 token 另存（`tripfolio.retiredTokens`），已刪清單一起送、伺服器不再回應的就忘掉；還原後放回主 token 庫。Playwright `e2e/lifecycle.spec.ts` 375／1440 px 對本機 Worker＋D1：複製為範本改出發日 → 進入新旅程、API 確認日期平移、只剩自己、3 個行程點都在 → 刪除匯入的旅程 → 列表消失、出現在「已刪除的旅程」含永久刪除日與「剩 30 天」→ 重新整理仍在 → 還原 → 回到列表；檢視者看不到匯出／複製／刪除。
 
 ## Task 拆分
 
@@ -76,7 +77,7 @@ depends_on: [E10, E11]
 ### M1–M2
 
 - [x] `e1-t06` Google 登入（Worker 端 OAuth code flow、HttpOnly session cookie）、「我的旅程」跨裝置、綁定成員 · AC-1.4 · M · ← e1-t03 · #H3c（預設關閉，待擁有者設定 `DEPLOY.md` §13）
-- [x] `e1-t07` 封存、複製為範本（可選清空日期／花費／照片）、軟刪除與還原 · AC-1.5 · S · ← e1-t02 · #F3a（後端；介面待前端）
+- [x] `e1-t07` 封存、複製為範本（可選清空日期／花費／照片）、軟刪除與還原 · AC-1.5 · S · ← e1-t02 · #F3a（後端）、#F3b（介面）
 
 ## 風險與對策
 

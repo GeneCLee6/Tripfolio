@@ -25,6 +25,7 @@ import { focusRing } from '../styles/mixins.ts'
 import { color, duration, fontSize, fontWeight, media, radius, space } from '../styles/tokens.ts'
 import { Count, PageHeading, SectionTitle, Stack } from './parts.tsx'
 import { TripFormDialog } from './trip-form/TripFormDialog.tsx'
+import { TripListLifecycle } from './lifecycle/DeletedTrips.tsx'
 
 // The app's home (E1 設計方向): the trips this device holds a memberToken for, on three shelves —
 // coming up (with a countdown), on the road, past (archived ones too). No accounts: the list is
@@ -249,6 +250,7 @@ export default function TripListPage() {
         />
         <AccountBar />
         {content}
+        <TripListLifecycle onChange={resource.reload} />
       </Stack>
       <TripFormDialog
         open={creating}

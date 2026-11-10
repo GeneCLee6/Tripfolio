@@ -48,7 +48,7 @@ depends_on: []
   - 進度（#H3a，e11-t04）：有測試的部分——token 規格（128-bit base64url、只存 SHA-256、常數時間比對、格式不對不查 D1；`tests/worker/security/tokens.test.ts`）、速率限制（各路由上限、時間窗重置、`Retry-After`、D1 故障放行；`ratelimit.test.ts`）、上傳限制（SVG 拒收、超過大小的 `Content-Length` 回 413；`uploads.test.ts`）、文件驗權（分享 token 403、成員 `no-store`）、`apiUsage` 含 `og`、Worker 回應的 `nosniff`／`noindex`／CSP（`headers.test.ts`）；伺服器端過濾已由 `tests/worker/share.test.ts` 涵蓋。瀏覽器實測：本機建置後建旅程、地圖（OpenFreeMap 瓦片）、分享頁在 CSP 下無違規（`DEPLOY.md` §12）。**不勾的原因**：app 的 `index.html` 與靜態檔不經過 Worker，還沒有 CSP／noindex 標頭（要加 `public/_headers`，見 `DEPLOY.md` §12.2），且正式站的 `curl -I` 要等第一次部署後做。
 - [ ] AC-11.5 — 成本：用量頁顯示六項指標與外部 API 配額；80% 警示。
   - 進度（#J1b，e11-t05）：`/admin/usage?key=<ADMIN_KEY>`＋`GET /api/admin/usage`（`worker/admin/usage.ts`）。自計數的部分已驗證——外部 API 今日（Photon／Nominatim／ORS／匯率／連結預覽，對照代理配額或自訂預算）、R2 容量（附件位元組對照 10 GB，前五大旅程用 `StorageMeterView` 對照 1.5 GB）、D1 今日寫入估計（對照 10 萬）與各表筆數、旅程狀態；≥ 80% 進 `warnings`、頁面警示列與每條「接近上限」，Worker 記 `usage_warning`（`tests/worker/admin-usage.test.ts`；`e2e/admin.spec.ts` 在 375／1440 對本機 Worker 植入 og 900／1,000 看到警示）。**不勾的原因**：Workers 請求、D1 讀取、DO 時數要 Cloudflare GraphQL Analytics，查詢與解析有單元測試（假回應），但還沒設 `CF_ANALYTICS_TOKEN` 對真帳號跑過（`DEPLOY.md` §14.2）；設好並在正式站看到數字後才勾。
-- [ ] AC-11.6 — 隱私：刪旅程連帶刪 R2（測試）；隱私頁上線。
+- [x] AC-11.6 — 隱私：刪旅程連帶刪 R2（測試）；隱私頁上線。 · #H3b、#F3b（R2 連帶清除：`tests/worker/cleanup.test.ts`「purges trips deleted 30+ days ago with their R2 objects」與 R2 故障重試；隱私頁 `/privacy`：我們存什麼、誰看得到、照片與文件（2048、去 EXIF、文件永不分享）、分享連結、刪除與保留 30 天（含備份 30 天）、外部服務（OpenFreeMap／Photon／Nominatim／ORS／open.er-api.com）、聯絡；zh-TW／en，Playwright 375／1440 px 兩種語言、無水平捲動；從旅程列表底部與設定頁「旅程檔案」連過去）
 
 ## Task 拆分
 
@@ -60,8 +60,8 @@ depends_on: []
 
 ### M1–M2
 
-- [ ] `e11-t06` 刪旅程連帶清 R2、隱私頁、noindex 與 CSP 檢查 · AC-11.6 · S · ← e1-t07
-  - 後端清理完成（#H3b）；**隱私頁未做**，所以不勾。`worker/cleanup.ts` 每日 cron 在備份與匯率之後跑（備份失敗就跳過，`cleanup_skipped`）。清理契約：旅程軟刪除滿 **30 天** → 刪 R2 `<APP_ENV>/trips/<tripId>/` 全部物件，再依相依順序硬刪該旅程所有列（`TRIP_PURGE_STATEMENTS`；新增帶 `tripId` 的表必須加進去，`tests/worker/cleanup.test.ts` 會擋）；附件軟刪除滿 **7 天** → 刪 R2 物件與列；`pending` 上傳超過 **15 分鐘** → 刪物件（若有）與列；`rateLimits`／`providerThrottle` 超過 2 天、`geoCache` 過期列。R2 先刪、失敗就保留列等隔天重試；每步各自吞錯誤，log 一行 `cleanup_done`（失敗另記 `cleanup_failed`）。每次最多 20 個旅程、500 個附件。`migrations/0008_leftovers.sql` 加了對應的部分索引。
+- [x] `e11-t06` 刪旅程連帶清 R2、隱私頁、noindex 與 CSP 檢查 · AC-11.6 · S · ← e1-t07 · #H3b、#F3b
+  - 後端清理完成（#H3b）；隱私頁 `src/pages/PrivacyPage.tsx`（#F3b）。`worker/cleanup.ts` 每日 cron 在備份與匯率之後跑（備份失敗就跳過，`cleanup_skipped`）。清理契約：旅程軟刪除滿 **30 天** → 刪 R2 `<APP_ENV>/trips/<tripId>/` 全部物件，再依相依順序硬刪該旅程所有列（`TRIP_PURGE_STATEMENTS`；新增帶 `tripId` 的表必須加進去，`tests/worker/cleanup.test.ts` 會擋）；附件軟刪除滿 **7 天** → 刪 R2 物件與列；`pending` 上傳超過 **15 分鐘** → 刪物件（若有）與列；`rateLimits`／`providerThrottle` 超過 2 天、`geoCache` 過期列。R2 先刪、失敗就保留列等隔天重試；每步各自吞錯誤，log 一行 `cleanup_done`（失敗另記 `cleanup_failed`）。每次最多 20 個旅程、500 個附件。`migrations/0008_leftovers.sql` 加了對應的部分索引。
 - [ ] `e11-t04` 速率限制、token 規格與測試、上傳限制、文件驗權讀取、`apiUsage` 計數 · AC-11.4 · M · ← e6-t01
 - [x] `e11-t04` 速率限制、token 規格與測試、上傳限制、文件驗權讀取、`apiUsage` 計數 · AC-11.4 · M · ← e6-t01 · #H3a
 

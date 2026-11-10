@@ -17,6 +17,7 @@ import { InvitesSection } from './members/InvitesSection.tsx'
 import { MembersSection } from './members/MembersSection.tsx'
 import { PageHeading, SectionTitle, Stack } from './parts.tsx'
 import { SharesSection } from './shares/SharesSection.tsx'
+import { TripDataSection } from './lifecycle/TripDataSection.tsx'
 import { TripFormDialog } from './trip-form/TripFormDialog.tsx'
 
 // /trips/:id/settings — the trip's details (edit), the travellers and invite links (e1-t03), share
@@ -130,6 +131,8 @@ export default function TripSettingsPage() {
       <InvitesSection />
       <SharesSection />
       <IdentitySection />
+
+      <TripDataSection />
 
       <Card as="section" aria-labelledby="settings-tools">
         <Stack $gap="md">

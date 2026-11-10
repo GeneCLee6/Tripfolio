@@ -25,6 +25,7 @@ const StatsPage = lazy(() => import('../pages/stats/StatsPage.tsx'))
 const HistoryPage = lazy(() => import('../pages/expenses/history/HistoryPage.tsx'))
 const JoinPage = lazy(() => import('../pages/JoinPage.tsx'))
 const UsagePage = lazy(() => import('../pages/admin/UsagePage.tsx'))
+const PrivacyPage = lazy(() => import('../pages/PrivacyPage.tsx'))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.tsx'))
 
 // The component showcase exists only in development: with DEV false the import below is dead code
@@ -89,6 +90,14 @@ function AppRoutes() {
           element={
             <Plain>
               <UsagePage />
+            </Plain>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <Plain>
+              <PrivacyPage />
             </Plain>
           }
         />
