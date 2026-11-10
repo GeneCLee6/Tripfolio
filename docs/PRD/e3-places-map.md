@@ -62,6 +62,7 @@ depends_on: [E10, E11]
 - [x] AC-3.4 — 圖層與地點庫：五個圖層可開關；地點庫可合併重複。
   - **驗證**：圖層開關見 #B2m（`e2e/map.spec.ts`）；地點庫 #D2b（`e2e/places.spec.ts`，375／1440 px，真 Worker＋本機 D1）：三個地點（兩個 30 m 內同名、一個未使用）＋兩個行程點 → 列表顯示引用數與「未使用」、搜尋與排序 → 「找出重複」分出一組（有 externalId 的建議保留）→ 合併前列出會改指的行程點 → 合併後顯示「改指 1 個行程點」，API 確認該行程點指向保留的地點 → 營業時間設週一 09:00–17:00 存回 `periods` → 日程頁對週一 18:00 到達的行程點顯示「到達時已打烊」、12:00 的沒有 → 被引用的地點刪除被擋下並列出引用、未使用的可刪。
 - [ ] AC-3.5 — 離線：關掉網路後能開啟最近旅程的地圖、看到所有針與路線（實體手機實測）。
+  - _進度（#H2b）：「下載離線地圖」已做（`e3-t06`）。Playwright（`e2e/offline.spec.ts`，`page.route` 模擬 OpenFreeMap style／TileJSON／瓦片，單一地點＋20 km）：估算顯示「約 … （N 張圖磚）」→ 下載後 `tiles-<tripId>` 有 z5–z12 每一層的瓦片、style 與 TileJSON，Sheet 顯示的檔案數等於快取筆數 →「清除」後快取刪除。Service Worker 從快取回瓦片、離線用下載時存的 TileJSON 是程式路徑，**沒有在瀏覽器裡離線開地圖驗過**（Playwright 的 `page.route` 看不到 SW 發的請求）；路線 JSON 靠 SW 的 `POST /geo/routes` 快取（看過的才有）。剩實體手機：飛航模式開最近旅程的地圖、看到所有針與路線。_
 
 ## Task 拆分
 
@@ -80,7 +81,10 @@ depends_on: [E10, E11]
 
 ### M2
 
-- [ ] `e3-t06` 離線瓦片：Service Worker 依旅程外框快取 zoom 5–12（上限 150 MB）、路線 JSON；下載進度與清除 · AC-3.5 · M · ← e10-t05
+- [x] `e3-t06` 離線瓦片：Service Worker 依旅程外框快取 zoom 5–12（上限 150 MB）、路線 JSON；下載進度與清除 · AC-3.5 · M · ← e10-t05 · #H2b
+  - `src/lib/offline/tiles.ts`：外框＝行程點、口袋名單、住宿、必吃必買、加油補給的所有座標＋每邊 20 km（經度依最高緯度換算），zoom 5–12 列舉 XYZ 瓦片；讀 style（`MAP_STYLE_URL`）→ 各 source 的 TileJSON 取瓦片樣板與 minzoom／maxzoom（liberty 的向量 z0–14、Natural Earth 點陣 z0–6）；估算每張 25 kB，超過 150 MiB 就拒絕並建議能放下的最高縮放（全紐西蘭南北島 → 11）；6 個並行抓進 `caches.open('tiles-<tripId>')`，已存在的略過、失敗的計數不中斷；同時存 style、TileJSON、sprite（含 @2x）與拉丁字 glyph（0-255、256-511、8192-8447；中日韓字 MapLibre 用本機字型畫，不必下載）；下載前 `navigator.storage.persist()`；`navigator.storage.estimate()` 顯示用量。
+  - 地圖頁：圖層面板底部「下載離線地圖」→ lazy 的 `OfflineMapSheet`（說明、估算、太大時「下載到縮放 N」、進度條與「停止」、已存檔案數、「清除」）。SW 對所有 `tiles.openfreemap.org` 的瓦片 cache-first（任何快取）。
+  - **留下**：路線 JSON 沒有主動下載（只有看過的 Day 會在 SW 快取裡）；反子午線跨越的旅程外框未處理；離線瓦片不隨「最近 3 個旅程」清掉，只能手動清除；OpenFreeMap 換瓦片版本後，舊的離線下載仍可離線使用，但連線時會改抓新版本。
 
 ## 風險與對策
 

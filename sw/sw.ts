@@ -4,7 +4,7 @@
 // file of the client build) and __SW_VERSION__ (APP_VERSION + a hash of those file names).
 // Self-contained on purpose: no imports, so the output is one classic script.
 //
-//   app shell     precached per version; navigations network-first, offline → cached /index.html;
+//   app shell     precached per version; navigations network-first, offline → the cached '/';
 //                 /assets/* (hashed) cache-first
 //   trip data     GET /api/trips, /api/trips/:id and /api/trips/:id/* network-first, falling back
 //                 to the cache when the network fails (see note below); only the 3 most recently
@@ -146,7 +146,8 @@ async function navigation(request: Request): Promise<Response> {
     return await fetch(request)
   } catch (error) {
     const shell = await caches.open(SHELL)
-    const cached = (await shell.match('/index.html')) ?? (await shell.match('/'))
+    // The app's index.html, precached as '/' (every client route is the same page)
+    const cached = await shell.match('/')
     if (cached) return cached
     throw error
   }

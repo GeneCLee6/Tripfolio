@@ -18,7 +18,7 @@
 - CSS2 API 回的 `@font-face` 已按 `unicode-range` 切片（Noto Sans TC 約一百片），瀏覽器只下載頁面用到的字的那幾片；拉丁字型只有 latin／latin-ext 片。
 - 先 `preconnect` 到 `fonts.googleapis.com` 與 `fonts.gstatic.com`；`display=swap`，字型到之前用 `tokens.ts` 的後備字型（`system-ui`、`-apple-system`、`Segoe UI`、`PingFang TC`、`Microsoft JhengHei`；等寬為 `ui-monospace`、`SFMono-Regular`、Menlo、Consolas）。
 - 分享頁（`share/main.tsx`）目前還沒呼叫 `loadFonts()`，用後備字型；E8 做分享頁時加上。
-- 與 E10 PRD「self-host 子集」的差異：M0 先用 Google Fonts 的子集服務（同樣是 unicode-range 子集、不必自己切字）；若之後要離線（PWA，e10-t05）或不依賴第三方，再把這些檔案下載到 `public/fonts/` 自管，授權（OFL）允許。
+- 與 E10 PRD「self-host 子集」的差異：M0 先用 Google Fonts 的子集服務（同樣是 unicode-range 子集、不必自己切字）；若之後要離線（PWA，e10-t05）或不依賴第三方，再把這些檔案下載到 `public/fonts/` 自管，授權（OFL）允許。e10-t05 的 Service Worker 先以 cache-first 快取看過的 Google Fonts 樣式表與字型檔（`fonts-v1`），沒看過的字離線時用後備字型；自管仍待做。
 
 ## 2. 圖示
 
@@ -28,6 +28,7 @@
 | 空狀態插圖（旅行箱、地圖針、收據） | `EmptyState` | `src/components/EmptyState.tsx`，程式畫的幾何 SVG，顏色取自 token | 本專案 | 內嵌 SVG |
 | 地圖針圖示（書籤、床、星、油槍）與地圖按鈕（定位、全螢幕） | 地圖針（口袋名單／住宿／必吃必買／加油與補給）、地圖控制鈕 | `src/map/sprite.ts`、`src/map/TripMap.tsx`，仿 Lucide 24 格線手繪路徑（非複製 Lucide 原始碼；Lucide 為 ISC 授權，日後改用正式套件時保留其 ISC 聲明） | 本專案 | 程式產生 SVG（data URL → `map.addImage`） |
 | Lucide（規劃中） | 全站圖示 | <https://lucide.dev> | ISC | 尚未加入；加入時改用它並更新此列 |
+| App 圖示（PWA，e10-t05） | 安裝後的主畫面圖示、分頁圖示、iOS apple-touch-icon | `docs/design/logo/logo.svg` → `public/icons/`：`icon.svg`（原圖）、`icon-192.png`、`icon-512.png`（purpose any）、`icon-maskable.svg`／`icon-maskable-192.png`／`icon-maskable-512.png`（logo 縮到 80% 安全區、滿版 paper `#EDEFEA` 底）、`apple-touch-icon.png`（180，90%、paper 底，iOS 自己切圓角）。重產：`node sw/make-icons.mjs`（用已安裝的 `sharp`，不在 build 內） | 本專案 | `public/manifest.webmanifest` 的 `icons`；`index.html` 的 `<link rel="icon">`、`apple-touch-icon` |
 
 ## 3. 地圖
 

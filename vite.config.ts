@@ -31,7 +31,9 @@ const serviceWorker = (): Plugin => ({
       .filter((file) => !file.endsWith('.html'))
       .map((file) => `/${file}`)
       .sort()
-    const precache = ['/', '/index.html', ...files]
+    // '/' only: the assets binding redirects /index.html to /, and a redirected response cannot
+    // answer a navigation
+    const precache = ['/', ...files]
     const hash = createHash('sha256').update(precache.join(' ')).digest('hex').slice(0, 10)
     const version = `${process.env.APP_VERSION ?? 'local'}-${hash}`
     sw.code = sw.code
