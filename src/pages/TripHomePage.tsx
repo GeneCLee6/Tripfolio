@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { formatDateRange } from '../../shared/i18n/format.ts'
@@ -7,6 +7,7 @@ import {
   Chip,
   MemberAvatarRow,
   PhotoThumb,
+  Skeleton,
   StorageMeter,
 } from '../components/index.ts'
 import { ButtonLink } from '../components/ButtonLink.tsx'
@@ -14,10 +15,11 @@ import { SECTIONS, tripPath } from '../app/sections.ts'
 import { useTripContext } from '../app/trip-context.ts'
 import { safeColor } from '../lib/colors.ts'
 import { useMediaQuery, useNow } from '../lib/hooks.ts'
-import { useT, type Translate } from '../lib/i18n.ts'
+import { useT } from '../lib/i18n.ts'
 import { sortMembers } from '../lib/members.ts'
 import { useCan } from '../lib/role.ts'
-import { countdown, tripLength, type Countdown } from '../lib/trip-groups.ts'
+import { homePhase } from '../lib/today/today.ts'
+import { tripLength } from '../lib/trip-groups.ts'
 import { focusRing } from '../styles/mixins.ts'
 import {
   color,
@@ -30,11 +32,18 @@ import {
   space,
 } from '../styles/tokens.ts'
 import { DeadlinesBlock } from './bookings/DeadlinesBlock.tsx'
+import { PrepLinks } from './checklists/PrepLinks.tsx'
+import { BeforeCard } from './home/BeforeCard.tsx'
+import { Countdown } from './home/Countdown.tsx'
 import { SectionTitle, Stack } from './parts.tsx'
 import { TripFormDialog } from './trip-form/TripFormDialog.tsx'
 
-// /trips/:id — the trip's overview until the itinerary and today card arrive: the cover, who is
-// coming, what is coming due (empty until bookings exist), and a way into every section.
+// /trips/:id — the trip's overview: the cover with the countdown, then the phase card (e9-t06:
+// 出發前 with the prep pages before departure, the lazy 今日卡 while the trip runs, nothing after),
+// who is coming, what is coming due, and a way into every section.
+
+// Only an ongoing trip loads the today card's chunk (first-screen budget)
+const TodayCard = lazy(() => import('./home/TodayCard.tsx'))
 
 const Hero = styled.header<{ $color: string }>`
   display: grid;
@@ -156,12 +165,6 @@ const SectionBody = styled.span`
   font-size: ${fontSize.sm}px;
 `
 
-function countdownText(t: Translate, value: Countdown): string {
-  if (value.kind === 'upcoming') return t.plural('count.daysToGo', value.days)
-  if (value.kind === 'ongoing') return t('trips.dayOf', { day: value.day, total: value.of })
-  return value.kind === 'archived' ? t('trips.archived') : t('trips.ended')
-}
-
 export default function TripHomePage() {
   const t = useT()
   const navigate = useNavigate()
@@ -171,6 +174,7 @@ export default function TripHomePage() {
   const [editing, setEditing] = useState(false)
   const nowMs = useNow()
   const canEdit = can('editContent')
+  const phase = homePhase(trip, nowMs)
 
   return (
     <Stack>
@@ -186,7 +190,8 @@ export default function TripHomePage() {
           </HeroPhoto>
         )}
         <HeroMeta>
-          <span>{countdownText(t, countdown(trip, nowMs))}</span>
+          {/* Before departure the 出發前 card shows the countdown instead */}
+          {phase !== 'before' && <Countdown trip={trip} nowMs={nowMs} />}
           <span>{formatDateRange(trip.startDate, trip.endDate, t.locale)}</span>
           <span>{t.plural('count.days', tripLength(trip))}</span>
         </HeroMeta>
@@ -220,6 +225,13 @@ export default function TripHomePage() {
 
       <StorageMeter tripId={trip.id} compact showFrom={0.5} />
 
+      {phase === 'before' && <BeforeCard trip={trip} nowMs={nowMs} />}
+      {phase === 'today' && (
+        <Suspense fallback={<Skeleton $height={220} />}>
+          <TodayCard trip={trip} nowMs={nowMs} />
+        </Suspense>
+      )}
+
       <Stack as="section" $gap="md" aria-labelledby="home-members">
         <SectionTitle id="home-members">{t('tripHome.members')}</SectionTitle>
         <div>
@@ -233,6 +245,8 @@ export default function TripHomePage() {
         <SectionTitle id="home-deadlines">{t('tripHome.deadlines')}</SectionTitle>
         <DeadlinesBlock trip={trip} />
       </Stack>
+
+      {phase !== 'before' && <PrepLinks tripId={trip.id} />}
 
       <Stack as="section" $gap="md" aria-labelledby="home-sections">
         <SectionTitle id="home-sections">{t('tripHome.sections')}</SectionTitle>

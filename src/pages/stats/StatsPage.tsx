@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import type { BudgetCategory } from '../../../shared/schema/prep.ts'
 import styled from 'styled-components'
 import { formatMoney } from '../../../shared/i18n/format.ts'
 import '../../../shared/i18n/pages/stats.ts'
+import { tripPath } from '../../app/sections.ts'
 import { useTripContext } from '../../app/trip-context.ts'
 import { ButtonLink } from '../../components/ButtonLink.tsx'
 import {
@@ -10,6 +12,7 @@ import {
   CategoryIcon,
   DateField,
   EmptyState,
+  Meter,
   SegmentBar,
   SegmentedControl,
   Skeleton,
@@ -28,7 +31,9 @@ import {
 import { secondaryMinor, todayIn } from '../../lib/expenses/form.ts'
 import { useResource } from '../../lib/hooks.ts'
 import { useT, type Translate } from '../../lib/i18n.ts'
+import { budgetApi } from '../../lib/prep/api.ts'
 import { useApiErrorToast } from '../../lib/role.ts'
+import { budgetGaps } from '../../lib/today/budget-gaps.ts'
 import {
   averageDays,
   categoryBars,
@@ -54,7 +59,7 @@ import { PageHeading, SectionTitle, Stack } from '../parts.tsx'
 import { DayChart } from './DayChart.tsx'
 
 // /trips/:id/expenses/stats (e7-t06): the key numbers (總花費、每人平均、每日平均, with the
-// secondary currency), the budget card (E9 sets budgets; until then 「尚未設定預算」), then the
+// secondary currency), the budget card (E9's planned vs actual; 「尚未設定預算」 until one is set), then the
 // spending by day, by category or by person, and the CSV export. Every total comes from
 // GET /expenses/summary for the chosen period (the list page's quick ranges); the page never sums
 // expenses itself, so its numbers always match the server's.
@@ -479,18 +484,7 @@ export default function StatsPage() {
             )}
           </Kpis>
 
-          <Panel aria-label={t('stats.budget.title')}>
-            <PanelTitle>{t('stats.budget.title')}</PanelTitle>
-            <BudgetTrack
-              role="progressbar"
-              aria-label={t('stats.budget.title')}
-              aria-valuetext={t('stats.budget.none')}
-              aria-disabled="true"
-            />
-            <Muted>
-              <strong>{t('stats.budget.none')}</strong> · {t('stats.budget.hint')}
-            </Muted>
-          </Panel>
+          <BudgetCard tripId={trip.id} money={money} t={t} />
 
           {empty ? (
             <EmptyState
@@ -562,6 +556,184 @@ export default function StatsPage() {
         </>
       )}
     </Stack>
+  )
+}
+
+const BUDGET_CATEGORY_LABEL: Record<BudgetCategory, `stats.budget.category.${BudgetCategory}`> = {
+  flights: 'stats.budget.category.flights',
+  lodging: 'stats.budget.category.lodging',
+  transport: 'stats.budget.category.transport',
+  fuel: 'stats.budget.category.fuel',
+  food: 'stats.budget.category.food',
+  tickets: 'stats.budget.category.tickets',
+  shopping: 'stats.budget.category.shopping',
+  insurance: 'stats.budget.category.insurance',
+  misc: 'stats.budget.category.misc',
+  other: 'stats.budget.category.other',
+}
+
+const BudgetNumbers = styled.dl`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: ${space.sm}px ${space.md}px;
+  margin: 0;
+  > div > dt {
+    font-size: ${fontSize.sm}px;
+    color: ${color.muted};
+  }
+  > div > dd {
+    margin: 0;
+    font-family: ${font.mono};
+    font-variant-numeric: tabular-nums;
+  }
+`
+
+const GapTitle = styled.h3`
+  margin: 0;
+  font-size: ${fontSize.body}px;
+  font-weight: ${fontWeight.semibold};
+`
+
+const Gaps = styled.ul`
+  display: grid;
+  gap: ${space.xs}px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  > li {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: ${space.sm}px;
+  }
+`
+
+const Gap = styled.span<{ $over: boolean }>`
+  font-family: ${font.mono};
+  font-variant-numeric: tabular-nums;
+  color: ${({ $over }) => ($over ? color.danger : color.success)};
+`
+
+/**
+ * src/lib/prep/budget.ts's useBudgetProgress, restated: that module imports the prep pages' label
+ * table (src/lib/prep/constants.ts), whose keys live in the prep page catalog, so importing it here
+ * fails check-i18n. Same key, same reload on an expense change.
+ */
+function useBudgetProgress(tripId: string) {
+  const resource = useResource(`budget-progress:${tripId}`, (signal) =>
+    budgetApi.progress(tripId, signal),
+  )
+  const { reload } = resource
+  useEffect(
+    () =>
+      onExpensesChanged((changed) => {
+        if (changed === tripId) reload()
+      }),
+    [tripId, reload],
+  )
+  return resource
+}
+
+/** Planned vs actual from GET /budget/progress (E9); the disabled look until a budget is set */
+function BudgetCard({
+  tripId,
+  money,
+  t,
+}: {
+  tripId: string
+  money: (minor: number) => string
+  t: Translate
+}) {
+  const budget = useBudgetProgress(tripId)
+  const link = tripPath(tripId, 'budget')
+  if (budget.status === 'loading') return <Skeleton $height={120} />
+  const data = budget.status === 'ready' && budget.data.hasBudget ? budget.data : null
+  if (!data)
+    return (
+      <Panel aria-label={t('stats.budget.title')} data-budget-card="none">
+        <PanelTitle>{t('stats.budget.title')}</PanelTitle>
+        <BudgetTrack
+          role="progressbar"
+          aria-label={t('stats.budget.title')}
+          aria-valuetext={t('stats.budget.none')}
+          aria-disabled="true"
+        />
+        <Muted>
+          <strong>{t('stats.budget.none')}</strong> · {t('stats.budget.hint')}
+        </Muted>
+        <Row>
+          <ButtonLink to={link} variant="secondary">
+            {t('stats.budget.set')}
+          </ButtonLink>
+        </Row>
+      </Panel>
+    )
+  const { totals } = data
+  const gaps = budgetGaps(data.categories)
+  const remaining = (minor: number) =>
+    minor < 0
+      ? t('stats.budget.overBy', { amount: money(-minor) })
+      : t('stats.budget.remaining', { amount: money(minor) })
+  return (
+    <Panel aria-label={t('stats.budget.title')} data-budget-card="set">
+      <PanelTitle>{t('stats.budget.title')}</PanelTitle>
+      {totals.trackedPlannedMinor > 0 && (
+        <Meter
+          label={t('stats.budget.used')}
+          value={totals.actualMinor}
+          limit={totals.trackedPlannedMinor}
+          valueText={t('stats.budget.usedValue', {
+            actual: money(totals.actualMinor),
+            planned: money(totals.trackedPlannedMinor),
+          })}
+          nearText={t('stats.budget.near')}
+          overText={t('stats.budget.overText')}
+        />
+      )}
+      <BudgetNumbers>
+        <div>
+          <dt>{t('stats.budget.planned')}</dt>
+          <dd data-budget-planned={totals.plannedMinor}>{money(totals.plannedMinor)}</dd>
+        </div>
+        <div>
+          <dt>{t('stats.budget.actual')}</dt>
+          <dd data-budget-actual={totals.actualMinor}>
+            {money(totals.actualMinor)}
+            {totals.trackedPlannedMinor > 0 && ` · ${remaining(totals.remainingMinor)}`}
+          </dd>
+        </div>
+        <div>
+          <dt>{t('stats.budget.perPerson')}</dt>
+          <dd>
+            {t('stats.budget.perPersonValue', {
+              actual: money(totals.actualPerPersonMinor),
+              planned: money(totals.plannedPerPersonMinor),
+            })}
+          </dd>
+        </div>
+      </BudgetNumbers>
+      {gaps.length > 0 && (
+        <>
+          <GapTitle>{t('stats.budget.gaps')}</GapTitle>
+          <Gaps data-budget-gaps="">
+            {gaps.map((gap) => (
+              <li key={gap.category} data-category={gap.category}>
+                <span>{t(BUDGET_CATEGORY_LABEL[gap.category])}</span>
+                <Gap $over={gap.remainingMinor < 0}>{remaining(gap.remainingMinor)}</Gap>
+              </li>
+            ))}
+          </Gaps>
+        </>
+      )}
+      {totals.plannedMinor > totals.trackedPlannedMinor && (
+        <Muted>{t('stats.budget.untracked')}</Muted>
+      )}
+      <Row>
+        <ButtonLink to={link} variant="secondary">
+          {t('stats.budget.open')}
+        </ButtonLink>
+      </Row>
+    </Panel>
   )
 }
 
