@@ -174,7 +174,7 @@ describe('StorageMeterView', () => {
   it('shows use against 1.5 GB without a warning below 80 %', () => {
     const html = render(<StorageMeterView usage={{ bytes: 300 * 1024 ** 2, count: 9, warnAtBytes }} />)
     expect(html).toContain('照片儲存空間')
-    expect(html).toContain('已用 300 MB / 1.5 GB')
+    expect(html).toContain('已用 300 MB／1.5 GB')
     expect(html).toContain('role="meter"')
     expect(html).toContain('data-tone="ok"')
     expect(html).not.toContain('建議上限')

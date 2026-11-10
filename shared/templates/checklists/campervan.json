@@ -10,7 +10,7 @@
         {
           "key": "campervan.pretrip.self-contained",
           "text": {
-            "zh-TW": "確認車子有沒有自炊設備認證（self-contained），以及要去的區域對自由露營的規定",
+            "zh-TW": "確認車子有沒有自給自足認證（self-contained），以及要去的區域對自由露營的規定",
             "en": "Confirm whether the van is certified self-contained, and the freedom-camping rules where you are going"
           },
           "linkHint": {

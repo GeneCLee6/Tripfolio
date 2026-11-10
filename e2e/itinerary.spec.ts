@@ -106,14 +106,14 @@ for (const [label, width, height] of [
     expect(searches).toContain('Fergburger')
     await expect(pane.getByText('42 Shotover Street, Queenstown 9300')).toBeVisible()
     // The result's category picks the type
-    await expect(pane.getByRole('radio', { name: '餐廳' })).toHaveAttribute('aria-checked', 'true')
+    await expect(pane.getByRole('radio', { name: '餐飲' })).toHaveAttribute('aria-checked', 'true')
     await pane.getByLabel('開始時間').fill('12:00')
     await pane.getByLabel('結束時間').fill('13:00')
     await pane.getByRole('button', { name: '儲存' }).click()
 
     const ferg = page.locator('[data-stop-id]').filter({ hasText: 'Fergburger' })
     await expect(ferg).toContainText('12:00–13:00')
-    await expect(ferg).toContainText('餐廳')
+    await expect(ferg).toContainText('餐飲')
 
     // 2. Edit its time and type
     await page.getByRole('button', { name: '編輯「Fergburger」' }).click()
@@ -225,7 +225,7 @@ test('English labels and the place picker errors', async ({ browser, request }) 
   })
   await page.goto(`/trips/${trip.id}/itinerary`)
   await expect(page.getByRole('heading', { level: 2, name: /^Day 1/ })).toBeVisible()
-  await page.getByRole('button', { name: '＋ Add a stop' }).first().click()
+  await page.getByRole('button', { name: '+ Add stop' }).first().click()
   const pane = page.getByRole('complementary', { name: 'Details' })
   await pane.getByLabel('Find a place').fill('Queenstown')
   await expect(pane.getByRole('alert')).toHaveText('Too many searches; try again in 42 s.')
@@ -235,7 +235,7 @@ test('English labels and the place picker errors', async ({ browser, request }) 
   )
   // The manual pin hands over to the map
   await pane.getByRole('button', { name: 'Drop a pin' }).click()
-  await expect(pane.getByRole('status')).toContainText('Long-press the map')
+  await expect(pane.getByRole('status')).toContainText('long-press the map')
   await context.close()
 })
 

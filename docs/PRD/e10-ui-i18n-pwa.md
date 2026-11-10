@@ -44,8 +44,8 @@ depends_on: []
 ## 驗收條件
 
 - [x] AC-10.1 — Token 與基礎元件：深淺色、字型、全部元件有 Storybook 式展示頁（`/dev/ui`，production 不含）。 · #A2（Playwright 開 `/dev/ui` 確認淺深兩欄並排、Sheet 開啟與 Esc 關閉；production build 不含展示頁 chunk）
-- [ ] AC-10.2 — i18n：zh-TW 來源、en 完整；偵測與切換；`check-i18n` 進 CI；英文與繁中走查各一次。
-      _進度（A2）：zh-TW 來源與 en 同步、`navigator.languages` 偵測（非 `zh*` → en）、切換並存 localStorage、`check-i18n` 在 CI 擋缺漏／多餘 key 與裸字串，皆已完成；剩兩語走查（C2，e10-t07）。_
+- [x] AC-10.2 — i18n：zh-TW 來源、en 完整；偵測與切換；`check-i18n` 進 CI；英文與繁中走查各一次。
+      _進度（A2）：zh-TW 來源與 en 同步、`navigator.languages` 偵測（非 `zh*` → en）、切換並存 localStorage、`check-i18n` 在 CI 擋缺漏／多餘 key 與裸字串，皆已完成；兩語走查（C2b，e10-t07）完成：`docs/ZH-WALKTHROUGH.md`、`docs/EN-WALKTHROUGH.md`，術語表定稿在 `DESIGN.md` §5（英文用英式／澳式拼法）。仍建議各請一位母語使用者實際用一輪。_
 - [x] AC-10.3 — 版面：375 px 全功能可用、底部導覽；桌機三欄；平板兩欄。 · #A3f（`e2e/trips.spec.ts` 在本機 Worker＋D1 跑：375 px 底部導覽五格＋浮動「記一筆」、無側欄、`body.scrollWidth` = 375、整條建立→清單→編輯→封存流程在 375 px 走完；900 px 側欄＋內容兩欄、無底部導覽；1440 px 量到左欄 360 px、右細節欄 400 px、中欄在兩者之間）
 - [ ] AC-10.4 — PWA：可安裝、離線開啟最近旅程、離線佇列重送、更新提示（實體手機實測）。
       _進度（#G2b）：功能都已做完，Chromium（Playwright，對 production build 的 `vite preview`＋本機 Worker／D1，含 `public/_headers` 的 CSP）驗過：`/sw.js` 註冊並控制頁面、`shell-<版本>` 快取存在、manifest 可讀；開過的旅程在 `context.setOffline(true)` 後重新整理仍能打開（殼來自快取、資料來自 `data-<tripId>`），頂欄顯示「離線」；離線記一筆 → 徽章「離線 · 1 筆待同步」、伺服器尚無資料 → 恢復連線後徽章消失、API 有該筆、清單自動重載；出發前 3 天的旅程首頁出現安裝橫幅（模擬 `beforeinstallprompt`），「不用了」後重新整理不再出現。**未驗**：真的安裝（Android Chrome、iOS Safari 加入主畫面）、iOS 的「加到主畫面」提示、更新提示（需要部署兩個版本）、實體手機的飛航模式與弱網路、「連線 10 秒內送完」。_
@@ -64,7 +64,7 @@ depends_on: []
 ### M0 收尾
 
 - [ ] `e10-t06` 無障礙走查、axe e2e、拖曳鍵盤替代驗證、reduced motion · AC-10.5 · S · ← e2-t04
-- [ ] `e10-t07` 英文走查與繁中語感複查、旅遊術語表定稿 · AC-10.2 · S · ← e10-t02
+- [x] `e10-t07` 英文走查與繁中語感複查、旅遊術語表定稿 · AC-10.2 · S · ← e10-t02 · #C2b
 
 ### M2
 

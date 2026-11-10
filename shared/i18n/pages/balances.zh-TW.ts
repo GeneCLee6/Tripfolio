@@ -18,7 +18,7 @@ export const balancesZhTW = {
   'balances.note': '備註',
   'balances.saving': '儲存中…',
   'balances.pool.title': '公基金結餘',
-  'balances.pool.summary': '出資 {in} · 池付 {out}',
+  'balances.pool.summary': '出資 {in} · 支出 {out}',
   'balances.pool.overdrawn': '公基金透支，差額由出資的人分擔',
   'balances.pool.contributions': '出資紀錄',
   'balances.pool.noContributions': '還沒有人出資。',
@@ -31,9 +31,9 @@ export const balancesZhTW = {
   'balances.pool.saved': '已儲存出資',
   'balances.pool.refund.label': '結餘退還方式',
   'balances.pool.refund.hintProportional':
-    '池裡剩下的錢按每個人出資的比例退還，已經算進上面每個人的餘額，不用另外轉帳。',
+    '公基金剩下的錢按每個人出資的比例退還，已經算進上面每個人的餘額，不用另外轉帳。',
   'balances.pool.refund.hintEqual':
-    '池裡剩下的錢由出資的人平均分回，已經算進上面每個人的餘額，不用另外轉帳。',
+    '公基金剩下的錢由出資的人平均分回，已經算進上面每個人的餘額，不用另外轉帳。',
   'balances.pool.refund.saved': '結餘改為「{mode}」退還',
   'balances.pool.refunds': '預估退還',
   'balances.pool.paidIn': '出資 {amount}',
@@ -74,7 +74,7 @@ export const balancesZhTW = {
   'balances.how.remainder':
     '分不完的零頭（例如 100 分給 3 人是 33.33／33.33／33.34），差的那一分算在付款人身上，所以每筆的分攤加起來一定等於原金額。',
   'balances.how.pool':
-    '公基金付的花費照樣分攤給參加的人；池裡剩下的錢按出資比例或平均退還給出資的人，直接併進餘額，不另外轉帳。公基金透支時，差額也照同樣方式由出資的人分擔。',
+    '公基金付的花費照樣分攤給參加的人；公基金剩下的錢按出資比例或平均退還給出資的人，直接併進餘額，不另外轉帳。公基金透支時，差額也照同樣方式由出資的人分擔。',
   'balances.how.settle':
     '結算建議用最少轉帳次數：每次讓應付最多的人付給應收最多的人。可以只結清一部分，剩下的會留在建議裡；刪掉結算紀錄，餘額就回到結清之前。',
   'balances.how.currency': '所有金額都換成主幣別 {currency} 計算；第二幣別只是參考。',

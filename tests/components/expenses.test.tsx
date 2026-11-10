@@ -87,7 +87,7 @@ describe('ExpenseRow', () => {
       />,
     )
     expect(html).toContain('Fuel')
-    expect(html).toContain('Paid from the pool · 2 people · By shares')
+    expect(html).toContain('Shared fund paid · 2 people · By shares')
     expect(html).toContain('A$118.40')
     expect(html).toContain('≈ NT$2,368.00')
     expect(html).not.toContain('<button')

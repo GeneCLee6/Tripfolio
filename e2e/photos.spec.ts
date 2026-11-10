@@ -125,7 +125,7 @@ for (const viewport of [
     await expect(page.getByRole('heading', { level: 1, name: '照片' })).toBeVisible()
     await expect(page.getByRole('heading', { name: '還沒有照片' })).toBeVisible()
     await expect(page.getByRole('checkbox', { name: '使用照片位置' })).toBeChecked()
-    await expect(page.getByText(/^已用 0 byte \/ 1\.5 GB$/)).toBeVisible()
+    await expect(page.getByText(/^已用 0 byte／1\.5 GB$/)).toBeVisible()
     await shot(page, `${viewport.name}-photos-empty`)
 
     await page.getByTestId('photo-input').setInputFiles([
@@ -147,7 +147,7 @@ for (const viewport of [
       expect(photo.mime).toBe('image/webp')
       expect(photo.thumbUrl).not.toBeNull()
     }
-    const usageBefore = await page.getByText(/^已用 .+ \/ 1\.5 GB$/).textContent()
+    const usageBefore = await page.getByText(/^已用 .+／1\.5 GB$/).textContent()
     expect(usageBefore).not.toContain('0 byte')
 
     // Open the first photo, step to the second and back, set the first as the cover
@@ -197,7 +197,7 @@ for (const viewport of [
     await expect(page.getByRole('dialog', { name: '第 1／1 張' })).toBeVisible()
     await page.getByRole('dialog', { name: '第 1／1 張' }).getByRole('button', { name: '關閉' }).click()
     await expect(tiles).toHaveCount(1)
-    await expect(page.getByText(/^已用 .+ \/ 1\.5 GB$/)).not.toHaveText(usageBefore ?? '')
+    await expect(page.getByText(/^已用 .+／1\.5 GB$/)).not.toHaveText(usageBefore ?? '')
     const usage = await request.get(`/api/trips/${trip.id}/attachments/usage`, {
       headers: { authorization: `Bearer ${memberToken}` },
     })

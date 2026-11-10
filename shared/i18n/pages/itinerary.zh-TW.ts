@@ -47,7 +47,7 @@ export const itineraryZhTW = {
   'itinerary.editor.place': '地點',
   'itinerary.editor.changePlace': '更換地點',
   'itinerary.editor.removePlace': '移除地點',
-  'itinerary.editor.manualPin': '在地圖上長按放針；地圖在下一批上線。',
+  'itinerary.editor.manualPin': '手動放針請到地圖頁長按地圖，再回來選那個地點。',
   'itinerary.editor.start': '開始時間',
   'itinerary.editor.end': '結束時間',
   'itinerary.editor.endNextDay': '結束時間早於開始，算隔天。',

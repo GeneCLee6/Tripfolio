@@ -5,7 +5,7 @@ export const expensesEn: Record<ExpensesMessageKey, string> = {
   'stats.link': 'Statistics',
   'history.sheet.open': 'See change log',
   'expenses.title': 'Expenses',
-  'expenses.balancesLink': 'Balances & settle up',
+  'expenses.balancesLink': 'Balances and settling up',
   'expenses.deleteTitle': 'Delete this expense?',
   'expenses.deleteBody': 'It stays in the history and can be restored later.',
   'expenses.deleted': 'Expense deleted',

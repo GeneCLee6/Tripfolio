@@ -8,8 +8,8 @@ export const recapEn: Record<RecapMessageKey, string> = {
   'recap.notEnded':
     'The trip has not ended yet. You can write recaps now; share links show them once the end date has passed.',
   'recap.back': 'Back to the trip',
-  'recap.error': 'The recap could not be loaded. Please try again later.',
-  'recap.retry': 'Retry',
+  'recap.error': 'The recap could not be loaded. Try again later.',
+  'recap.retry': 'Try again',
   'recap.empty': 'This trip has no dated days yet.',
   'recap.totals.heading': 'Whole trip',
   'recap.totals.estimate': 'Estimate',

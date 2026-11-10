@@ -122,7 +122,7 @@ for (const width of [375, 1440]) {
     // ---- calendar download ----
     const [ics] = await Promise.all([
       page.waitForEvent('download'),
-      section.getByRole('button', { name: '下載行事曆 (.ics)' }).click(),
+      section.getByRole('button', { name: '下載行事曆（.ics）' }).click(),
     ])
     expect(ics.suggestedFilename()).toMatch(/\.ics$/)
     const icsText = await readFile(await ics.path(), 'utf8')
@@ -165,13 +165,13 @@ for (const width of [375, 1440]) {
     const broken = JSON.parse(await readFile(exportPath, 'utf8')) as { stops: { day: number }[] }
     broken.stops[0].day = 999
     await writeFile(brokenPath, JSON.stringify(broken))
-    await importer.getByLabel('旅程檔 (.json)').setInputFiles(brokenPath)
+    await importer.getByLabel('旅程檔（.json）').setInputFiles(brokenPath)
     await importer.getByLabel('你的名字').fill('Lee')
     await importer.getByRole('button', { name: '匯入', exact: true }).click()
     await expect(importer.getByRole('alert')).toContainText('伺服器拒絕這個檔案')
     await expect(importer.getByRole('alert')).toContainText('stops[0]')
 
-    await importer.getByLabel('旅程檔 (.json)').setInputFiles(exportPath)
+    await importer.getByLabel('旅程檔（.json）').setInputFiles(exportPath)
     const summary = importer.getByRole('region', { name: '檔案內容' })
     await expect(summary).toContainText(tripName)
     await expect(summary).toContainText('行程點')
@@ -259,7 +259,7 @@ test('a viewer gets the calendar but no export, clone or delete', async ({ brows
   const { context, page } = await newPage(browser, 375, { [created.trip.id]: viewerToken })
   await page.goto(`/trips/${created.trip.id}/settings`)
   const section = page.getByRole('region', { name: '旅程檔案' })
-  await expect(section.getByRole('button', { name: '下載行事曆 (.ics)' })).toBeVisible()
+  await expect(section.getByRole('button', { name: '下載行事曆（.ics）' })).toBeVisible()
   await expect(section.getByRole('button', { name: '匯出旅程檔' })).toHaveCount(0)
   await expect(section.getByRole('button', { name: '複製為範本' })).toHaveCount(0)
   await expect(section.getByRole('button', { name: '刪除旅程' })).toHaveCount(0)

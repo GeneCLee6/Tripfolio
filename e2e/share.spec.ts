@@ -167,7 +167,7 @@ for (const width of [375, 1280]) {
 
       // Picks wall and estimate
       const picks = page.getByTestId('share-picks')
-      await expect(picks.getByRole('heading', { name: zh ? '必吃必買' : 'Must eat & must buy' })).toBeVisible()
+      await expect(picks.getByRole('heading', { name: zh ? '必吃必買' : 'Must-eats and must-buys' })).toBeVisible()
       await expect(picks.locator('article')).toHaveCount(2)
       await expect(picks.getByText(/NZD|NZ\$/)).toBeVisible()
       const estimate = page.getByTestId('share-estimate')

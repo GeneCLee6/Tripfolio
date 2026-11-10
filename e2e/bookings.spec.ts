@@ -361,7 +361,7 @@ for (const [label, width, height] of [
     })
     const rows = section.locator('[data-attachment-id]')
     await expect(rows).toHaveCount(1, { timeout: 15_000 })
-    await expect(rows.first()).toContainText('PDF 文件 1')
+    await expect(rows.first()).toContainText('PDF 檔 1')
     await expect(rows.first()).toContainText(/PDF · \d+/)
     if (SHOTS) await section.screenshot({ path: `${SHOTS}/${label}-lodging-attachment.png` })
     const attachmentId = (await rows.first().getAttribute('data-attachment-id'))!
@@ -375,7 +375,7 @@ for (const [label, width, height] of [
         })
       })
     })
-    await rows.first().getByRole('button', { name: '開啟「PDF 文件 1」' }).click()
+    await rows.first().getByRole('button', { name: '開啟「PDF 檔 1」' }).click()
     expect(await opened).toMatch(/^blob:http/)
     for (const other of context.pages()) if (other !== page) await other.close()
     const listed = await request.get(api(`/attachments?lodgingId=${lodging.id}`), { headers })
@@ -403,7 +403,7 @@ for (const [label, width, height] of [
     )
 
     // Deleting it from the list
-    await rows.first().getByRole('button', { name: '刪除「PDF 文件 1」' }).click()
+    await rows.first().getByRole('button', { name: '刪除「PDF 檔 1」' }).click()
     await expect(rows).toHaveCount(0)
     await expect(section).toContainText('還沒有附件。')
   })

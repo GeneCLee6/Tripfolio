@@ -57,21 +57,32 @@ Button（primary／secondary／ghost／danger）、IconButton、Input、Select�
 4. **繁中語氣**：台灣用語、短句、動詞開頭（「加行程點」「記一筆」「結算」）；不用簡中詞彙（「創建」「視頻」「打車」）。
 5. **英文語氣**：短、直接、動詞開頭（"Add stop"、"Log expense"、"Settle up"）；不用 "Please"。
 6. **內容語言**：使用者填的內容（行程點名稱、備註）是單語，不翻譯；地點有 `nameLocal`／`nameEn`，介面語言是英文時優先顯示 `nameEn`。
-7. **術語表**（兩語對照，隨功能加）：
+7. **術語表**（兩語對照；e10-t07 定稿，新功能照這張表用詞）：
 
    | zh-TW | en |
    | --- | --- |
    | 旅程／日程／行程點／移動段 | Trip / Itinerary / Stop / Leg |
    | 口袋名單／雨天備案 | Pocket list / Rainy-day plan |
-   | 必吃／必買／必看／體驗 | Must-eat / Must-buy / Must-see / Experience |
+   | 必吃／必買／必看／體驗；統稱「必吃必買」 | Must-eat / Must-buy / Must-see / Experience; collectively "Picks" (share page heading: "Must-eats and must-buys") |
    | 住宿／預訂／取消期限 | Lodging / Booking / Cancel by |
-   | 記一筆／分攤／誰付／公基金 | Log expense / Split / Paid by / Shared fund |
+   | 航班／租車／包車／渡輪／火車／巴士／活動（預訂類型） | Flight / Car hire / Car with driver / Ferry / Train / Bus / Activity |
+   | 假日公園／DOC 營地／自由露營；自給自足認證（self-contained） | Holiday park / DOC campsite / Freedom camping; certified self-contained |
+   | 記一筆／分攤／誰付（欄位：付款人）／公基金 | Log expense / Split / Paid by / Shared fund |
+   | 出資（公基金）／結清（一筆轉帳） | Contribution / Settlement |
    | 餘額／應收／應付／結算 | Balance / Gets back / Owes / Settle up |
    | 主幣別／匯率 | Base currency / Exchange rate |
+   | 餐飲／購物／交通／加油／補給／雜支（類別） | Food / Shopping / Transport / Fuel / Supplies / Misc |
    | 行前清單／打包清單／文件夾 | Pre-trip checklist / Packing list / Documents |
    | 今日卡／回顧 | Today / Recap |
    | 駕駛時間／里程 | Driving time / Distance |
+   | 旅伴／成員／擁有者／編輯者／檢視者 | Traveller / Member / Owner / Editor / Viewer |
+   | 開車（移動方式）；自駕（旅行型態） | Drive (leg mode); Road trip (trip style) |
+   | 建立（旅程、邀請連結、分享連結）；旅程列表 | Create (trip, invite link, share link); trip list |
 
+   **寫法慣例**（e10-t07）：
+   - 繁中：台灣用語（建立、檔案、資訊、預設、登入、網址、連結、搜尋、設定、電子郵件）；只用「你」；中文句子用全形標點 ，。：；「」（）？，中英數之間照原本的半形空格；分隔用「 · 」（不用「・」）；分數用「／」（`{done}／{total}`）。「文件夾」是產品名（存護照、保單的地方），其他「檔案」就寫檔案。
+   - 英文：**英式／澳式拼法**（colour、traveller、licence、centre、cancelled、uncategorised、Mum）；程式碼裡的 `color` 不受影響。句首大寫（sentence case）、按鈕動詞開頭、不用 "Please"、不用縮寫（could not、cannot；第一人稱按鈕「I’ll bring it」例外）；引號與撇號用彎引號 “ ” ’；用 "and" 不用 "&"；使用者內容名稱一律加 “{name}”。
+   - 兩語的 `{佔位}` 一模一樣；改字不要讓 375 px 的按鈕或分頁變長（e10-t07 的 history 篩選就因此用 "Contribution"）。
 8. **預設語言**：`zh-TW`；第一次進站（localStorage 無紀錄）依 `navigator.languages`，非 `zh*` 用英文；之後以使用者切換為準（建議，總 PRD Q1b）。分享頁的語言切換獨立記憶。
 
 ## 6. 無障礙

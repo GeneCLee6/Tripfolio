@@ -95,7 +95,7 @@ test('phone: create a trip, find it in the list, edit it, archive it', async ({ 
   await nav.getByRole('link', { name: '總覽' }).click()
 
   // The list: the new trip is coming up
-  await page.getByRole('link', { name: '回到旅程清單' }).click()
+  await page.getByRole('link', { name: '回到旅程列表' }).click()
   const upcoming = page.getByRole('region', { name: /即將出發/ })
   await expect(upcoming.getByRole('link', { name: '打開 南島露營車' })).toBeVisible()
   await expect(upcoming.getByText('還有 30 天')).toBeVisible()
@@ -115,13 +115,13 @@ test('phone: create a trip, find it in the list, edit it, archive it', async ({ 
   // Archive from settings (the top bar's settings link on phones)
   await page.getByRole('link', { name: '設定', exact: true }).click()
   await expect(page.getByRole('listitem').filter({ hasText: 'Gene' })).toContainText('擁有者')
-  await expect(page.getByRole('button', { name: '產生邀請連結' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: '建立邀請連結' })).toBeEnabled()
   await page.getByRole('button', { name: '封存旅程' }).click()
   await page.getByRole('dialog').getByRole('button', { name: '封存旅程' }).click()
   await expect(page.getByRole('button', { name: '取消封存' })).toBeVisible()
   await shot(page, 'phone-settings-archived')
 
-  await page.getByRole('link', { name: '回到旅程清單' }).click()
+  await page.getByRole('link', { name: '回到旅程列表' }).click()
   const past = page.getByRole('region', { name: /過去的旅程/ })
   await expect(past.getByRole('link', { name: '打開 南島露營車 2.0' })).toBeVisible()
   await expect(past.getByText('已封存')).toBeVisible()

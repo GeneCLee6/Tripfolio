@@ -27,7 +27,7 @@ export const balancesEn: Record<BalancesMessageKey, string> = {
   'balances.pool.deleteLabel': 'Delete {name}’s contribution',
   'balances.pool.deleteTitle': 'Delete this contribution?',
   'balances.pool.deleteBody':
-    '{name}’s {amount} leaves the shared fund and the balances are worked out again.',
+    '{name}’s {amount} leaves the shared fund and the balances are recalculated.',
   'balances.pool.deleted': 'Contribution deleted',
   'balances.pool.saved': 'Contribution saved',
   'balances.pool.refund.label': 'Refund what is left',

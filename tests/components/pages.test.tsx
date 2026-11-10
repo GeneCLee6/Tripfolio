@@ -86,7 +86,7 @@ describe('TopBar', () => {
   it('links the mark home and shows the trip name and both switches', () => {
     const html = render(<TopBar tripName="South Island campervan" />)
     expect(html).toContain('href="/"')
-    expect(html).toContain('aria-label="回到旅程清單"')
+    expect(html).toContain('aria-label="回到旅程列表"')
     expect(html).toContain('South Island campervan')
     expect(html).toContain('aria-label="語言"')
     expect(html).toContain('aria-label="外觀"')
@@ -144,7 +144,7 @@ describe('TripSettingsPage', () => {
     expect(html).toContain('編輯者')
     expect(html).toContain('Pacific/Auckland')
     // e1-t03: the owner creates invite links (tests/components/members.test.tsx covers roles)
-    expect(html).toContain('產生邀請連結')
+    expect(html).toContain('建立邀請連結')
   })
 
   it('tells an editor that only the owner archives', () => {

@@ -35,7 +35,7 @@ export const devZhTW = {
   'dev.ui.emptyTitle': '還沒有花費',
   'dev.ui.emptyBody': '記下第一筆，大家的餘額會自動算好。',
   'dev.ui.stopA': '基督城機場取車',
-  'dev.ui.stopB': '蒂卡波湖・好牧羊人教堂',
+  'dev.ui.stopB': '蒂卡波湖 · 好牧羊人教堂',
   'dev.ui.stopC': '庫克山 Hooker Valley 步道',
   'dev.ui.dayTitle': '湖區',
 } as const

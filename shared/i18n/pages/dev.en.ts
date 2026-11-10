@@ -19,7 +19,7 @@ export const devEn: Record<DevMessageKey, string> = {
   'dev.ui.openDialog': 'Open dialog',
   'dev.ui.showToast': 'Show toast',
   'dev.ui.toastMessage': 'Expense logged',
-  'dev.ui.sheetBody': 'A bottom drawer on phones, a centered dialog on desktop. Esc closes it.',
+  'dev.ui.sheetBody': 'A bottom drawer on phones, a centred dialog on desktop. Esc closes it.',
   'dev.ui.dialogTitle': 'Delete this expense?',
   'dev.ui.dialogBody': 'Everyone’s balance is recalculated after deleting.',
   'dev.ui.cardTitle': 'Queenstown',

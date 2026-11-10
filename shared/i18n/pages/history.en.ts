@@ -3,7 +3,7 @@ import type { HistoryMessageKey } from './history.zh-TW.ts'
 // English for ./history.zh-TW.ts (the source): the same keys and {placeholders}.
 export const historyEn: Record<HistoryMessageKey, string> = {
   'history.title': 'Change log',
-  'history.lead': 'Every change to expenses, the pool and settlements, newest first.',
+  'history.lead': 'Every change to expenses, the shared fund and settlements, newest first.',
   'history.filter.label': 'Kind of change',
   'history.filter.all': 'All',
   'history.empty.title': 'No changes yet',
@@ -15,5 +15,5 @@ export const historyEn: Record<HistoryMessageKey, string> = {
   'history.deleted.at': 'Deleted {time}',
   'history.undelete': 'Undelete',
   'history.undeleteLabel': 'Undelete “{name}”',
-  'history.undeleted': 'Brought back',
+  'history.undeleted': 'Restored',
 }

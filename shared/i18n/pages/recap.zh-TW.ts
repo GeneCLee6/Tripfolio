@@ -6,7 +6,7 @@ export const recapZhTW = {
   'recap.notEnded': '旅程還沒結束。回顧可以先寫，分享連結要等結束日過後才會顯示回顧。',
   'recap.back': '回旅程首頁',
   'recap.error': '回顧載不出來，請稍後再試。',
-  'recap.retry': '重試',
+  'recap.retry': '再試一次',
   'recap.empty': '這趟旅程還沒有排進日期的天。',
   'recap.totals.heading': '整趟',
   'recap.totals.estimate': '預估',

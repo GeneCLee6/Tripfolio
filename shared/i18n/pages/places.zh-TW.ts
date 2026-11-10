@@ -20,7 +20,7 @@ export const placesZhTW = {
   'places.sort.refs': '最常用',
   'places.sort.unused': '未使用優先',
   'places.category.sight': '景點',
-  'places.category.food': '餐廳',
+  'places.category.food': '餐飲',
   'places.category.shopping': '購物',
   'places.category.lodging': '住宿',
   'places.category.transport': '交通',

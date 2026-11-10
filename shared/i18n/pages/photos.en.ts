@@ -78,5 +78,5 @@ export const photosEn: Record<PhotosMessageKey, string> = {
   'photos.match.done.one': 'Sorted {count} photo',
   'photos.match.done.other': 'Sorted {count} photos',
   'photos.match.none': 'Nothing to sort: the photos have no capture time, or were taken outside the trip dates.',
-  'photos.match.failed': '{count} photos could not be filed; try “Auto-sort” again later.',
+  'photos.match.failed': 'Photos not filed: {count}. Try “Auto-sort” again later.',
 }

@@ -94,7 +94,7 @@ describe('StopCard', () => {
     const html = card(stop(), ferg)
     expect(html).toContain('Fergburger')
     expect(html).toContain('12:00–13:00')
-    expect(html).toContain('餐廳')
+    expect(html).toContain('餐飲')
     expect(html).toContain('需預訂')
     expect(html).toContain('NZ$42.50')
     expect(html).toContain('Queue moves fast. Order the Little Lamby.')

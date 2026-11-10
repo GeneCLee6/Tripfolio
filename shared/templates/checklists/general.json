@@ -58,7 +58,7 @@
           "key": "general.pretrip.cards",
           "text": {
             "zh-TW": "確認信用卡已開海外交易、知道海外手續費；刷卡時選當地幣",
-            "en": "Confirm cards work abroad and know the foreign fee; pay in the local currency"
+            "en": "Confirm your cards work abroad and what the foreign transaction fee is; pay in the local currency"
           },
           "dueDaysBefore": 7
         },
@@ -113,7 +113,7 @@
           "key": "general.pretrip.documents",
           "text": {
             "zh-TW": "確認護照影本、保單、訂位紀錄已放進文件夾",
-            "en": "Confirm passport copies, insurance and bookings are in the documents folder"
+            "en": "Confirm passport copies, insurance and bookings are in Documents"
           },
           "dueDaysBefore": 3
         },

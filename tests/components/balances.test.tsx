@@ -147,11 +147,11 @@ describe('SettleCard', () => {
 describe('PoolCard and PoolSection', () => {
   it('PoolCard: title, balance and summary', () => {
     const html = renderToStaticMarkup(
-      <PoolCard title="公基金結餘" balance="NZ$236.00" summary="出資 NZ$2,000.00 · 池付 NZ$1,764.00" />,
+      <PoolCard title="公基金結餘" balance="NZ$236.00" summary="出資 NZ$2,000.00 · 支出 NZ$1,764.00" />,
     )
     expect(html).toContain('aria-label="公基金結餘"')
     expect(html).toContain('NZ$236.00')
-    expect(html).toContain('池付 NZ$1,764.00')
+    expect(html).toContain('支出 NZ$1,764.00')
   })
 
   const rows = [
@@ -177,7 +177,7 @@ describe('PoolCard and PoolSection', () => {
   it('editors: add, edit, delete and the refund mode switch', () => {
     const html = inTrip(section(true), gene)
     expect(html).toContain('NZ$200.00')
-    expect(html).toContain('出資 NZ$500.00 · 池付 NZ$300.00')
+    expect(html).toContain('出資 NZ$500.00 · 支出 NZ$300.00')
     expect(html).toContain('加一筆出資')
     expect(html).toContain('aria-label="編輯 Gene 的出資"')
     expect(html).toContain('aria-label="刪除 Gene 的出資"')
