@@ -49,8 +49,10 @@ depends_on: [E1, E11]
     - **瀏覽器工具** `src/lib/upload/`：`exif.ts`（JPEG APP1／TIFF，IFD0＋Exif IFD＋GPS IFD；`DateTimeOriginal`＋`OffsetTimeOriginal`、GPS；有時差就轉 UTC，沒有就存不帶時區的當地時間，按旅程時區讀）、`resize.ts`（`createImageBitmap`＋canvas → WebP，不支援就 JPEG；重新編碼即去除全部 EXIF）、`upload.ts`（`uploadAttachment`：EXIF → 2048／400 → sign → XHR PUT 帶進度、失敗重試 3 次指數退避 → complete；可關「使用照片位置」；`uploadQueue` 並發 3）、`api.ts`（型別化呼叫與 `fetchBlob`，`<img>` 帶不了 Bearer，成員端用 blob URL）。`resize.ts` 需要真瀏覽器，單元測試只測它的尺寸計算，留給 e6-t02 的 Playwright。
     - **#D1b（e6-t02）介面完成，本機瀏覽器實測後勾選**：Playwright（Chromium，375／1440）以 `setInputFiles` 選兩張 PNG（一張 3000×1500），走真的 Worker＋本機 D1＋本機 R2：瀏覽器縮成 2048×1024 WebP、兩張都有縮圖、佇列「2／2 張完成 · 100%」、格狀顯示兩張。**「10 張照片在手機 4G 下 1 分鐘內完成」本機無法驗證**（沒有實體手機與 4G），留待預覽站用手機實測；HEIC 在 Chromium 解不了時顯示轉檔提示（單元測試涵蓋，未用真 HEIC 檔跑過）；相機輸入只在 `pointer: coarse` 出現，未在實體手機按過。
     - 測試：`tests/worker/media.test.ts`（簽發驗證、上傳大小／型別／上傳者、complete、列表／搬移／刪除、用量、`/api/media` 權限矩陣、各類快取標頭、ETag 304、`APP_ENV` 前綴）、`tests/src/upload/`（手做含 GPS IFD 的 JPEG 位元組、管線與重試、佇列並發）。本機 `vite dev` 以 curl 走過 sign → PUT → complete → `/api/media` → 304。
-- [ ] AC-6.2 — 配對：GPS 500 m 內掛最近行程點、否則掛當日；可手動搬；有測試。
-- [ ] AC-6.3 — 相簿：每日／全程相簿、封面、燈箱（鍵盤可用）。
+- [x] AC-6.2 — 配對：GPS 500 m 內掛最近行程點、否則掛當日；可手動搬；有測試。
+  - 驗證（#F1b，e6-t03）：純函式 `src/lib/upload/match.ts`（`tests/src/photos/match.test.ts`：500 m 邊界、同一天才配、旅程時區跨午夜、沒 GPS 依日期、沒時間或不在旅程日期內不配、已手動分過的不動、指向已刪除日的重配）。Playwright（375／1440）：API 建兩天旅程＋有座標的行程點 → 上傳測試裡組出的 JPEG（canvas 產生、插入 EXIF `DateTimeOriginal` 為 Day 1、GPS 距行程點約 60 m）＋一張無 EXIF 的 PNG → 上傳批次結束後自動配對：JPEG 掛到該行程點與 Day 1、PNG 留在「還沒分到哪一天」→ 燈箱「搬到…」改到 Day 2 → API 與依日相簿都跟著變。
+- [x] AC-6.3 — 相簿：每日／全程相簿、封面、燈箱（鍵盤可用）。
+  - 驗證（#F1b，e6-t04）：照片頁「全部／依日」分頁；依日每段有日色邊條、Day N · 日期、張數、當日封面縮圖，最後是「還沒分到哪一天」。燈箱（`src/components/Lightbox.tsx`）是全螢幕原生 modal `<dialog>`（焦點困在裡面、Esc 關閉、關閉後焦點回到縮圖）、←／→ 與左右按鈕切換、指標水平滑動切換、`aria-live` 唸「第 N／M 張」、動畫只在沒有 `prefers-reduced-motion` 時播；資訊欄顯示拍攝時間（旅程時區）、分在哪天／行程點、「搬到…」、「設為旅程封面」、「設為當日封面」、刪除（編輯者）。Playwright 以鍵盤 ←／→ 走過兩張、Esc 關閉；元件測試檢查 aria。**取捨：當日封面存在這台裝置的 localStorage**（`tripfolio.photos.dayCovers.<tripId>`），因為 `days` 沒有封面欄位、這批不能改 Worker；其他裝置退回當天第一張。之後在 `days` 加 `coverAttachmentId` 再搬過去。
 - [ ] AC-6.4 — 容量：旅程與全站用量顯示與警示。
   - 進度（#D1b，e6-t05）：**旅程用量已完成並驗證**：`StorageMeter` 讀 `GET …/attachments/usage`，「已用 X / 1.5 GB」、≥ 80% 琥珀色提示、超過 1.5 GB 紅色警示（元件測試涵蓋三種狀態；Playwright 驗證上傳後與刪除後數字會更新）；照片頁一律顯示，旅程首頁在 > 50% 才顯示精簡版。**全站 8 GB 警示給擁有者要等 E11 用量頁**，所以本條不勾。
 
@@ -66,8 +68,11 @@ depends_on: [E1, E11]
 
 ### M3
 
-- [ ] `e6-t03` GPS／時間配對與手動搬移 · AC-6.2 · S · ← e6-t02, e2-t03
-- [ ] `e6-t04` 相簿頁與燈箱 · AC-6.3 · S · ← e6-t02
+- [x] `e6-t03` GPS／時間配對與手動搬移 · AC-6.2 · S · ← e6-t02, e2-t03
+- [x] `e6-t04` 相簿頁與燈箱 · AC-6.3 · S · ← e6-t02
+
+  - 做了什麼（#F1b，2026-11-10）：`src/lib/upload/match.ts`（`matchPhoto`／`buildMatchContext`／`planMatches`／`isUnfiled`；行程點座標取自它的地點，只看已排入日期的日）；照片頁在上傳批次的最後一張完成 0.7 秒後對新照片跑配對（只有編輯者，`PATCH /attachments/:aid { dayId, stopId }`），有未分的照片時顯示「自動整理」；只配「還沒分」的照片，手動搬過的不會被改。`src/lib/photos/`：`albums.ts`（`groupByDay`、`photosByStop`、`sortPhotos` 搬來這裡）、`day-covers.ts`（localStorage）、`store.ts`（每旅程一份照片清單的模組層快取＋`useTripPhotos`／`usePhotosByStop`；照片頁的上傳／搬移／刪除寫回同一份，所以行程頁的卡片跟著變；超過 60 秒才重抓）。`PhotoGrid`（3／4／5 欄、接近視窗 800 px 才掛 `PhotoThumb`、每格是按鈕）、`Lightbox`。`StopCard` 底部：這個行程點有照片時顯示最多 3 張縮圖＋「+N」（`role="img"`，「這個行程點有 N 張照片」）。「設為封面」改名「設為旅程封面」以區分當日封面。app 首屏 154.2／180 kB（rebase 前 main 約 152）、share 98.2／120。
+  - 留下：當日封面只存在裝置上（要 Worker 加欄位）；配對只在照片頁跑（行程點改座標或日期後不會自動重配，要按「自動整理」，而且只處理還沒分的照片）；沒有座標的行程點只能靠手動搬；縮放（pinch）沒做；滑動切換沒有跟手動畫；Safari 與實體手機的滑動未實測；新元件沒進 `/dev/ui`。
 
 ## 風險與對策
 
