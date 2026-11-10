@@ -19,6 +19,25 @@ import {
   listDeadlines,
   patchBooking,
 } from './trips/bookings.ts'
+import { budgetProgress, getBudget, putBudget } from './trips/budget.ts'
+import {
+  applyChecklistTemplate,
+  createChecklist,
+  createChecklistItem,
+  deleteChecklist,
+  deleteChecklistItem,
+  listChecklists,
+  patchChecklist,
+  patchChecklistItem,
+} from './trips/checklists.ts'
+import { listDocuments, patchDocument } from './trips/documents.ts'
+import {
+  applyNotesTemplate,
+  createNote,
+  deleteNote,
+  listNotes,
+  patchNote,
+} from './trips/notes.ts'
 import { createLodging, deleteLodging, listLodgings, patchLodging } from './trips/lodging.ts'
 import { cloneTrip, listDeletedTrips, restoreTrip } from './trips/clone.ts'
 import { exportTrip, importTrip } from './trips/export.ts'
@@ -207,6 +226,25 @@ const api = new Router()
   .add('GET', '/api/trips/:id/fx', getFx)
   .add('PUT', '/api/trips/:id/fx/overrides', putFxOverrides)
   .add('POST', '/api/trips/:id/fx/refresh', fxRefresh)
+  // Pre-trip prep (E9): checklists, budget, destination notes, documents. Fixed segments first
+  .add('GET', '/api/trips/:id/checklists', listChecklists)
+  .add('POST', '/api/trips/:id/checklists', createChecklist)
+  .add('POST', '/api/trips/:id/checklists/apply-template', applyChecklistTemplate)
+  .add('PATCH', '/api/trips/:id/checklists/:cid', patchChecklist)
+  .add('DELETE', '/api/trips/:id/checklists/:cid', deleteChecklist)
+  .add('POST', '/api/trips/:id/checklists/:cid/items', createChecklistItem)
+  .add('PATCH', '/api/trips/:id/checklists/:cid/items/:iid', patchChecklistItem)
+  .add('DELETE', '/api/trips/:id/checklists/:cid/items/:iid', deleteChecklistItem)
+  .add('GET', '/api/trips/:id/budget', getBudget)
+  .add('PUT', '/api/trips/:id/budget', putBudget)
+  .add('GET', '/api/trips/:id/budget/progress', budgetProgress)
+  .add('GET', '/api/trips/:id/notes', listNotes)
+  .add('POST', '/api/trips/:id/notes', createNote)
+  .add('POST', '/api/trips/:id/notes/apply-template', applyNotesTemplate)
+  .add('PATCH', '/api/trips/:id/notes/:nid', patchNote)
+  .add('DELETE', '/api/trips/:id/notes/:nid', deleteNote)
+  .add('GET', '/api/trips/:id/documents', listDocuments)
+  .add('PATCH', '/api/trips/:id/documents/:aid', patchDocument)
   // External API proxies (e3-t02, e3-t04): worker/proxy/*, never called from the browser
   .add('GET', '/api/trips/:id/geo/search', geoSearch)
   .add('POST', '/api/trips/:id/geo/parse', geoParse)

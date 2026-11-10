@@ -1,0 +1,126 @@
+{
+  "style": "campervan",
+  "title": { "zh-TW": "露營車", "en": "Campervan" },
+  "lists": [
+    {
+      "key": "campervan.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "露營車行前", "en": "Campervan prep" },
+      "items": [
+        {
+          "key": "campervan.pretrip.self-contained",
+          "text": {
+            "zh-TW": "確認車子有沒有自炊設備認證（self-contained），以及要去的區域對自由露營的規定",
+            "en": "Confirm whether the van is certified self-contained, and the freedom-camping rules where you are going"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "當地政府與保育部官網", "en": "Local council and conservation department websites" },
+            "url": "https://www.doc.govt.nz"
+          },
+          "dueDaysBefore": 30
+        },
+        {
+          "key": "campervan.pretrip.holiday-parks",
+          "text": {
+            "zh-TW": "確認旺季要訂的假日公園（有電、水、廁所、廚房）都訂好了",
+            "en": "Confirm the holiday parks you need in peak season (power, water, toilets, kitchen) are booked"
+          },
+          "dueDaysBefore": 30
+        },
+        {
+          "key": "campervan.pretrip.doc-sites",
+          "text": {
+            "zh-TW": "確認要住的保育部（DOC）營地哪些需要預訂、怎麼付費",
+            "en": "Confirm which conservation (DOC) campsites need booking and how to pay"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "紐西蘭保育部（DOC）", "en": "Department of Conservation (DOC)" },
+            "url": "https://www.doc.govt.nz"
+          },
+          "dueDaysBefore": 21
+        },
+        {
+          "key": "campervan.pretrip.dump",
+          "text": {
+            "zh-TW": "確認沿途傾倒站（dump station）位置，大約每 2–3 天倒一次",
+            "en": "Confirm dump stations along the route (roughly every 2–3 days)"
+          }
+        },
+        {
+          "key": "campervan.pretrip.deposit",
+          "text": {
+            "zh-TW": "確認押金（可能很高）會凍結哪張信用卡的額度",
+            "en": "Confirm the bond (it can be large) and which card it will hold"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "campervan.pretrip.ferry",
+          "text": {
+            "zh-TW": "確認渡輪預訂時報的車長正確（露營車要報長度）",
+            "en": "Confirm ferry bookings carry the right vehicle length"
+          },
+          "dueDaysBefore": 30
+        },
+        {
+          "key": "campervan.pretrip.gravel",
+          "text": {
+            "zh-TW": "確認保險是否涵蓋碎石路，以及哪些路段租車公司禁止進入",
+            "en": "Confirm whether insurance covers gravel roads and which roads the rental company forbids"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "campervan.pretrip.arrival",
+          "text": {
+            "zh-TW": "確認每天抵達營地的時間在日落前 1 小時左右（接電、加水、煮飯要時間）",
+            "en": "Confirm each day reaches camp about an hour before sunset (power, water and cooking take time)"
+          }
+        },
+        {
+          "key": "campervan.pretrip.inventory",
+          "text": {
+            "zh-TW": "確認租車附的用品清單（鍋具、寢具、電源線、水管）",
+            "en": "Confirm what the rental includes (cookware, bedding, power lead, hose)"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "campervan.pretrip.biosecurity",
+          "text": {
+            "zh-TW": "確認海關對食物與戶外用品的申報規定（登山鞋、帳篷要清乾淨）",
+            "en": "Confirm the biosecurity rules for food and outdoor gear (clean boots and tents)"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "紐西蘭初級產業部（MPI）", "en": "Ministry for Primary Industries (MPI)" },
+            "url": "https://www.mpi.govt.nz"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "campervan.pretrip.apps",
+          "text": {
+            "zh-TW": "確認已安裝營地 App（如 Campermate、Rankers）並下載離線資料",
+            "en": "Confirm a campsite app (e.g. Campermate, Rankers) is installed with offline data"
+          },
+          "dueDaysBefore": 3
+        }
+      ]
+    },
+    {
+      "key": "campervan.packing-shared",
+      "kind": "packing",
+      "title": { "zh-TW": "露營車公用", "en": "Campervan shared" },
+      "items": [
+        { "key": "campervan.packing-shared.power-lead", "text": { "zh-TW": "營地電源線（確認租車有附）", "en": "Campsite power lead (check the rental has one)" } },
+        { "key": "campervan.packing-shared.hose", "text": { "zh-TW": "加水管與接頭", "en": "Water hose and fittings" } },
+        { "key": "campervan.packing-shared.cookware", "text": { "zh-TW": "鍋具與餐具（確認租車附件）", "en": "Cookware and cutlery (check the rental)" } },
+        { "key": "campervan.packing-shared.dish", "text": { "zh-TW": "洗碗精與海綿", "en": "Dish soap and sponge" } },
+        { "key": "campervan.packing-shared.line", "text": { "zh-TW": "曬衣繩與夾子", "en": "Washing line and pegs" } },
+        { "key": "campervan.packing-shared.headlamp", "text": { "zh-TW": "頭燈", "en": "Head torch" } },
+        { "key": "campervan.packing-shared.rubbish", "text": { "zh-TW": "垃圾袋與回收袋", "en": "Rubbish and recycling bags" } },
+        { "key": "campervan.packing-shared.jandals", "text": { "zh-TW": "營地淋浴用拖鞋", "en": "Jandals for the shower block" } }
+      ]
+    }
+  ]
+}

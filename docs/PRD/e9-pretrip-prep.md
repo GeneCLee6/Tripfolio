@@ -1,7 +1,7 @@
 ---
 title: E9 — 旅前準備
 date: 2026-11-09
-status: planned
+status: in-progress
 epic: E9
 owner: GeneCLee6
 milestones: [M3]
@@ -37,22 +37,30 @@ depends_on: [E1, E6, E7]
 
 ## 驗收條件
 
-- [ ] AC-9.1 — 預算：類別與每人預估、與實際對照、burn-down；分享頁概算來源。
-- [ ] AC-9.2 — 清單：行前／打包、範本帶入、認領、期限、勾選同步。
-- [ ] AC-9.3 — 文件夾：上傳、分類、成員限定、分享頁絕不出現（測試）。
-- [ ] AC-9.4 — 目的地筆記：範本帶入、可編輯、分享可選。
+- [ ] AC-9.1 — 預算：類別與每人預估、與實際對照、burn-down；分享頁概算來源。（#I2：前三項完成並有測試；分享頁概算待 `worker/share.ts` 改用 `getBudgetPerPerson`，之後再勾）
+- [x] AC-9.2 — 清單：行前／打包、範本帶入、認領、期限、勾選同步。（#I1：同步目前是頁面每 20 秒＋回到視窗時重抓；TripDO 廣播接上 `notifyTrip` 後改即時，兩台實測未做）
+- [x] AC-9.3 — 文件夾：上傳、分類、成員限定、分享頁絕不出現（測試）。（#I2：`tests/worker/prep.test.ts` 建分享連結後斷言 payload 不含任何文件 id、`/api/media/:aid?s=` 對文件回 403）
+- [x] AC-9.4 — 目的地筆記：範本帶入、可編輯、分享可選。（#I2：`shareable` 旗標已存；分享頁顯示屬 E8）
 - [ ] AC-9.5 — 倒數與今日卡：首頁倒數；旅途中今日卡正確顯示當日內容。
 
 ## Task 拆分
 
 ### M3
 
-- [ ] `e9-t02` 清單 schema（`checklists`、`checklistItems`、assignee、dueDate）與範本 JSON（通用、自駕、露營車、包車、城市、海島跳島、歐洲鐵路／城市、冬季；雙語） · AC-9.2 · M · ← e1-t03
-- [ ] `e9-t03` 清單頁（行前／打包、認領、期限、範本帶入、同步勾選） · AC-9.2 · S · ← e9-t02
-- [ ] `e9-t05` 目的地筆記範本（第一份紐西蘭）與編輯、分享可選 · AC-9.4 · S · ← e1-t02
-- [ ] `e9-t01` 預算 schema 與頁面（類別、每人、對照實際、burn-down）；接分享頁概算 · AC-9.1 · M · ← e7-t06
+- [x] `e9-t02` 清單 schema（`checklists`、`checklistItems`、assignee、dueDate）與範本 JSON（通用、自駕、露營車、包車、城市、海島跳島、歐洲鐵路／城市、冬季；雙語） · AC-9.2 · M · ← e1-t03
+- [x] `e9-t03` 清單頁（行前／打包、認領、期限、範本帶入、同步勾選） · AC-9.2 · S · ← e9-t02
+- [x] `e9-t05` 目的地筆記範本（第一份紐西蘭）與編輯、分享可選 · AC-9.4 · S · ← e1-t02
+- [x] `e9-t01` 預算 schema 與頁面（類別、每人、對照實際、burn-down）；接分享頁概算 · AC-9.1 · M · ← e7-t06
 - [ ] `e9-t06` 倒數與今日卡（app 首頁、旅程首頁、PWA 啟動） · AC-9.5 · S · ← e2-t02, e4-t02
-- [ ] `e9-t04` 文件夾（上傳、分類、成員限定、分享頁排除測試） · AC-9.3 · S · ← e6-t01, e11-t04
+- [x] `e9-t04` 文件夾（上傳、分類、成員限定、分享頁排除測試） · AC-9.3 · S · ← e6-t01, e11-t04
+
+## 實作紀錄（#I1／#I2，分支 `feat/e9-prep`）
+
+- `migrations/0011_prep.sql`：`checklists`、`checklistItems`（assignee、`dueAt`、`templateKey`、`linkHint`）、`budgets`（`tripId`＋`category` 主鍵、`perPerson` 0／1、主幣）、`notes`（`section`、`shareable`）；`attachments.docCategory`。範本的 `templateKey` 在旅程內唯一，帶入兩次不重複；刪掉的項目再帶入會回來。
+- API（`/api/trips/:id/`）：`checklists` CRUD、`checklists/:cid/items` CRUD、`POST checklists/apply-template { style, locale }`（通用＋該型態）；`GET/PUT budget`（整張表）、`GET budget/progress`（類別預算 vs 實際、每人、每日 burn-down，實際數字與 `expenses/summary` 同一套 SQL）；`notes` CRUD、`POST notes/apply-template { destination: 'nz', locale }`；`GET documents`、`PATCH documents/:aid { docCategory }`。成員可讀、編輯者可寫。
+- 範本：`shared/templates/checklists/{general,roadtrip,campervan,private-driver,city,island,rail,winter}.json`、`shared/templates/notes/nz.json`；行前項目一律「確認…」，官方連結只放根網域，緊急電話留空白給使用者查證後填。`tests/shared/templates.test.ts` 驗 zod、雙語、key、連結。
+- 頁面：`/checklists`、`/budget`、`/documents`、`/notes`（各自 lazy chunk）；`PrepLinks`（`src/pages/checklists/PrepLinks.tsx`）給旅程首頁用；`useBudgetProgress(tripId)`（`src/lib/prep/budget.ts`）給統計頁的預算卡用。
+- 預算類別多了機票、保險：花費沒有這兩類，進度表標「通常行前付清」，不算入可對照的剩餘。
 
 ## 風險與對策
 

@@ -1,0 +1,85 @@
+{
+  "style": "private-driver",
+  "title": { "zh-TW": "包車", "en": "Private driver" },
+  "lists": [
+    {
+      "key": "private-driver.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "包車行前", "en": "Private driver prep" },
+      "items": [
+        {
+          "key": "private-driver.pretrip.contact",
+          "text": {
+            "zh-TW": "確認司機姓名、電話與聯絡方式（WhatsApp／LINE）、車型與座位數",
+            "en": "Confirm the driver's name, phone and chat app (WhatsApp/LINE), car model and seats"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "private-driver.pretrip.quote",
+          "text": {
+            "zh-TW": "確認每日包車費含什麼：油錢、過路費、停車、司機餐宿",
+            "en": "Confirm what the daily rate includes: fuel, tolls, parking, the driver's meals and room"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "private-driver.pretrip.hours",
+          "text": {
+            "zh-TW": "確認每日包車時數、超時費與跨區加價",
+            "en": "Confirm the daily hours, overtime and out-of-area charges"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "private-driver.pretrip.pickup",
+          "text": {
+            "zh-TW": "確認每天的接送點與時間（就是當天第一與最後一個行程點）",
+            "en": "Confirm each day's pick-up and drop-off place and time (the day's first and last stop)"
+          },
+          "dueDaysBefore": 3
+        },
+        {
+          "key": "private-driver.pretrip.waiting",
+          "text": {
+            "zh-TW": "確認等待時間上限（逛景點時司機等多久）",
+            "en": "Confirm how long the driver will wait at each stop"
+          }
+        },
+        {
+          "key": "private-driver.pretrip.tips",
+          "text": {
+            "zh-TW": "確認當地小費行情，由誰給、從公基金出還是各自出",
+            "en": "Confirm the local tipping custom and whether tips come from the pool"
+          }
+        },
+        {
+          "key": "private-driver.pretrip.payment",
+          "text": {
+            "zh-TW": "確認付款方式（多半現金）與幣別、要準備多少小鈔",
+            "en": "Confirm how to pay (often cash), the currency, and how many small notes to carry"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "private-driver.pretrip.dress",
+          "text": {
+            "zh-TW": "確認要去的寺廟或宗教場所的服裝規範",
+            "en": "Confirm the dress code of temples or religious sites on the route"
+          }
+        }
+      ]
+    },
+    {
+      "key": "private-driver.packing-shared",
+      "kind": "packing",
+      "title": { "zh-TW": "包車公用", "en": "Private driver shared" },
+      "items": [
+        { "key": "private-driver.packing-shared.small-notes", "text": { "zh-TW": "小鈔（小費、停車、門票）", "en": "Small notes (tips, parking, tickets)" } },
+        { "key": "private-driver.packing-shared.sarong", "text": { "zh-TW": "遮肩衣物或紗籠", "en": "Shoulder cover or sarong" } },
+        { "key": "private-driver.packing-shared.repellent", "text": { "zh-TW": "防蚊液", "en": "Insect repellent" } },
+        { "key": "private-driver.packing-shared.motion", "text": { "zh-TW": "暈車藥", "en": "Motion-sickness tablets" } }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "style": "roadtrip",
+  "title": { "zh-TW": "自駕", "en": "Road trip" },
+  "lists": [
+    {
+      "key": "roadtrip.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "自駕行前", "en": "Road trip prep" },
+      "items": [
+        {
+          "key": "roadtrip.pretrip.licence",
+          "text": {
+            "zh-TW": "確認目的地與租車公司接受哪種駕照（國際駕照、譯本或台灣駕照）",
+            "en": "Confirm which licence the destination and the rental company accept (IDP, translation or your own)"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "監理服務網", "en": "Taiwan Motor Vehicles Office" },
+            "url": "https://www.mvdis.gov.tw"
+          },
+          "dueDaysBefore": 30
+        },
+        {
+          "key": "roadtrip.pretrip.rental-insurance",
+          "text": {
+            "zh-TW": "確認租車保險方案：自負額、碎石路、輪胎與玻璃是否除外",
+            "en": "Confirm the rental insurance: excess, and whether gravel roads, tyres and glass are excluded"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "roadtrip.pretrip.drivers",
+          "text": {
+            "zh-TW": "確認所有會開車的人都登記為駕駛人",
+            "en": "Confirm everyone who will drive is registered as a driver"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "roadtrip.pretrip.deposit",
+          "text": {
+            "zh-TW": "確認押金金額與會凍結哪張信用卡的額度",
+            "en": "Confirm the deposit and which card it will hold"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "roadtrip.pretrip.one-way",
+          "text": {
+            "zh-TW": "確認取還車地點、時間與異地還車費",
+            "en": "Confirm pick-up and drop-off places, times and any one-way fee"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "roadtrip.pretrip.rota",
+          "text": {
+            "zh-TW": "確認駕駛分工與每天開車時數上限",
+            "en": "Confirm who drives when and the daily driving limit"
+          }
+        },
+        {
+          "key": "roadtrip.pretrip.rules",
+          "text": {
+            "zh-TW": "確認當地交通規則：靠左或靠右、限速、讓行與停車規定",
+            "en": "Confirm the local road rules: side of the road, speed limits, give-way and parking"
+          },
+          "linkHint": { "label": { "zh-TW": "當地道路主管機關官網", "en": "The local road authority's website" } }
+        },
+        {
+          "key": "roadtrip.pretrip.tolls",
+          "text": {
+            "zh-TW": "確認收費道路怎麼付、市區停車怎麼付",
+            "en": "Confirm how tolls and city parking are paid"
+          }
+        },
+        {
+          "key": "roadtrip.pretrip.fuel",
+          "text": {
+            "zh-TW": "確認加油方式（自助、預授權）與山區加油站間距",
+            "en": "Confirm how to pay for fuel (self-service, pre-authorisation) and where stations are sparse"
+          }
+        }
+      ]
+    },
+    {
+      "key": "roadtrip.packing-shared",
+      "kind": "packing",
+      "title": { "zh-TW": "車上公用", "en": "In the car" },
+      "items": [
+        { "key": "roadtrip.packing-shared.car-charger", "text": { "zh-TW": "車充與傳輸線", "en": "Car charger and cables" } },
+        { "key": "roadtrip.packing-shared.phone-mount", "text": { "zh-TW": "手機架", "en": "Phone mount" } },
+        { "key": "roadtrip.packing-shared.snacks", "text": { "zh-TW": "零食與飲水", "en": "Snacks and water" } },
+        { "key": "roadtrip.packing-shared.rubbish", "text": { "zh-TW": "車用垃圾袋", "en": "Rubbish bags for the car" } },
+        { "key": "roadtrip.packing-shared.sunglasses", "text": { "zh-TW": "駕駛用太陽眼鏡", "en": "Sunglasses for the driver" } }
+      ]
+    }
+  ]
+}

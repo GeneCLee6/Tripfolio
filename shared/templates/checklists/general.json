@@ -1,0 +1,167 @@
+{
+  "style": "general",
+  "title": { "zh-TW": "通用", "en": "General" },
+  "lists": [
+    {
+      "key": "general.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "通用行前待辦", "en": "Before you go" },
+      "items": [
+        {
+          "key": "general.pretrip.passport",
+          "text": {
+            "zh-TW": "確認每個人的護照效期符合目的地的入境要求",
+            "en": "Confirm everyone's passport is valid long enough for the destination's entry rules"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "外交部領事事務局", "en": "Bureau of Consular Affairs (Taiwan)" },
+            "url": "https://www.boca.gov.tw"
+          },
+          "dueDaysBefore": 60
+        },
+        {
+          "key": "general.pretrip.visa",
+          "text": {
+            "zh-TW": "確認需不需要簽證或電子旅行授權（ETA），需要的話何時申請、要多久",
+            "en": "Confirm whether a visa or electronic travel authority (ETA) is needed, and how long it takes"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "目的地移民署官網", "en": "The destination's immigration website" }
+          },
+          "dueDaysBefore": 45
+        },
+        {
+          "key": "general.pretrip.insurance",
+          "text": {
+            "zh-TW": "確認旅遊保險：醫療額度、班機延誤、自駕或活動是否除外",
+            "en": "Confirm travel insurance: medical cover, delays, and whether driving or activities are excluded"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "general.pretrip.data",
+          "text": {
+            "zh-TW": "確認上網方式（eSIM、當地 SIM 或漫遊）與手機是否支援",
+            "en": "Confirm how you will get online (eSIM, local SIM or roaming) and that your phone supports it"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "general.pretrip.cash",
+          "text": {
+            "zh-TW": "確認現金需求：哪些地方只收現金、要換多少、提款手續費",
+            "en": "Confirm cash needs: where only cash works, how much to change, ATM fees"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "general.pretrip.cards",
+          "text": {
+            "zh-TW": "確認信用卡已開海外交易、知道海外手續費；刷卡時選當地幣",
+            "en": "Confirm cards work abroad and know the foreign fee; pay in the local currency"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "general.pretrip.health",
+          "text": {
+            "zh-TW": "確認是否需要疫苗，以及常備藥要不要帶處方或英文證明",
+            "en": "Confirm whether vaccines are needed and whether medicines need a prescription or letter"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "衛生福利部疾病管制署", "en": "Taiwan Centers for Disease Control" },
+            "url": "https://www.cdc.gov.tw"
+          },
+          "dueDaysBefore": 30
+        },
+        {
+          "key": "general.pretrip.customs",
+          "text": {
+            "zh-TW": "確認目的地海關對食物、藥品、現金的申報規定",
+            "en": "Confirm what the destination's customs ask you to declare (food, medicines, cash)"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "general.pretrip.baggage",
+          "text": {
+            "zh-TW": "確認每一段航班的行李限額（國內線常比國際線少）",
+            "en": "Confirm the baggage allowance of every flight (domestic legs are often smaller)"
+          },
+          "dueDaysBefore": 3
+        },
+        {
+          "key": "general.pretrip.flights",
+          "text": {
+            "zh-TW": "確認航班時間、航站與是否跨日抵達",
+            "en": "Confirm flight times, terminals and any arrival on the next day"
+          },
+          "dueDaysBefore": 3
+        },
+        {
+          "key": "general.pretrip.embassy",
+          "text": {
+            "zh-TW": "確認駐外館處的緊急聯絡方式並存進手機",
+            "en": "Confirm the embassy or representative office's emergency contact and save it"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "外交部領事事務局", "en": "Bureau of Consular Affairs (Taiwan)" },
+            "url": "https://www.boca.gov.tw"
+          }
+        },
+        {
+          "key": "general.pretrip.documents",
+          "text": {
+            "zh-TW": "確認護照影本、保單、訂位紀錄已放進文件夾",
+            "en": "Confirm passport copies, insurance and bookings are in the documents folder"
+          },
+          "dueDaysBefore": 3
+        },
+        {
+          "key": "general.pretrip.offline",
+          "text": {
+            "zh-TW": "確認已把 app 加到主畫面、下載離線地圖",
+            "en": "Confirm the app is on your home screen and offline maps are downloaded"
+          },
+          "dueDaysBefore": 2
+        },
+        {
+          "key": "general.pretrip.weather",
+          "text": {
+            "zh-TW": "確認當地季節與天氣（看當地氣象局）",
+            "en": "Confirm the season and weather (the local weather service)"
+          },
+          "dueDaysBefore": 3
+        }
+      ]
+    },
+    {
+      "key": "general.packing-personal",
+      "kind": "packing",
+      "title": { "zh-TW": "個人打包", "en": "Personal packing" },
+      "items": [
+        { "key": "general.packing-personal.passport", "text": { "zh-TW": "護照", "en": "Passport" } },
+        { "key": "general.packing-personal.cards", "text": { "zh-TW": "信用卡與少量現金", "en": "Cards and some cash" } },
+        { "key": "general.packing-personal.phone", "text": { "zh-TW": "手機與充電線", "en": "Phone and charging cable" } },
+        { "key": "general.packing-personal.meds", "text": { "zh-TW": "個人藥品", "en": "Personal medicines" } },
+        { "key": "general.packing-personal.clothes", "text": { "zh-TW": "換洗衣物", "en": "Clothes" } },
+        { "key": "general.packing-personal.jacket", "text": { "zh-TW": "外套與雨具", "en": "Jacket and rain gear" } },
+        { "key": "general.packing-personal.toiletries", "text": { "zh-TW": "盥洗用品", "en": "Toiletries" } },
+        { "key": "general.packing-personal.glasses", "text": { "zh-TW": "眼鏡或隱形眼鏡", "en": "Glasses or contact lenses" } },
+        { "key": "general.packing-personal.powerbank", "text": { "zh-TW": "行動電源（放隨身行李）", "en": "Power bank (in carry-on)" } }
+      ]
+    },
+    {
+      "key": "general.packing-shared",
+      "kind": "packing",
+      "title": { "zh-TW": "公用（認領誰帶）", "en": "Shared (who brings it)" },
+      "items": [
+        { "key": "general.packing-shared.adapter", "text": { "zh-TW": "轉接頭（確認當地插座規格）", "en": "Plug adapters (check the local socket type)" } },
+        { "key": "general.packing-shared.firstaid", "text": { "zh-TW": "常備藥品（感冒、腸胃、OK 繃）", "en": "First-aid kit (cold, stomach, plasters)" } },
+        { "key": "general.packing-shared.powerstrip", "text": { "zh-TW": "延長線", "en": "Power strip" } },
+        { "key": "general.packing-shared.wipes", "text": { "zh-TW": "濕紙巾與衛生紙", "en": "Wet wipes and tissues" } },
+        { "key": "general.packing-shared.bags", "text": { "zh-TW": "大塑膠袋或收納袋", "en": "Large bags for laundry and rubbish" } }
+      ]
+    }
+  ]
+}

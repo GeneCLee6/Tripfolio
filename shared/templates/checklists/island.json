@@ -1,0 +1,79 @@
+{
+  "style": "island",
+  "title": { "zh-TW": "海島跳島", "en": "Island hopping" },
+  "lists": [
+    {
+      "key": "island.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "海島行前", "en": "Island prep" },
+      "items": [
+        {
+          "key": "island.pretrip.boats",
+          "text": {
+            "zh-TW": "確認船班或島間航班的時刻、天候停駛時怎麼處理",
+            "en": "Confirm boat or inter-island flight times and what happens when weather cancels them"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "island.pretrip.diving",
+          "text": {
+            "zh-TW": "確認潛水或浮潛的預訂、證照要求與天候取消政策",
+            "en": "Confirm diving or snorkelling bookings, certification needed and the weather policy"
+          },
+          "dueDaysBefore": 21
+        },
+        {
+          "key": "island.pretrip.environment-fee",
+          "text": {
+            "zh-TW": "確認目的地有沒有環境稅或入境費（例如帛琉的 Pristine Paradise Environmental Fee），怎麼收",
+            "en": "Confirm any environment or entry fee (e.g. Palau's Pristine Paradise Environmental Fee) and how it is collected"
+          },
+          "linkHint": { "label": { "zh-TW": "目的地觀光局官網", "en": "The destination's tourism board" } },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "island.pretrip.fly-after-dive",
+          "text": {
+            "zh-TW": "確認潛水後到搭機要隔多久（問潛水中心），排在行程裡",
+            "en": "Confirm with the dive centre how long to wait between diving and flying, and plan for it"
+          }
+        },
+        {
+          "key": "island.pretrip.sunscreen",
+          "text": {
+            "zh-TW": "確認目的地對防曬乳成分有沒有限制",
+            "en": "Confirm whether the destination restricts sunscreen ingredients"
+          }
+        },
+        {
+          "key": "island.pretrip.cash",
+          "text": {
+            "zh-TW": "確認外島能不能刷卡、要帶多少現金，當地用什麼幣別",
+            "en": "Confirm whether outer islands take cards, how much cash to bring and in which currency"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "island.pretrip.meals",
+          "text": {
+            "zh-TW": "確認度假村是否含餐（記帳時餐飲可標「已含」）",
+            "en": "Confirm whether the resort includes meals"
+          }
+        }
+      ]
+    },
+    {
+      "key": "island.packing-shared",
+      "kind": "packing",
+      "title": { "zh-TW": "海島公用", "en": "Island shared" },
+      "items": [
+        { "key": "island.packing-shared.dry-bag", "text": { "zh-TW": "防水袋", "en": "Dry bag" } },
+        { "key": "island.packing-shared.reef-sunscreen", "text": { "zh-TW": "合規的防曬乳", "en": "Permitted sunscreen" } },
+        { "key": "island.packing-shared.phone-pouch", "text": { "zh-TW": "手機防水袋", "en": "Waterproof phone pouch" } },
+        { "key": "island.packing-shared.seasick", "text": { "zh-TW": "暈船藥", "en": "Seasickness tablets" } },
+        { "key": "island.packing-shared.repellent", "text": { "zh-TW": "防蚊液", "en": "Insect repellent" } }
+      ]
+    }
+  ]
+}

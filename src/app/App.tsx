@@ -14,6 +14,10 @@ const TripHomePage = lazy(() => import('../pages/TripHomePage.tsx'))
 const SectionPage = lazy(() => import('../pages/SectionPage.tsx'))
 const TripSettingsPage = lazy(() => import('../pages/TripSettingsPage.tsx'))
 const PhotosPage = lazy(() => import('../pages/photos/PhotosPage.tsx'))
+const ChecklistsPage = lazy(() => import('../pages/checklists/ChecklistsPage.tsx'))
+const BudgetPage = lazy(() => import('../pages/budget/BudgetPage.tsx'))
+const DocumentsPage = lazy(() => import('../pages/documents/DocumentsPage.tsx'))
+const NotesPage = lazy(() => import('../pages/notes/NotesPage.tsx'))
 const PlacesPage = lazy(() => import('../pages/places/PlacesPage.tsx'))
 const BookingsPage = lazy(() => import('../pages/bookings/BookingsPage.tsx'))
 const BalancesPage = lazy(() => import('../pages/balances/BalancesPage.tsx'))
@@ -96,6 +100,10 @@ function AppRoutes() {
           <Route path="expenses" element={<SectionPage section="expenses" />} />
           <Route path="settings" element={<TripSettingsPage />} />
           <Route path="photos" element={<PhotosPage />} />
+          <Route path="checklists" element={<ChecklistsPage />} />
+          <Route path="budget" element={<BudgetPage />} />
+          <Route path="documents" element={<DocumentsPage />} />
+          <Route path="notes" element={<NotesPage />} />
           <Route path="places" element={<PlacesPage />} />
           <Route path="bookings" element={<BookingsPage />} />
           <Route path="expenses/balances" element={<BalancesPage />} />

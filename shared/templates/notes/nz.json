@@ -1,0 +1,91 @@
+{
+  "destination": "nz",
+  "title": { "zh-TW": "紐西蘭", "en": "New Zealand" },
+  "disclaimer": {
+    "zh-TW": "範本只寫「要確認什麼」，規定會改，出發前請到官方網站確認並改成你們查到的內容。",
+    "en": "This template lists what to confirm, not the rules themselves. Rules change: check the official sites and write down what you find."
+  },
+  "sections": [
+    {
+      "key": "nz.emergency",
+      "section": "emergency",
+      "title": { "zh-TW": "緊急電話", "en": "Emergency numbers" },
+      "body": {
+        "zh-TW": "- 警察／消防／救護：＿＿＿（到官方網站確認後填上）\n- 非緊急報案：＿＿＿\n- 駐紐西蘭台北經濟文化辦事處緊急電話：＿＿＿\n- 旅遊保險 24 小時救援專線：＿＿＿\n- 租車公司道路救援：＿＿＿\n\n外交部領事事務局 https://www.boca.gov.tw",
+        "en": "- Police / fire / ambulance: ___ (confirm on the official site and fill in)\n- Non-emergency police: ___\n- Taipei Economic and Cultural Office emergency line: ___\n- Travel insurance 24-hour assistance: ___\n- Rental company roadside assistance: ___\n\nBureau of Consular Affairs https://www.boca.gov.tw"
+      }
+    },
+    {
+      "key": "nz.power",
+      "section": "power",
+      "title": { "zh-TW": "插座與電壓", "en": "Plugs and voltage" },
+      "body": {
+        "zh-TW": "- 確認插座型式與電壓，帶對的轉接頭\n- 確認吹風機、電鍋等電器標示的電壓範圍，需要的話帶變壓器\n- 露營車：確認營地電源線的接頭和車上的插座",
+        "en": "- Confirm the socket type and voltage and bring the right adapter\n- Check the voltage range printed on hair dryers and cookers; bring a converter if needed\n- Campervan: confirm the campsite power lead fits the van"
+      }
+    },
+    {
+      "key": "nz.money",
+      "section": "money",
+      "title": { "zh-TW": "付款與小費", "en": "Paying and tipping" },
+      "body": {
+        "zh-TW": "- 確認當地的小費習慣（餐廳、導覽、司機）\n- 刷卡時店家問要不要用台幣結帳，選當地幣（NZD）\n- 確認哪些地方要現金（部分營地、小鎮市集）\n- 確認刷卡是否加收手續費",
+        "en": "- Confirm the local tipping custom (restaurants, tours, drivers)\n- When asked to pay in your home currency, choose the local one (NZD)\n- Confirm where cash is needed (some campsites, small-town markets)\n- Confirm whether card surcharges apply"
+      }
+    },
+    {
+      "key": "nz.driving",
+      "section": "driving",
+      "title": { "zh-TW": "開車規則", "en": "Driving rules" },
+      "body": {
+        "zh-TW": "- 確認靠左行駛與轉彎讓行規則\n- 確認單線橋怎麼看讓行標誌（哪一方先行）\n- 確認各類道路的限速；露營車實際常比速限慢\n- 確認碎石路是否在租車保險範圍\n- 確認冬季哪些山路需要雪鏈\n- 開車時間抓寬一點：山路、觀景停車、補給\n\n紐西蘭交通局（NZTA）https://www.nzta.govt.nz",
+        "en": "- Confirm keep-left driving and the give-way rules at turns\n- Confirm how one-lane bridge signs show who gives way\n- Confirm speed limits by road type; campervans usually drive slower\n- Confirm whether gravel roads are covered by the rental insurance\n- Confirm which mountain roads need chains in winter\n- Allow extra time for winding roads, lookouts and supplies\n\nNZ Transport Agency (NZTA) https://www.nzta.govt.nz"
+      }
+    },
+    {
+      "key": "nz.water",
+      "section": "water",
+      "title": { "zh-TW": "飲用水", "en": "Drinking water" },
+      "body": {
+        "zh-TW": "- 確認自來水能不能生飲\n- 營地與步道：確認水龍頭標示是否為飲用水，溪水要處理過才喝",
+        "en": "- Confirm whether tap water is drinkable\n- At campsites and on tracks: check whether taps are marked drinkable; treat stream water"
+      }
+    },
+    {
+      "key": "nz.customs",
+      "section": "customs",
+      "title": { "zh-TW": "海關與生物安全申報", "en": "Customs and biosecurity" },
+      "body": {
+        "zh-TW": "- 確認入境卡上要申報的項目（食物、植物、動物製品、戶外用品）\n- 登山鞋、帳篷、釣具要先清乾淨\n- 不確定就申報；確認未申報的罰則\n\n紐西蘭初級產業部（MPI）https://www.mpi.govt.nz\n紐西蘭移民署 https://www.immigration.govt.nz",
+        "en": "- Confirm what the arrival card asks you to declare (food, plants, animal products, outdoor gear)\n- Clean hiking boots, tents and fishing gear first\n- When unsure, declare; confirm the penalties for not declaring\n\nMinistry for Primary Industries (MPI) https://www.mpi.govt.nz\nImmigration New Zealand https://www.immigration.govt.nz"
+      }
+    },
+    {
+      "key": "nz.apps",
+      "section": "apps",
+      "title": { "zh-TW": "常用 App", "en": "Useful apps" },
+      "body": {
+        "zh-TW": "- 營地：Campermate、Rankers（確認是否支援離線）\n- 天氣：MetService\n- 路況：NZTA 的即時路況\n- 離線地圖：出發前下載整趟範圍",
+        "en": "- Campsites: Campermate, Rankers (check offline support)\n- Weather: MetService\n- Roads: NZTA live road conditions\n- Offline maps: download the whole route before you go"
+      }
+    },
+    {
+      "key": "nz.campervan",
+      "section": "campervan",
+      "title": { "zh-TW": "露營車重點", "en": "Campervan essentials" },
+      "body": {
+        "zh-TW": "## 自炊設備認證\n- 確認車子是否有 self-contained 認證，以及各區自由露營的規定（各區不同、常改）\n\n## 營地類型\n- 假日公園：有電、水、廁所、廚房，旺季要訂\n- 保育部（DOC）營地：便宜、設施少，部分要訂\n- 自由露營：限制多，確認當地規定\n\n## 每天的例行\n- 接電、加水、倒灰水與黑水、煮飯：抵達營地抓日落前 1 小時\n- 傾倒站大約每 2–3 天一次，山區加油站稀疏\n\n紐西蘭保育部（DOC）https://www.doc.govt.nz",
+        "en": "## Self-contained certification\n- Confirm whether the van is certified self-contained and the freedom-camping rules in each area (they differ and change)\n\n## Kinds of campsites\n- Holiday parks: power, water, toilets, kitchen; book in peak season\n- Conservation (DOC) campsites: cheap, basic, some need booking\n- Freedom camping: many restrictions; check the local rules\n\n## The daily routine\n- Power, water, grey and black water, cooking: arrive about an hour before sunset\n- Dump stations roughly every 2–3 days; fuel is sparse in the mountains\n\nDepartment of Conservation (DOC) https://www.doc.govt.nz"
+      }
+    },
+    {
+      "key": "nz.links",
+      "section": "links",
+      "title": { "zh-TW": "官方連結", "en": "Official links" },
+      "body": {
+        "zh-TW": "- 紐西蘭觀光局 https://www.newzealand.com\n- 紐西蘭交通局（NZTA）https://www.nzta.govt.nz\n- 紐西蘭保育部（DOC）https://www.doc.govt.nz\n- 紐西蘭初級產業部（MPI）https://www.mpi.govt.nz\n- 紐西蘭移民署 https://www.immigration.govt.nz\n- 紐西蘭氣象局（MetService）https://www.metservice.com",
+        "en": "- Tourism New Zealand https://www.newzealand.com\n- NZ Transport Agency (NZTA) https://www.nzta.govt.nz\n- Department of Conservation (DOC) https://www.doc.govt.nz\n- Ministry for Primary Industries (MPI) https://www.mpi.govt.nz\n- Immigration New Zealand https://www.immigration.govt.nz\n- MetService https://www.metservice.com"
+      }
+    }
+  ]
+}

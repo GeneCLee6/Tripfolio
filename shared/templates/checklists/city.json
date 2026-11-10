@@ -1,0 +1,68 @@
+{
+  "style": "city",
+  "title": { "zh-TW": "城市", "en": "City" },
+  "lists": [
+    {
+      "key": "city.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "城市行前", "en": "City prep" },
+      "items": [
+        {
+          "key": "city.pretrip.airport",
+          "text": {
+            "zh-TW": "確認機場進市區的交通方式、末班時間與票價",
+            "en": "Confirm how to get from the airport into town, the last service and the fare"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "city.pretrip.transit-card",
+          "text": {
+            "zh-TW": "確認當地交通卡或票券（手機能不能直接感應）",
+            "en": "Confirm the local transit card or pass (and whether a phone can tap in)"
+          },
+          "dueDaysBefore": 7
+        },
+        {
+          "key": "city.pretrip.reservations",
+          "text": {
+            "zh-TW": "確認熱門餐廳、景點、博物館是否需要預約",
+            "en": "Confirm which popular restaurants, sights and museums need a reservation"
+          },
+          "dueDaysBefore": 21
+        },
+        {
+          "key": "city.pretrip.closures",
+          "text": {
+            "zh-TW": "確認博物館休館日與週日、假日的營業時間",
+            "en": "Confirm museum closing days and Sunday or holiday opening hours"
+          }
+        },
+        {
+          "key": "city.pretrip.city-tax",
+          "text": {
+            "zh-TW": "確認住宿是否要現場付城市稅",
+            "en": "Confirm whether a city tax is paid at the hotel"
+          }
+        },
+        {
+          "key": "city.pretrip.pickpockets",
+          "text": {
+            "zh-TW": "確認扒手常出沒的地點與防範方式",
+            "en": "Confirm where pickpockets are common and how to guard against them"
+          }
+        }
+      ]
+    },
+    {
+      "key": "city.packing-personal",
+      "kind": "packing",
+      "title": { "zh-TW": "城市個人", "en": "City personal" },
+      "items": [
+        { "key": "city.packing-personal.shoes", "text": { "zh-TW": "好走的鞋", "en": "Comfortable walking shoes" } },
+        { "key": "city.packing-personal.money-belt", "text": { "zh-TW": "貼身包", "en": "Money belt or cross-body bag" } },
+        { "key": "city.packing-personal.tote", "text": { "zh-TW": "可折疊購物袋", "en": "Foldable shopping bag" } }
+      ]
+    }
+  ]
+}

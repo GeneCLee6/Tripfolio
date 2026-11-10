@@ -1,0 +1,71 @@
+{
+  "style": "winter",
+  "title": { "zh-TW": "冬季", "en": "Winter" },
+  "lists": [
+    {
+      "key": "winter.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "冬季行前", "en": "Winter prep" },
+      "items": [
+        {
+          "key": "winter.pretrip.chains",
+          "text": {
+            "zh-TW": "確認哪些路段需要雪鏈，租車有沒有附、會不會裝",
+            "en": "Confirm which roads need snow chains, whether the rental supplies them and how to fit them"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "winter.pretrip.road-status",
+          "text": {
+            "zh-TW": "確認去哪裡查即時路況與封路資訊",
+            "en": "Confirm where to check live road conditions and closures"
+          },
+          "linkHint": { "label": { "zh-TW": "當地道路主管機關官網", "en": "The local road authority's website" } }
+        },
+        {
+          "key": "winter.pretrip.daylight",
+          "text": {
+            "zh-TW": "確認日照時間，每天行程在天黑前結束",
+            "en": "Confirm daylight hours and finish each day's driving before dark"
+          }
+        },
+        {
+          "key": "winter.pretrip.closures",
+          "text": {
+            "zh-TW": "確認冬季休業或縮短營業的景點與店家",
+            "en": "Confirm which sights and shops close or shorten hours in winter"
+          }
+        },
+        {
+          "key": "winter.pretrip.insurance",
+          "text": {
+            "zh-TW": "確認保險是否涵蓋雪地駕駛與雪上活動",
+            "en": "Confirm insurance covers snow driving and snow sports"
+          },
+          "dueDaysBefore": 14
+        }
+      ]
+    },
+    {
+      "key": "winter.packing-personal",
+      "kind": "packing",
+      "title": { "zh-TW": "冬季個人", "en": "Winter personal" },
+      "items": [
+        { "key": "winter.packing-personal.layers", "text": { "zh-TW": "保暖層（發熱衣、刷毛）", "en": "Warm layers (thermals, fleece)" } },
+        { "key": "winter.packing-personal.gloves", "text": { "zh-TW": "手套與毛帽", "en": "Gloves and beanie" } },
+        { "key": "winter.packing-personal.boots", "text": { "zh-TW": "防滑鞋", "en": "Non-slip shoes" } },
+        { "key": "winter.packing-personal.balm", "text": { "zh-TW": "護唇膏與乳液", "en": "Lip balm and moisturiser" } }
+      ]
+    },
+    {
+      "key": "winter.packing-shared",
+      "kind": "packing",
+      "title": { "zh-TW": "冬季公用", "en": "Winter shared" },
+      "items": [
+        { "key": "winter.packing-shared.warmers", "text": { "zh-TW": "暖暖包", "en": "Hand warmers" } },
+        { "key": "winter.packing-shared.scraper", "text": { "zh-TW": "除冰刮板（確認租車有附）", "en": "Ice scraper (check the rental has one)" } }
+      ]
+    }
+  ]
+}

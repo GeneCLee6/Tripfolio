@@ -1,0 +1,100 @@
+{
+  "style": "rail",
+  "title": { "zh-TW": "歐洲鐵路／城市", "en": "Europe by rail" },
+  "lists": [
+    {
+      "key": "rail.pretrip",
+      "kind": "pretrip",
+      "title": { "zh-TW": "鐵路與申根行前", "en": "Rail and Schengen prep" },
+      "items": [
+        {
+          "key": "rail.pretrip.schengen",
+          "text": {
+            "zh-TW": "確認申根區停留天數的算法與這趟會不會超過",
+            "en": "Confirm how Schengen days are counted and that this trip stays within them"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "歐盟官方網站", "en": "European Union official website" },
+            "url": "https://europa.eu"
+          },
+          "dueDaysBefore": 45
+        },
+        {
+          "key": "rail.pretrip.etias",
+          "text": {
+            "zh-TW": "確認歐洲旅遊資訊暨授權系統（ETIAS）目前是否需要申請",
+            "en": "Confirm whether ETIAS (European Travel Information and Authorisation System) is required yet"
+          },
+          "linkHint": {
+            "label": { "zh-TW": "歐盟旅遊官網", "en": "EU travel website" },
+            "url": "https://travel-europe.europa.eu"
+          },
+          "dueDaysBefore": 45
+        },
+        {
+          "key": "rail.pretrip.pass",
+          "text": {
+            "zh-TW": "確認火車通行證和點對點票哪個划算",
+            "en": "Confirm whether a rail pass or point-to-point tickets work out cheaper"
+          },
+          "dueDaysBefore": 30
+        },
+        {
+          "key": "rail.pretrip.seats",
+          "text": {
+            "zh-TW": "確認哪些車次要訂座、通行證要不要先啟用",
+            "en": "Confirm which trains need seat reservations and when to activate the pass"
+          },
+          "dueDaysBefore": 14
+        },
+        {
+          "key": "rail.pretrip.city-tax",
+          "text": {
+            "zh-TW": "確認各城市的住宿城市稅與付款方式",
+            "en": "Confirm each city's tourist tax and how it is paid"
+          }
+        },
+        {
+          "key": "rail.pretrip.museums",
+          "text": {
+            "zh-TW": "確認博物館是否預約制、休館日",
+            "en": "Confirm which museums need timed entry and their closing days"
+          },
+          "dueDaysBefore": 21
+        },
+        {
+          "key": "rail.pretrip.currencies",
+          "text": {
+            "zh-TW": "確認會用到的幣別（EUR 以外如 CHF、CZK、GBP）",
+            "en": "Confirm the currencies you will need (CHF, CZK, GBP besides EUR)"
+          }
+        },
+        {
+          "key": "rail.pretrip.sundays",
+          "text": {
+            "zh-TW": "確認週日商店是否休息，補給要提前",
+            "en": "Confirm whether shops close on Sundays and stock up beforehand"
+          }
+        },
+        {
+          "key": "rail.pretrip.pickpockets",
+          "text": {
+            "zh-TW": "確認車站與觀光區的扒手防範",
+            "en": "Confirm how to guard against pickpockets at stations and sights"
+          }
+        }
+      ]
+    },
+    {
+      "key": "rail.packing-personal",
+      "kind": "packing",
+      "title": { "zh-TW": "鐵路個人", "en": "Rail personal" },
+      "items": [
+        { "key": "rail.packing-personal.money-belt", "text": { "zh-TW": "貼身包", "en": "Money belt" } },
+        { "key": "rail.packing-personal.lock", "text": { "zh-TW": "行李鎖", "en": "Luggage lock" } },
+        { "key": "rail.packing-personal.light-bag", "text": { "zh-TW": "能自己扛上樓梯的行李", "en": "Luggage you can carry up stairs" } },
+        { "key": "rail.packing-personal.adapters", "text": { "zh-TW": "歐規與英規轉接頭", "en": "European and UK plug adapters" } }
+      ]
+    }
+  ]
+}
