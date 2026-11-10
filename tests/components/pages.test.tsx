@@ -118,7 +118,7 @@ describe('TripHomePage', () => {
     expect(html).toContain('9 天')
     expect(html).toContain('Gene')
     expect(html).toContain('Mia')
-    expect(html).toContain('沒有快到期的事')
+    expect(html).toContain('即將到期')
     for (const path of ['itinerary', 'map', 'picks', 'expenses', 'settings'])
       expect(html).toContain(`href="/trips/trip1/${path}"`)
     expect(html).toContain('編輯旅程')
