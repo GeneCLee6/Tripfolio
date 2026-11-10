@@ -81,7 +81,7 @@ for (const width of [375, 1440]) {
     await expect(create.getByRole('checkbox', { name: /隱藏金額/ })).toBeChecked()
     await expect(create.getByRole('checkbox', { name: /隱藏地址/ })).toBeChecked()
     await expect(create.getByRole('checkbox', { name: /顯示回顧/ })).not.toBeChecked()
-    await expect(create).toContainText('回顧功能之後才會開放')
+    await expect(create).toContainText('旅程結束後，分享頁會多出每天的回顧')
     // Only money hidden for this link
     await create.getByRole('checkbox', { name: /隱藏地址/ }).uncheck()
     await shot(o, `${width}-share-options`)

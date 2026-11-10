@@ -30,7 +30,7 @@ export const settingsZhTW = {
   'shares.option.showRecap': '顯示回顧',
   'shares.hint.hideMoney': '不顯示費用、預算與每人預估。',
   'shares.hint.hideAddresses': '不顯示住宿地址與訂位代號。',
-  'shares.hint.showRecap': '回顧功能之後才會開放；現在打開，等回顧上線後分享頁就會顯示。',
+  'shares.hint.showRecap': '旅程結束後，分享頁會多出每天的回顧文字與照片；金額一律不顯示。',
   'shares.alwaysHidden': '護照、保單、收據等文件永遠不會出現在分享頁。',
   'shares.createdTitle': '分享連結已建立',
   'shares.once': '這個連結只會顯示這一次，請現在複製；之後清單只會列出建立日期與設定。',

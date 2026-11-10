@@ -135,7 +135,7 @@ describe('ShareDialog', () => {
     expect(boxes).toHaveLength(3)
     expect(boxes.map((box) => box.includes('checked'))).toEqual([true, true, false])
     expect(html).toContain('隱藏地址')
-    expect(html).toContain('回顧功能之後才會開放')
+    expect(html).toContain('旅程結束後，分享頁會多出每天的回顧')
     expect(html).toContain('永遠不會出現在分享頁')
   })
 

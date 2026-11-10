@@ -29,7 +29,7 @@ export const settingsEn: Record<SettingsMessageKey, string> = {
   'shares.option.showRecap': 'Show recap',
   'shares.hint.hideMoney': 'No costs, budgets or per-person estimates.',
   'shares.hint.hideAddresses': 'No lodging addresses or booking references.',
-  'shares.hint.showRecap': 'The recap comes later; turn it on now and the share page will show it once it is available.',
+  'shares.hint.showRecap': 'After the trip ends, the share page adds each day’s recap text and photos; amounts are never shown.',
   'shares.alwaysHidden': 'Documents such as passports, insurance and receipts never appear on a share page.',
   'shares.createdTitle': 'Share link created',
   'shares.once': 'This link is shown only this once, so copy it now. Afterwards the list shows only when it was created and its settings.',

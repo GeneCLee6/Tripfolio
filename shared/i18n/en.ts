@@ -181,6 +181,7 @@ export const en: Record<AppMessageKey, string> = {
   'tripHome.deadlinesEmpty.title': 'Nothing coming due',
   'tripHome.deadlinesEmpty.body': 'Cancellation deadlines and bookings still to make will show up here.',
   'tripHome.sections': 'In this trip',
+  'tripHome.recapLink': 'Trip recap',
   'tripHome.before.title': 'Before you leave',
   'tripHome.before.progress': 'Pre-trip checklist {done}/{total} done',
   'tripHome.before.noList': 'No pre-trip checklist yet; start one from a template.',

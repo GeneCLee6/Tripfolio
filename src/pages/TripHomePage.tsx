@@ -208,6 +208,11 @@ export default function TripHomePage() {
           {trip.archivedAt && <Chip tone="warning">{t('trips.archived')}</Chip>}
         </div>
         <Row>
+          {phase === 'after' && (
+            <ButtonLink to={tripPath(trip.id, 'recap')} variant="primary">
+              {t('tripHome.recapLink')}
+            </ButtonLink>
+          )}
           <ButtonLink to={tripPath(trip.id, 'bookings')}>{t('bookings.homeLink')}</ButtonLink>
           <ButtonLink to={tripPath(trip.id, 'photos')}>
             {canEdit && !trip.coverAttachmentId ? t('photos.cover.homeSet') : t('photos.title')}

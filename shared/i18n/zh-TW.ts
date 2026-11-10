@@ -189,6 +189,7 @@ export const zhTW = {
   'tripHome.deadlinesEmpty.body': '住宿的取消期限、還沒訂的行程點會出現在這裡。',
   'tripHome.sections': '旅程內容',
   'tripHome.before.title': '出發前',
+  'tripHome.recapLink': '回顧這趟旅程',
   'tripHome.before.progress': '行前清單完成 {done}／{total}',
   'tripHome.before.noList': '還沒有行前清單，可以從範本帶入。',
   'tripHome.today.title': '今天',
