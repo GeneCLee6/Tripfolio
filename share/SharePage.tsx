@@ -1,23 +1,39 @@
 import { useCallback, useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import styled from 'styled-components'
 import { LOCALES } from '../shared/i18n/core.ts'
 import { SegmentedControl } from '../src/components/SegmentedControl.tsx'
 import { Skeleton } from '../src/components/Skeleton.tsx'
 import { useT } from '../src/lib/i18n.ts'
 import { focusRing } from '../src/styles/mixins.ts'
-import { color, font, fontSize, fontWeight, media, radius, space } from '../src/styles/tokens.ts'
+import {
+  color,
+  font,
+  fontSize,
+  fontWeight,
+  media,
+  radius,
+  space,
+  touchTarget,
+} from '../src/styles/tokens.ts'
 import { loadShare, tokenFromPath, type ShareResult } from './api.ts'
+import { BookingsTable } from './components/BookingsTable.tsx'
 import { Cover } from './components/Cover.tsx'
 import { DayCard } from './components/DayCard.tsx'
 import { Estimate } from './components/Estimate.tsx'
 import { Picks } from './components/Picks.tsx'
 import { RouteOverview } from './components/RouteOverview.tsx'
 import { setShareLocale } from './locale.ts'
+import { PrintStyle } from './print.ts'
 
 // The read-only share page (/s/<token>, e8-t01a, e8-t01b): cover, route overview, one card per day,
 // the picks wall and the cost estimate. Its own bundle: it never loads the editor or the router,
 // and MapLibre only lazily. The data comes already filtered by the Worker (CLAUDE.md rule 4): a
 // section whose data is absent (no estimate with hideMoney) is simply not drawn.
+// Print (e8-t02, share/print.ts): 「列印／存成 PDF」 (or the browser's own print, through
+// `beforeprint`) first renders the print-only parts — each day's static map and stops table, the
+// bookings summary — synchronously, then prints: cover and route overview, a page per day, then the
+// bookings and the estimate. The picks wall and the controls stay off paper.
 
 const Page = styled.div`
   max-width: 880px;
@@ -25,6 +41,10 @@ const Page = styled.div`
   padding: ${space.lg}px max(${space.lg}px, env(safe-area-inset-right, 0px))
     calc(${space.xxl}px + env(safe-area-inset-bottom, 0px))
     max(${space.lg}px, env(safe-area-inset-left, 0px));
+  @media print {
+    max-width: none;
+    padding: 0;
+  }
 `
 
 const Bar = styled.div`
@@ -57,8 +77,36 @@ const Block = styled.div`
 `
 
 const SectionTitle = styled.h2`
-  margin: 0 0 ${space.md}px;
+  margin: 0;
   font-size: ${fontSize.lg}px;
+`
+
+const SectionHead = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${space.sm}px ${space.md}px;
+  margin: 0 0 ${space.md}px;
+`
+
+const PrintButton = styled.button`
+  min-height: 32px;
+  padding: 0 ${space.md}px;
+  border: 1px solid ${color.line};
+  border-radius: ${radius.pill}px;
+  background: ${color.card};
+  color: ${color.ink};
+  font-size: ${fontSize.sm}px;
+  font-weight: ${fontWeight.medium};
+  cursor: pointer;
+  &:hover {
+    border-color: ${color.muted};
+  }
+  @media ${media.coarse} {
+    min-height: ${touchTarget}px;
+  }
+  ${focusRing}
 `
 
 const Days = styled.div`
@@ -66,6 +114,9 @@ const Days = styled.div`
   gap: ${space.md}px;
   @media ${media.desktop} {
     gap: ${space.lg}px;
+  }
+  @media print {
+    display: block;
   }
 `
 
@@ -112,6 +163,10 @@ const Footer = styled.footer`
   }
 `
 
+const PrintOnly = styled.div`
+  margin-top: ${space.xl}px;
+`
+
 const Loading = styled.div`
   display: grid;
   gap: ${space.md}px;
@@ -150,6 +205,18 @@ export function SharePage() {
     return () => controller.abort()
   }, [attempt, token])
 
+  // Print-only parts render once the page prepares to print, and stay (hidden on screen)
+  const [printing, setPrinting] = useState(false)
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true))
+    window.addEventListener('beforeprint', before)
+    return () => window.removeEventListener('beforeprint', before)
+  }, [])
+  const print = useCallback(() => {
+    flushSync(() => setPrinting(true))
+    window.print()
+  }, [])
+
   const tripName = state.kind === 'ok' ? state.payload.trip.name : null
   useEffect(() => {
     document.title = `${tripName ?? t('share.title')} · ${t('app.name')}`
@@ -157,7 +224,8 @@ export function SharePage() {
 
   return (
     <Page>
-      <Bar>
+      <PrintStyle />
+      <Bar data-print="hide">
         <Brand href="/">{t('app.name')}</Brand>
         <SegmentedControl
           label={t('language.label')}
@@ -191,20 +259,45 @@ export function SharePage() {
               <RouteOverview payload={state.payload} />
             </Block>
             <Section aria-labelledby="share-days">
-              <SectionTitle id="share-days">{t('share.days.heading')}</SectionTitle>
+              <SectionHead data-print="hide">
+                <SectionTitle id="share-days">{t('share.days.heading')}</SectionTitle>
+                <PrintButton type="button" onClick={print} data-testid="share-print">
+                  {t('share.print.button')}
+                </PrintButton>
+              </SectionHead>
               <Days>
-                {state.payload.days.map((day) => (
-                  <DayCard key={day.index} day={day} trip={state.payload.trip} token={token} />
-                ))}
+                {state.payload.days.map((day) => {
+                  const night = state.payload.overnight.find(
+                    (line) => line.dayIndex === day.index && line.toLodging,
+                  )
+                  return (
+                    <DayCard
+                      key={day.index}
+                      day={day}
+                      trip={state.payload.trip}
+                      token={token}
+                      printing={printing}
+                      lodgingPoint={night?.to}
+                      bookings={state.payload.bookings.filter(
+                        (b) => b.kind !== 'lodging' && !!day.date && b.startDate === day.date,
+                      )}
+                    />
+                  )
+                })}
               </Days>
             </Section>
+            {printing && state.payload.bookings.length > 0 && (
+              <PrintOnly data-print="only" data-print-break="before">
+                <BookingsTable bookings={state.payload.bookings} options={state.payload.options} />
+              </PrintOnly>
+            )}
             {state.payload.picks.length > 0 && (
-              <Block>
+              <Block data-print="hide">
                 <Picks picks={state.payload.picks} token={token} />
               </Block>
             )}
             {state.payload.estimate && (
-              <Block>
+              <Block data-print-break={state.payload.bookings.length === 0 ? 'before' : undefined}>
                 <Estimate
                   estimate={state.payload.estimate}
                   people={state.payload.trip.memberCount}
@@ -214,7 +307,7 @@ export function SharePage() {
           </>
         )}
       </main>
-      <Footer>
+      <Footer data-print="hide">
         <a href="/">{t('share.footer.madeWith')}</a>
       </Footer>
     </Page>

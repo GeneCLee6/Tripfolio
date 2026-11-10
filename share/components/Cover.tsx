@@ -10,6 +10,7 @@ import {
 } from '../../shared/i18n/format.ts'
 import { useT } from '../../src/lib/i18n.ts'
 import {
+  color,
   font,
   fontSize,
   fontWeight,
@@ -25,6 +26,8 @@ import { colorOfCover } from '../colors.ts'
 // The cover (docs/design/mockup.html Screen 1): the trip's colour as a deep gradient with contour
 // lines, the destination as an eyebrow, the title, the one-line summary and the stat chips. The
 // cover is always dark, in both themes, so its text is white (onDayColor) on any cover colour.
+// In print (e8-t02) browsers drop backgrounds, so the cover turns into dark text on paper under a
+// band of the cover colour; the photo, contours and shade are left out.
 
 const Hero = styled.header`
   position: relative;
@@ -44,6 +47,22 @@ const Hero = styled.header`
     min-height: 300px;
     border-radius: ${radius.card}px;
   }
+  @media print {
+    min-height: 0;
+    border-radius: 0;
+    border-top: 8mm solid var(--cover);
+    background: none;
+    color: ${color.ink};
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    break-inside: avoid;
+  }
+`
+
+const hideInPrint = `
+  @media print {
+    display: none;
+  }
 `
 
 const Topo = styled.svg`
@@ -53,6 +72,7 @@ const Topo = styled.svg`
   width: 100%;
   height: 100%;
   opacity: 0.5;
+  ${hideInPrint}
 `
 
 // The trip's cover photo, when it has a shareable one, over the colour and under the shade
@@ -63,6 +83,7 @@ const Photo = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
+  ${hideInPrint}
 `
 
 const Shade = styled.div`
@@ -74,6 +95,7 @@ const Shade = styled.div`
     transparent 20%,
     color-mix(in srgb, ${palette.light.ink} 70%, transparent) 100%
   );
+  ${hideInPrint}
 `
 
 const Inner = styled.div`
@@ -84,6 +106,9 @@ const Inner = styled.div`
   @media ${media.mobile} {
     padding: ${space.xl}px ${space.lg}px;
   }
+  @media print {
+    padding: ${space.lg}px 0 ${space.md}px;
+  }
 `
 
 const Eyebrow = styled.span`
@@ -92,6 +117,9 @@ const Eyebrow = styled.span`
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: color-mix(in srgb, ${onDayColor} 78%, transparent);
+  @media print {
+    color: ${color.muted};
+  }
 `
 
 const Title = styled.h1`
@@ -106,6 +134,9 @@ const Summary = styled.p`
   max-width: 60ch;
   font-size: ${fontSize.md}px;
   color: color-mix(in srgb, ${onDayColor} 86%, transparent);
+  @media print {
+    color: ${color.ink};
+  }
 `
 
 const Stats = styled.dl`
@@ -139,6 +170,13 @@ const Stat = styled.div`
     flex: 1 1 calc(50% - ${space.sm}px);
     dd {
       font-size: ${fontSize.md}px;
+    }
+  }
+  @media print {
+    border-color: ${color.line};
+    background: none;
+    dt {
+      color: ${color.muted};
     }
   }
 `

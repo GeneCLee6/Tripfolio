@@ -2,11 +2,13 @@
 // server: the public endpoint builds its answer field by field from an allow-list, so nothing
 // hidden ever leaves the Worker (CLAUDE.md rule 4).
 
+import type { Lodging } from '../shared/api/bookings.ts'
 import type { RouteMode } from '../shared/api/geo.ts'
 import {
   ESTIMATE_CATEGORIES,
   type EstimateCategory,
   type EstimateCurrency,
+  type ShareBooking,
   type ShareDay,
   type ShareEstimate,
   type ShareLeg,
@@ -28,6 +30,8 @@ import {
 } from '../shared/itinerary/legs.ts'
 import type { ItineraryStop, LegMode } from '../shared/itinerary/types.ts'
 import type { StopType } from '../shared/schema/stop.ts'
+import type { BookingType } from '../shared/schema/booking.ts'
+import type { PayStatus } from '../shared/schema/lodging.ts'
 import type { WishlistCategory } from '../shared/schema/wishlist.ts'
 import { shareCreateSchema, type ShareOptions } from '../shared/schema/share.ts'
 import { authTrip, generateToken, hashToken, isTokenShaped } from './auth.ts'
@@ -45,6 +49,7 @@ import {
 import { json, notFound, nowIso, readBody } from './http.ts'
 import { routeKey } from './proxy/route.ts'
 import type { RouteContext } from './router.ts'
+import { localDate, localTime } from './trips/booking-time.ts'
 import { toLodging } from './trips/lodging.ts'
 
 /** GET /api/trips/:id/shares (owner): active share links, without tokens */
@@ -291,6 +296,61 @@ function httpsUrl(value: unknown): string | undefined {
   }
 }
 
+/** A lodging as a row of the bookings summary; dates are the trip's, times HH:mm in its zone */
+function lodgingRow(l: Lodging, options: ShareOptions): ShareBooking {
+  const out: ShareBooking = {
+    kind: 'lodging',
+    title: l.name,
+    startDate: l.checkIn,
+    endDate: l.checkOut,
+    payStatus: l.payStatus,
+  }
+  if (l.checkInTime) out.startTime = l.checkInTime
+  if (l.checkOutTime) out.endTime = l.checkOutTime
+  if (!options.hideAddresses && l.ref) out.ref = l.ref
+  if (!options.hideMoney && l.priceMinor !== null && l.currency) {
+    out.priceMinor = l.priceMinor
+    out.currency = l.currency
+  }
+  return out
+}
+
+/**
+ * A transport or activity booking as a row of the bookings summary: local dates and times in the
+ * zone each end was entered in (startTz, else the trip's; endTz, else the start's)
+ */
+export function bookingRow(r: Row, tripTz: string, options: ShareOptions): ShareBooking {
+  const out: ShareBooking = {
+    kind: String(r.type) as BookingType,
+    title: String(r.title),
+    payStatus: String(r.payStatus) as PayStatus,
+  }
+  const startTz = r.startTz ? String(r.startTz) : tripTz
+  const endTz = r.endTz ? String(r.endTz) : startTz
+  if (r.startAt) {
+    out.startDate = localDate(String(r.startAt), startTz)
+    out.startTime = localTime(String(r.startAt), startTz)
+  }
+  if (r.endAt) {
+    out.endDate = localDate(String(r.endAt), endTz)
+    out.endTime = localTime(String(r.endAt), endTz)
+  }
+  if (!options.hideAddresses && r.ref) out.ref = String(r.ref)
+  if (!options.hideMoney && r.priceMinor !== null && r.priceMinor !== undefined && r.currency) {
+    out.priceMinor = Number(r.priceMinor)
+    out.currency = String(r.currency)
+  }
+  return out
+}
+
+/** Rows by local start (date, then time); undated ones keep their order at the end */
+function byStart(a: ShareBooking, b: ShareBooking): number {
+  if (!a.startDate || !b.startDate) return (a.startDate ? 0 : 1) - (b.startDate ? 0 : 1)
+  return (
+    a.startDate.localeCompare(b.startDate) || (a.startTime ?? '').localeCompare(b.startTime ?? '')
+  )
+}
+
 /** GET /api/share/:token: public, read-only, filtered on the server by the share's options */
 export async function publicShare(c: RouteContext): Promise<Response> {
   const db = c.env.DB
@@ -347,8 +407,8 @@ export async function publicShare(c: RouteContext): Promise<Response> {
       .all<Row>(),
     db
       .prepare(
-        `SELECT id, type, priceMinor, currency FROM bookings
-          WHERE tripId = ? AND deletedAt IS NULL AND priceMinor IS NOT NULL AND currency IS NOT NULL`,
+        `SELECT id, type, title, startAt, endAt, startTz, endTz, priceMinor, currency, payStatus, ref
+           FROM bookings WHERE tripId = ? AND deletedAt IS NULL ORDER BY startAt IS NULL, startAt, id`,
       )
       .bind(trip.id)
       .all<Row>(),
@@ -572,6 +632,10 @@ export async function publicShare(c: RouteContext): Promise<Response> {
     days: shareDays,
     overnight,
     picks,
+    bookings: [
+      ...lodgings.map((l) => lodgingRow(l, options)),
+      ...bookingRows.results.map((r) => bookingRow(r, trip.tz, options)),
+    ].sort(byStart),
     options,
     generatedAt: nowIso(),
   }
@@ -579,7 +643,10 @@ export async function publicShare(c: RouteContext): Promise<Response> {
   if (!options.hideMoney) {
     shareTrip.baseCurrency = trip.baseCurrency
     // A stop made from a priced booking or lodging would count that price twice
-    const pricedBookings = new Set(bookingRows.results.map((r) => String(r.id)))
+    const priced = bookingRows.results.filter(
+      (r) => r.priceMinor !== null && r.priceMinor !== undefined && r.currency,
+    )
+    const pricedBookings = new Set(priced.map((r) => String(r.id)))
     const pricedLodgings = new Set(
       lodgings.filter((l) => l.priceMinor !== null && l.currency).map((l) => l.id),
     )
@@ -604,7 +671,7 @@ export async function publicShare(c: RouteContext): Promise<Response> {
         items.push({ category: 'lodging', minor: l.priceMinor, currency: l.currency })
       }
     }
-    for (const r of bookingRows.results) {
+    for (const r of priced) {
       const minor = Number(r.priceMinor)
       if (minor <= 0) continue
       items.push({

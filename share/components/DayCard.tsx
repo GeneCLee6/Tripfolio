@@ -1,6 +1,13 @@
 import { useId, useState, type CSSProperties } from 'react'
 import styled, { css } from 'styled-components'
-import type { ShareDay, ShareLeg, ShareStop, ShareTrip } from '../../shared/api/share.ts'
+import type {
+  ShareBooking,
+  ShareDay,
+  ShareLeg,
+  SharePoint,
+  ShareStop,
+  ShareTrip,
+} from '../../shared/api/share.ts'
 import {
   formatDate,
   formatDistance,
@@ -24,10 +31,15 @@ import {
 import { mediaUrl } from '../api.ts'
 import { colorOfDay } from '../colors.ts'
 import { modeGlyph, stopGlyph } from '../glyphs.ts'
+import { PrintDay } from './PrintDay.tsx'
 
 // One day of the share page (DESIGN.md §4 分享頁): a card with the day-colour bar, "Day N · title",
 // the date, the driving total, a compact line of the first stops, and a button that opens the full
 // list with the legs between stops. Read-only; everything shown is what the Worker sent.
+// In print (e8-t02) every card starts a page and, once the page prepares to print (`printing`),
+// carries a print-only block with the day map and the stops table; the screen parts (preview, the
+// open list, the button, photos) are marked data-print="hide". The card's own open state is left
+// alone.
 
 /** How many stops the closed card names */
 const PREVIEW_STOPS = 4
@@ -41,10 +53,19 @@ const Card = styled.article`
   border: 1px solid ${color.line};
   border-radius: ${radius.card}px;
   background: ${color.card};
+  @media print {
+    break-before: page;
+    border: none;
+    border-radius: 0;
+    background: none;
+    overflow: visible;
+  }
 `
 
 const Bar = styled.div`
   background: var(--day);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 `
 
 const Body = styled.div`
@@ -52,6 +73,9 @@ const Body = styled.div`
   gap: ${space.xs}px;
   min-width: 0;
   padding: ${space.md}px ${space.lg}px;
+  @media print {
+    padding: 0 0 0 ${space.md}px;
+  }
 `
 
 const Top = styled.div`
@@ -66,6 +90,9 @@ const Heading = styled.h3`
   margin: 0;
   font-size: ${fontSize.md}px;
   font-weight: ${fontWeight.bold};
+  @media print {
+    font-size: ${fontSize.xl}px;
+  }
 `
 
 const mono = css`
@@ -291,7 +318,26 @@ function StopItem({ stop, trip, t }: { stop: ShareStop; trip: ShareTrip; t: Tran
   )
 }
 
-export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; token: string }) {
+export interface DayCardProps {
+  day: ShareDay
+  trip: ShareTrip
+  token: string
+  /** The page is preparing to print: add the print-only day map and stops table */
+  printing?: boolean
+  /** Where the day sleeps, when its lodging has a place (for the printed map) */
+  lodgingPoint?: SharePoint
+  /** Transport and activity bookings starting this day (printed) */
+  bookings?: readonly ShareBooking[]
+}
+
+export function DayCard({
+  day,
+  trip,
+  token,
+  printing = false,
+  lodgingPoint,
+  bookings = [],
+}: DayCardProps) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const listId = useId()
@@ -302,10 +348,11 @@ export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; 
   const more = main.length - preview.length
   const legFrom = new Map(day.legs.map((leg) => [leg.fromOrder, leg]))
   const tripGlyph = modeGlyph[trip.style === 'campervan' ? 'campervan' : 'drive']
-  const style = { '--day': colorOfDay(day.index, day.color) } as CSSProperties
+  const dayColor = colorOfDay(day.index, day.color)
+  const style = { '--day': dayColor } as CSSProperties
 
   return (
-    <Card style={style}>
+    <Card style={style} data-testid="share-day">
       <Bar />
       <Body>
         <Top>
@@ -340,7 +387,7 @@ export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; 
           </Meta>
         )}
         {day.photoIds.length > 0 && (
-          <Photos aria-label={t('share.day.photos', { day: dayLabel })}>
+          <Photos data-print="hide" aria-label={t('share.day.photos', { day: dayLabel })}>
             {day.photoIds.map((id, i) => (
               <li key={id}>
                 <img
@@ -354,10 +401,10 @@ export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; 
           </Photos>
         )}
         {preview.length === 0 ? (
-          <Preview>{t('share.day.empty')}</Preview>
+          <Preview data-print="hide">{t('share.day.empty')}</Preview>
         ) : (
           !open && (
-            <Preview>
+            <Preview data-print="hide">
               {preview.map((stop, i) => {
                 const time = stopTime(stop, trip, t)
                 return (
@@ -378,7 +425,7 @@ export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; 
           )
         )}
         {open && (
-          <div id={listId}>
+          <div id={listId} data-print="hide">
             <List>
               {day.stops.map((stop) => {
                 const found = stop.isBackup ? undefined : legFrom.get(stop.order)
@@ -400,6 +447,7 @@ export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; 
         )}
         {(day.stops.length > 0 || day.note) && (
           <Toggle
+            data-print="hide"
             type="button"
             aria-expanded={open}
             aria-controls={open ? listId : undefined}
@@ -407,6 +455,19 @@ export function DayCard({ day, trip, token }: { day: ShareDay; trip: ShareTrip; 
           >
             {open ? t('share.day.collapse') : t('share.day.expand')}
           </Toggle>
+        )}
+        {printing && (
+          <div data-print="only">
+            <PrintDay
+              day={day}
+              trip={trip}
+              dayColor={dayColor}
+              dayLabel={dayLabel}
+              lodging={lodgingPoint}
+              bookings={bookings}
+              t={t}
+            />
+          </div>
         )}
       </Body>
     </Card>

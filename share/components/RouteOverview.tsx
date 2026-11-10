@@ -45,6 +45,10 @@ const Frame = styled.div`
   @media ${media.mobile} {
     height: 300px;
   }
+  @media print {
+    height: 100mm;
+    break-inside: avoid;
+  }
 `
 
 const Live = styled.div`

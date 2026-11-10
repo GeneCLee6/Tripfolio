@@ -3,7 +3,8 @@
 // hidden field is absent from the JSON, never null or blanked, so the page has nothing to hide.
 
 import type { LegMode } from '../itinerary/types.ts'
-import type { CampType } from '../schema/lodging.ts'
+import type { BookingType } from '../schema/booking.ts'
+import type { CampType, PayStatus } from '../schema/lodging.ts'
 import type { BookingState, ShareOptions, StopType, TripStyle } from '../schema/index.ts'
 import type { WishlistCategory } from '../schema/wishlist.ts'
 
@@ -166,6 +167,31 @@ export interface ShareEstimate {
   others: EstimateCurrency[]
 }
 
+/** What a row of the bookings summary is: a lodging, or a transport / activity booking */
+export type ShareBookingKind = 'lodging' | BookingType
+
+/**
+ * One row of the bookings summary (e8-t02, printed on the last page): lodgings and bookings, by
+ * start. Dates and times are local wall-clock values worked out on the server (a lodging's in the
+ * trip's zone, a booking's in the zone it was entered in, e.g. a flight's two airports).
+ */
+export interface ShareBooking {
+  kind: ShareBookingKind
+  title: string
+  /** YYYY-MM-DD; absent when the booking has no time yet */
+  startDate?: string
+  /** HH:mm */
+  startTime?: string
+  endDate?: string
+  endTime?: string
+  /** Booking reference / confirmation number; absent with hideAddresses or when not set */
+  ref?: string
+  /** Integer minor units of `currency`; both absent with hideMoney or when not set */
+  priceMinor?: number
+  currency?: string
+  payStatus: PayStatus
+}
+
 export interface SharePayload {
   trip: ShareTrip
   days: ShareDay[]
@@ -175,6 +201,8 @@ export interface SharePayload {
   picks: SharePick[]
   /** Absent with hideMoney or when nothing is priced */
   estimate?: ShareEstimate
+  /** Lodgings and transport / activity bookings, by start (undated ones last) */
+  bookings: ShareBooking[]
   options: ShareOptions
   /** UTC ISO time the payload was built */
   generatedAt: string

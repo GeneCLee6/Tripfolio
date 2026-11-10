@@ -571,6 +571,109 @@ describe('GET /api/share/:token, full version (e8-t01b)', () => {
   })
 })
 
+describe('GET /api/share/:token, bookings summary (e8-t02)', () => {
+  /** A lodging with a ref and a price, a flight across two zones, an undated activity */
+  async function seedBookings() {
+    const s = await seed()
+    const lodging = await call('POST', `${s.base}/lodgings`, s.token, {
+      ...LODGING,
+      checkInTime: '15:00',
+      checkOutTime: '10:00',
+      ref: 'LHP-778',
+      priceMinor: 30000,
+      currency: 'NZD',
+      payStatus: 'deposit',
+    })
+    expect(lodging.status).toBe(201)
+    const flight = await call('POST', `${s.base}/bookings`, s.token, {
+      type: 'flight',
+      title: 'NZ 102 Sydney – Christchurch',
+      details: { airline: 'Air NZ', flightNo: 'NZ102', fromAirport: 'SYD', toAirport: 'CHC' },
+      startLocal: '2026-12-20T07:05',
+      startTz: 'Australia/Sydney',
+      endLocal: '2026-12-20T12:20',
+      endTz: 'Pacific/Auckland',
+      ref: 'X7Q2PL',
+      priceMinor: 45900,
+      currency: 'AUD',
+      payStatus: 'paid',
+    })
+    expect(flight.status, JSON.stringify(flight.body)).toBe(201)
+    const activity = await call('POST', `${s.base}/bookings`, s.token, {
+      type: 'activity',
+      title: 'Stargazing tour',
+      details: {},
+    })
+    expect(activity.status, JSON.stringify(activity.body)).toBe(201)
+    return s
+  }
+
+  it('lists lodgings and bookings by local start, undated last, with refs, prices and status', async () => {
+    const s = await seedBookings()
+    const { body } = await getShare((await share(s.base, s.token)).shareToken)
+    expect(body.bookings).toEqual([
+      {
+        kind: 'flight',
+        title: 'NZ 102 Sydney – Christchurch',
+        // Each end in the zone it was entered in
+        startDate: '2026-12-20',
+        startTime: '07:05',
+        endDate: '2026-12-20',
+        endTime: '12:20',
+        ref: 'X7Q2PL',
+        priceMinor: 45900,
+        currency: 'AUD',
+        payStatus: 'paid',
+      },
+      {
+        kind: 'lodging',
+        title: 'Lakeview Holiday Park',
+        startDate: '2026-12-20',
+        startTime: '15:00',
+        endDate: '2026-12-22',
+        endTime: '10:00',
+        ref: 'LHP-778',
+        priceMinor: 30000,
+        currency: 'NZD',
+        payStatus: 'deposit',
+      },
+      { kind: 'activity', title: 'Stargazing tour', payStatus: 'unpaid' },
+    ])
+  })
+
+  it('hideAddresses removes refs; hideMoney removes prices; both keep the rows', async () => {
+    const s = await seedBookings()
+    const noRefs = await getShare((await share(s.base, s.token, { hideAddresses: true })).shareToken)
+    expect(noRefs.body.bookings).toHaveLength(3)
+    expect(noRefs.body.bookings.some((b) => 'ref' in b)).toBe(false)
+    expect(noRefs.body.bookings[0]).toMatchObject({ priceMinor: 45900, currency: 'AUD' })
+
+    const noMoney = await getShare((await share(s.base, s.token, { hideMoney: true })).shareToken)
+    expect(noMoney.body.bookings[0]).toMatchObject({ ref: 'X7Q2PL', payStatus: 'paid' })
+    for (const b of noMoney.body.bookings) {
+      expect(b).not.toHaveProperty('priceMinor')
+      expect(b).not.toHaveProperty('currency')
+    }
+
+    const hidden = await getShare(
+      (await share(s.base, s.token, { hideMoney: true, hideAddresses: true })).shareToken,
+    )
+    expect(hidden.body.bookings.map((b) => b.kind)).toEqual(['flight', 'lodging', 'activity'])
+    const keys = keysOf(hidden.body.bookings)
+    for (const key of ['ref', 'priceMinor', 'currency']) expect(keys.has(key), key).toBe(false)
+    const json = JSON.stringify(hidden.body)
+    for (const secret of ['X7Q2PL', 'LHP-778', '45900', '30000']) {
+      expect(json).not.toContain(secret)
+    }
+  })
+
+  it('sends an empty list when the trip has no lodgings or bookings', async () => {
+    const s = await seed()
+    const { body } = await getShare((await share(s.base, s.token)).shareToken)
+    expect(body.bookings).toEqual([])
+  })
+})
+
 describe('share payload helpers', () => {
   it('buildEstimate: nothing priced, no estimate; only other currencies, no base totals', () => {
     expect(buildEstimate([], 'AUD', 2)).toBeUndefined()
