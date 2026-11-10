@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import styled from 'styled-components'
 import type { AdminUsageResponse } from '../../../shared/api/admin.ts'
+import '../../../shared/i18n/pages/admin.ts'
 import { Page } from '../../app/TopBar.tsx'
 import {
   Button,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 import { formatMoney } from '../../../shared/i18n/format.ts'
+import '../../../shared/i18n/pages/stats.ts'
 import { useTripContext } from '../../app/trip-context.ts'
 import { ButtonLink } from '../../components/ButtonLink.tsx'
 import {

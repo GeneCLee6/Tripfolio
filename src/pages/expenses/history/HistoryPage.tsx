@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import type { ExpenseView, HistoryEntity, HistoryEntry } from '../../../../shared/api/expenses.ts'
 import { formatDate, formatMoney, formatTime } from '../../../../shared/i18n/format.ts'
+import '../../../../shared/i18n/pages/history.ts'
 import { useTripContext } from '../../../app/trip-context.ts'
 import { ButtonLink } from '../../../components/ButtonLink.tsx'
 import {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styled from 'styled-components'
 import type { Attachment } from '../../../shared/api/media.ts'
 import type { DayWithStops, Place } from '../../../shared/api/types.ts'
+import '../../../shared/i18n/pages/photos.ts'
 import {
   Button,
   Chip,

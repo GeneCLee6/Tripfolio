@@ -1,0 +1,45 @@
+// Keys only the Map page and its offline map sheet uses (RULES.md §2): they ship in its lazy chunk, not in the first
+// screen. ./map.ts registers them and src/pages/map/MapPage.tsx imports it.
+// A file that can load without that page must not use them; `npm run check-i18n` names the key to
+// move back to ../zh-TW.ts and ../en.ts.
+export const mapZhTW = {
+  'offline.map.open': '下載離線地圖',
+  'offline.map.title': '離線地圖',
+  'offline.map.body': '下載這趟旅程所有地點周圍 20 公里、縮放 5–12 的地圖。離線時能看地圖、針與路線，但不能搜尋。',
+  'offline.map.estimate': '約 {size}（{tiles} 張圖磚）',
+  'offline.map.tooLarge': '範圍太大：約 {size}，上限 150 MB。可以只下載到縮放 {zoom}。',
+  'offline.map.tooLargeNoZoom': '範圍太大，無法下載；請縮小旅程的地點範圍。',
+  'offline.map.zoomTo': '下載到縮放 {zoom}',
+  'offline.map.download': '下載',
+  'offline.map.progress': '下載中 {done}／{total}',
+  'offline.map.stop': '停止',
+  'offline.map.done': '離線地圖已下載',
+  'offline.map.failed': '有 {count} 個檔案沒下載到，再按一次「下載」可以補齊。',
+  'offline.map.saved': '這台裝置已存 {count} 個離線地圖檔案。',
+  'offline.map.clear': '清除',
+  'offline.map.cleared': '已清除離線地圖',
+  'offline.map.storage': '這個網站在裝置上用了 {used}，可用 {quota}',
+  'offline.map.noPoints': '還沒有任何有座標的地點，沒有範圍可以下載。',
+  'offline.map.unsupported': '這個瀏覽器不支援離線地圖。',
+  'offline.map.error': '下載失敗，請確認網路後再試。',
+  'mapPage.dayPicker': '選一天',
+  'mapPage.layerHint.pocket': '長按地圖（桌機按右鍵）放針，就會加進這裡',
+  'mapPage.layerHint.lodging': '住宿功能推出後顯示',
+  'mapPage.layerHint.picks': '必吃必買功能推出後顯示',
+  'mapPage.layerHint.fuel': '日程裡還沒有加油或補給的行程點',
+  'mapPage.routesFailed': '路線暫時拿不到，先用直線估算',
+  'mapPage.routesRateLimited': '路線查詢太頻繁，稍後再試；先用直線估算',
+  'mapPage.empty.title': '還沒有地點，去日程加行程點',
+  'mapPage.empty.body': '行程點選了地點，就會出現在地圖上。',
+  'mapPage.empty.goItinerary': '去日程',
+  'mapPage.empty.openMap': '還是開啟地圖',
+  'mapPage.dropPin.title': '在這裡放針',
+  'mapPage.dropPin.name': '名稱',
+  'mapPage.dropPin.coords': '座標 {coords}；會加進口袋名單',
+  'mapPage.dropPin.submit': '放針',
+  'mapPage.dropPin.nameRequired': '請輸入名稱',
+  'mapPage.dropPin.done': '已加進口袋名單：{name}',
+  'mapPage.dropPin.viewerOnly': '只有可編輯的成員能放針',
+} as const
+
+export type MapMessageKey = keyof typeof mapZhTW

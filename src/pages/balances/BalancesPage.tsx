@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import styled from 'styled-components'
 import type { PoolContribution, PoolRefundMode, Settlement } from '../../../shared/api/expenses.ts'
 import { formatDate, formatMoney } from '../../../shared/i18n/format.ts'
+import '../../../shared/i18n/pages/balances.ts'
 import { isCurrencyCode, type CurrencyCode } from '../../../shared/money/currencies.ts'
 import {
   BalanceRow,

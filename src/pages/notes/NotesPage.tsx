@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import styled from 'styled-components'
 import type { Note } from '../../../shared/api/prep.ts'
+import '../../../shared/i18n/pages/prep.ts'
 import { useTripContext } from '../../app/trip-context.ts'
 import { ButtonLink } from '../../components/ButtonLink.tsx'
 import { Button, Dialog, EmptyState, Input, Skeleton, useToast } from '../../components/index.ts'

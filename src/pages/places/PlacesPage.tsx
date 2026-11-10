@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import type { Place, PlaceRefsResponse } from '../../../shared/api/types.ts'
+import '../../../shared/i18n/pages/places.ts'
 import {
   Button,
   Dialog,

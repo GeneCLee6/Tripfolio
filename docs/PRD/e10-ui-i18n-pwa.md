@@ -38,6 +38,7 @@ depends_on: []
 - styled-components，樣式 prop 加 `$`；顏色只從 token。
 - i18n 目錄分三份（2026-11-09，分享頁預算）：`zh-TW.ts`（app 專用）、`zh-TW.common.ts`（app 與分享頁共用：地圖、format、通用字）、`zh-TW.share.ts`（`share.*`），各配 `en.*`；app 註冊前兩份、分享頁註冊後兩份；`check-i18n` 走分享頁 import 圖，擋缺 key、多餘 key、分享頁載入整份目錄、key 重複定義（規則見 `RULES.md` §2）。
 - 頁面目錄（2026-11-10，首屏預算）：只有一個 lazy 頁面用的 key 放 `shared/i18n/pages/<頁>.zh-TW.ts`／`.en.ts`，由該頁 entry import `pages/<頁>.ts` 在 chunk 載入時 `registerCatalog`，不進首屏；目前 `itinerary`（117）、`bookings`（104）、`dev`（35），首屏 175.7 → 168.8 kB；`check-i18n` 以「不經過該頁 entry 就載入不到」判定歸屬，頁外用到就擋並指名搬回（規則見 `RULES.md` §2）。
+- 頁面目錄第二輪（2026-11-10）：再加 `picks`（109）、`places`（111）、`photos`（77）、`balances`（69）、`stats`（60）、`history`（14）、`settings`（90，含 `members.*`、`shares.*`）、`map`（37，含 `OfflineMapSheet` 的 `offline.map.*`）、`expenses`（18）、`expense-form`（50）、`admin`（57）、`prep`（147，四個準備頁共用；`PrepLinks` 的 `prep.links.*` 留在 app 目錄），共 839 個 key；首屏 176.1 → 150.1 kB（rebase 到 E9 之後）。共用元件、首頁、`lib/` 對照表用到的 key 留在 app 目錄。
 - 字型 self-host 子集（Fraunces 只拉丁、Noto Serif TC 與 Noto Sans TC 用 Google Fonts 的 unicode-range 子集）；登記 `docs/ASSETS.md`。
 
 ## 驗收條件

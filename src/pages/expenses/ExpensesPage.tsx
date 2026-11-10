@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import type { ExpenseView } from '../../../shared/api/expenses.ts'
 import { formatDate, formatMoney } from '../../../shared/i18n/format.ts'
+import '../../../shared/i18n/pages/expenses.ts'
 import type { ExpenseCategory } from '../../../shared/schema/expense.ts'
 import { useTripContext } from '../../app/trip-context.ts'
 import {

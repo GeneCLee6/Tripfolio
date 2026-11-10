@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import styled from 'styled-components'
 import type { DayWithStops, Member, WishlistItemView } from '../../../shared/api/types.ts'
 import { formatDate } from '../../../shared/i18n/format.ts'
+import '../../../shared/i18n/pages/picks.ts'
 import type { WishlistStatus } from '../../../shared/schema/index.ts'
 import {
   Button,

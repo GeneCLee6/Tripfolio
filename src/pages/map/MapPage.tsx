@@ -12,6 +12,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import styled, { css } from 'styled-components'
 import { formatDate } from '../../../shared/i18n/format.ts'
+import '../../../shared/i18n/pages/map.ts'
 import { tripPath } from '../../app/sections.ts'
 import { useTripContext } from '../../app/trip-context.ts'
 import {
