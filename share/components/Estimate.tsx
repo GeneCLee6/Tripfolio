@@ -7,7 +7,9 @@ import { color, font, fontSize, fontWeight, radius, space } from '../../src/styl
 
 // 費用概算 (e8-t01b): the Worker's sums by category in the base currency, then one block per other
 // currency (no exchange rates: an estimate, labelled as such). The whole section only exists when
-// the share shows money; with hideMoney the payload has no estimate at all.
+// the share shows money; with hideMoney the payload has no estimate at all. When the trip has a
+// budget (E9) the per-person row is the budget's (perPersonSource 'budget'), shown with the budget
+// total under the item sums.
 
 const Box = styled.div`
   overflow: hidden;
@@ -85,7 +87,8 @@ function Rows({
 }: {
   lines: readonly EstimateLine[]
   totalMinor: number
-  perPersonMinor: number
+  /** Absent: no per-person row (the budget's is shown instead) */
+  perPersonMinor?: number
   currency: string
   people: number
   t: Translate
@@ -104,10 +107,12 @@ function Rows({
         <th scope="row">{t('share.estimate.total')}</th>
         <td>{money(totalMinor)}</td>
       </tr>
-      <tr className="sum">
-        <th scope="row">{t.plural('share.estimate.perPerson', people)}</th>
-        <td>{money(perPersonMinor)}</td>
-      </tr>
+      {perPersonMinor !== undefined && (
+        <tr className="sum">
+          <th scope="row">{t.plural('share.estimate.perPerson', people)}</th>
+          <td>{money(perPersonMinor)}</td>
+        </tr>
+      )}
     </>
   )
 }
@@ -116,7 +121,9 @@ export function Estimate({ estimate, people }: { estimate: ShareEstimate; people
   const t = useT()
   const locale = t.locale
   const count = Math.max(1, people)
-  const hasBase = estimate.totalMinor !== undefined && estimate.perPersonMinor !== undefined
+  const fromBudget = estimate.perPersonSource === 'budget'
+  const hasBase = estimate.totalMinor !== undefined
+  const money = (minor: number) => formatMoney(minor, estimate.currency, locale)
   return (
     <section aria-labelledby="share-estimate" data-testid="share-estimate">
       <SectionHeading id="share-estimate">
@@ -136,12 +143,26 @@ export function Estimate({ estimate, people }: { estimate: ShareEstimate; people
               <Rows
                 lines={estimate.breakdown}
                 totalMinor={estimate.totalMinor ?? 0}
-                perPersonMinor={estimate.perPersonMinor ?? 0}
+                perPersonMinor={fromBudget ? undefined : estimate.perPersonMinor}
                 currency={estimate.currency}
                 people={count}
                 t={t}
                 locale={locale}
               />
+            )}
+            {fromBudget && (
+              <>
+                {estimate.budgetTotalMinor !== undefined && (
+                  <tr className="sum">
+                    <th scope="row">{t('share.estimate.budgetTotal')}</th>
+                    <td>{money(estimate.budgetTotalMinor)}</td>
+                  </tr>
+                )}
+                <tr className="sum" data-testid="share-estimate-budget">
+                  <th scope="row">{t.plural('share.estimate.perPersonBudget', count)}</th>
+                  <td>{money(estimate.perPersonMinor ?? 0)}</td>
+                </tr>
+              </>
             )}
             {estimate.others.map((other) => [
               <tr key={`g${other.currency}`} className="group">
@@ -163,7 +184,7 @@ export function Estimate({ estimate, people }: { estimate: ShareEstimate; people
           </tbody>
         </Table>
       </Box>
-      <Note>{t('share.estimate.note')}</Note>
+      <Note>{t(fromBudget ? 'share.estimate.noteBudget' : 'share.estimate.note')}</Note>
     </section>
   )
 }

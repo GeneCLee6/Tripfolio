@@ -24,6 +24,7 @@ import type {
   WishlistCategory,
   WishlistStatus,
 } from '../schema/index.ts'
+import type { BudgetCategory, ChecklistKind, NoteSection } from '../schema/prep.ts'
 
 export const TRIP_EXPORT_FORMAT = 'tripfolio.trip'
 export const TRIP_EXPORT_VERSION = 1
@@ -267,6 +268,54 @@ export interface ExportAttachment {
   visibility: 'trip' | 'members-only'
 }
 
+/** One to-do or packing item of a checklist (E9) */
+export interface ExportChecklistItem {
+  text: string
+  note: string
+  done: boolean
+  /** On a packing list: who brings it (`members[].id`) */
+  assignee: LocalId | null
+  /** A calendar date (YYYY-MM-DD) in the trip's zone */
+  dueAt: string | null
+  order: number
+  templateKey: string | null
+  /** Where to confirm it, from the template: the label in the language it was applied in */
+  linkHint: { label: string; url?: string } | null
+}
+
+export interface ExportChecklist {
+  id: LocalId
+  kind: ChecklistKind
+  title: string
+  order: number
+  templateKey: string | null
+  items: ExportChecklistItem[]
+}
+
+/** A budget row (E9): minor units of the trip's base currency, per member or for the group */
+export interface ExportBudgetRow {
+  category: BudgetCategory
+  plannedMinor: number
+  currency: string
+  perPerson: boolean
+}
+
+/** A destination note (E9), markdown-lite body */
+export interface ExportNote {
+  section: NoteSection
+  title: string
+  body: string
+  order: number
+  templateKey: string | null
+  shareable: boolean
+}
+
+/** A day's recap text (e8-t04) */
+export interface ExportDayRecap {
+  day: LocalId
+  body: string
+}
+
 export interface TripExport {
   format: typeof TRIP_EXPORT_FORMAT
   version: typeof TRIP_EXPORT_VERSION
@@ -288,9 +337,17 @@ export interface TripExport {
   settlements?: ExportSettlement[]
   /** ?include=photos (metadata only) */
   attachments?: ExportAttachment[]
+  // Additive v1 extension (e8-t04, E9 prep data): always written by GET /export; files from before
+  // it have none of them and still import.
+  checklists?: ExportChecklist[]
+  budgets?: ExportBudgetRow[]
+  notes?: ExportNote[]
+  dayRecaps?: ExportDayRecap[]
 }
 
-/** What an import or a clone carries over into the new trip */
+/** What an import or a clone carries over into the new trip. Checklists, the budget and notes
+ * always come along (a clone unticks the checklists); day recaps come with an import, never with a
+ * clone. */
 export interface CopyOptions {
   /** The file's other members, as placeholder members (no tokens; claimable with an invite) */
   members: boolean

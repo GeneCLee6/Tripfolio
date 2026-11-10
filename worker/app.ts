@@ -51,6 +51,7 @@ import {
 import { createLodging, deleteLodging, listLodgings, patchLodging } from './trips/lodging.ts'
 import { cloneTrip, listDeletedTrips, restoreTrip } from './trips/clone.ts'
 import { exportTrip, importTrip } from './trips/export.ts'
+import { getRecap, putRecap } from './trips/recap.ts'
 import { memberCalendar, shareCalendar } from './trips/ics.ts'
 import { createShare, listShares, publicShare, revokeShare } from './share.ts'
 import { tripSocket, withExecutionContext } from './sync.ts'
@@ -175,6 +176,9 @@ const api = new Router()
   // Itinerary (e2-t01)
   .add('GET', '/api/trips/:id/days', listDays)
   .add('PATCH', '/api/trips/:id/days/:dayId', patchDay)
+  // Recap mode (e8-t04): worker/trips/recap.ts
+  .add('GET', '/api/trips/:id/recap', getRecap)
+  .add('PUT', '/api/trips/:id/days/:dayId/recap', putRecap)
   .add('POST', '/api/trips/:id/stops', createStop)
   .add('PATCH', '/api/trips/:id/stops/:sid', patchStop)
   .add('DELETE', '/api/trips/:id/stops/:sid', deleteStop)

@@ -421,3 +421,118 @@ describe('import', () => {
     expect(trips[0].n).toBe(1)
   })
 })
+
+describe('prep data and recaps in the file (E9, e8-t04)', () => {
+  const owner = { name: 'Gene', color: 'teal' }
+
+  async function addPrep(s: Seeded) {
+    const id = s.t.trip.id
+    const req = async (method: string, path: string, body: unknown) => {
+      const res = await call<Json>(method, `/api/trips/${id}${path}`, { token: s.token, body })
+      expect(res.status, `${path} ${JSON.stringify(res.body)}`).toBeLessThan(300)
+      return res.body
+    }
+    const list = (await req('POST', '/checklists', { kind: 'packing', title: 'Gear' }))
+      .checklist as Json
+    await req('POST', `/checklists/${String(list.id)}/items`, {
+      text: 'Head torch',
+      done: true,
+      assigneeMemberId: s.ana.id,
+      dueAt: '2026-12-18',
+    })
+    await req('POST', `/checklists/${String(list.id)}/items`, { text: 'Rain jacket' })
+    await req('PUT', '/budget', {
+      rows: [
+        { category: 'food', plannedMinor: 30000, perPerson: true },
+        { category: 'lodging', plannedMinor: 90000 },
+      ],
+    })
+    await req('POST', '/notes', { section: 'driving', title: 'Keep left', body: '- one lane' })
+    await req('PUT', `/days/${s.t.days[0].id}/recap`, { body: 'Stars over the lake.' })
+  }
+
+  it('exports checklists, budget, notes and recaps, and imports them back unchanged', async () => {
+    const s = await seed()
+    await addPrep(s)
+    const first = (await exportOf(s.t.trip.id, s.token)).file
+    expect(first.checklists).toEqual([
+      {
+        id: 1,
+        kind: 'packing',
+        title: 'Gear',
+        order: expect.any(Number),
+        templateKey: null,
+        items: [
+          expect.objectContaining({
+            text: 'Head torch',
+            done: true,
+            assignee: 2,
+            dueAt: '2026-12-18',
+          }),
+          expect.objectContaining({ text: 'Rain jacket', done: false, assignee: null }),
+        ],
+      },
+    ])
+    expect(first.budgets).toEqual([
+      { category: 'food', plannedMinor: 30000, currency: 'AUD', perPerson: true },
+      { category: 'lodging', plannedMinor: 90000, currency: 'AUD', perPerson: false },
+    ])
+    expect(first.notes).toEqual([
+      expect.objectContaining({ section: 'driving', title: 'Keep left', body: '- one lane' }),
+    ])
+    expect(first.dayRecaps).toEqual([{ day: 1, body: 'Stars over the lake.' }])
+
+    const imported = await call<ImportTripResponse>('POST', '/api/import', {
+      body: { ...first, owner, asMember: 1, startDate: '2027-01-10' },
+    })
+    expect(imported.status).toBe(201)
+    const second = (await exportOf(imported.body.trip.id, imported.body.memberToken)).file
+    expect(second.budgets).toEqual(first.budgets)
+    expect(second.notes).toEqual(first.notes)
+    expect(second.dayRecaps).toEqual(first.dayRecaps)
+    // Dates move with the trip
+    expect(second.checklists?.[0].items[0]).toMatchObject({ done: true, dueAt: '2027-01-08' })
+  })
+
+  it('imports a file from before the extension (no prep sections)', async () => {
+    const s = await seed()
+    const file = (await exportOf(s.t.trip.id, s.token)).file
+    const { checklists: _c, budgets: _b, notes: _n, dayRecaps: _r, ...old } = file
+    const imported = await call<ImportTripResponse>('POST', '/api/import', {
+      body: { ...old, owner },
+    })
+    expect(imported.status).toBe(201)
+    const again = (await exportOf(imported.body.trip.id, imported.body.memberToken)).file
+    expect(again).toMatchObject({ checklists: [], budgets: [], notes: [], dayRecaps: [] })
+  })
+
+  it('rejects recaps pointing at a missing day and duplicate budget rows', async () => {
+    const s = await seed()
+    const file = (await exportOf(s.t.trip.id, s.token)).file
+    const bad1 = await call('POST', '/api/import', {
+      body: { ...file, owner, dayRecaps: [{ day: 99, body: 'x' }] },
+    })
+    expect(bad1.status).toBe(422)
+    const row = { category: 'food', plannedMinor: 1, currency: 'AUD', perPerson: false }
+    const bad2 = await call('POST', '/api/import', { body: { ...file, owner, budgets: [row, row] } })
+    expect(bad2.status).toBe(422)
+  })
+
+  it('clone keeps checklists (unticked), budget and notes, and drops recaps', async () => {
+    const s = await seed()
+    await addPrep(s)
+    const cloned = await call<ImportTripResponse>('POST', `/api/trips/${s.t.trip.id}/clone`, {
+      token: s.token,
+      body: { name: 'NZ again' },
+    })
+    expect(cloned.status).toBe(201)
+    const file = (await exportOf(cloned.body.trip.id, cloned.body.memberToken)).file
+    expect(file.checklists?.[0].items.map((i) => [i.text, i.done, i.assignee])).toEqual([
+      ['Head torch', false, null],
+      ['Rain jacket', false, null],
+    ])
+    expect(file.budgets).toHaveLength(2)
+    expect(file.notes).toHaveLength(1)
+    expect(file.dayRecaps).toEqual([])
+  })
+})

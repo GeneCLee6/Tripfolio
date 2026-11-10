@@ -90,6 +90,13 @@ export interface ShareDay {
   driveMinutes: number
   /** Distance of all legs, metres */
   distanceM: number
+  /** Recap text (e8-t04); only with the share option showRecap, once the trip has ended, and when
+   * the day has one */
+  recapBody?: string
+  /** Recap photo wall (e8-t04): up to 9 ready photos with visibility 'trip' of this day or its
+   * stops, by takenAt; only with showRecap after the end date. Read as
+   * /api/media/:id/thumb?s=<token> */
+  recapPhotoIds?: string[]
 }
 
 export interface SharePoint {
@@ -165,6 +172,11 @@ export interface ShareEstimate {
   perPersonMinor?: number
   breakdown: EstimateLine[]
   others: EstimateCurrency[]
+  /** Where perPersonMinor comes from: the trip's budget (E9, preferred when one is set) or the
+   * priced items above split over the members. Absent means 'items' (older payloads). */
+  perPersonSource?: 'budget' | 'items'
+  /** The budget's group total in `currency`, when perPersonSource is 'budget' */
+  budgetTotalMinor?: number
 }
 
 /** What a row of the bookings summary is: a lodging, or a transport / activity booking */
@@ -206,4 +218,68 @@ export interface SharePayload {
   options: ShareOptions
   /** UTC ISO time the payload was built */
   generatedAt: string
+}
+
+// ---- Recap mode (e8-t04) ------------------------------------------------------------------------
+// GET /api/trips/:id/recap (viewer) and PUT /api/trips/:id/days/:dayId/recap (editor),
+// worker/trips/recap.ts. Recap money is app-only: share pages never get actual or estimate amounts.
+
+/** A day's recap text is at most this many characters */
+export const RECAP_MAX_CHARS = 4000
+/** Photos per day in the share page's recap section */
+export const SHARE_RECAP_PHOTOS = 9
+
+/** A planned price that could not be converted to the base currency (no rate known) */
+export interface RecapUnconverted {
+  currency: string
+  minor: number
+}
+
+export interface RecapDay {
+  dayId: string
+  /** 1-based Day number */
+  index: number
+  date: string | null
+  title: string
+  /** The day colour from the editor; null means the default for its index */
+  color: string | null
+  /** Absent when nobody has written one */
+  recapBody?: string
+  recapUpdatedAt?: string
+  /** Ready photos of the day or its stops, by takenAt */
+  photoIds: string[]
+  /** Planned cost in base minor units: stop costs (not rainy-day backups) + the lodging's nightly
+   * share + bookings starting that day, converted where a rate is known */
+  estimateMinor: number
+  /** Planned prices with no known rate (left out of estimateMinor), per currency */
+  unconverted: RecapUnconverted[]
+  /** Spent that day in base minor units (expenses by date, as GET /expenses/summary?by=day) */
+  actualMinor: number
+}
+
+export interface RecapResponse {
+  baseCurrency: string
+  /** The trip's end date has passed in its own zone */
+  ended: boolean
+  days: RecapDay[]
+  totals: {
+    estimateMinor: number
+    actualMinor: number
+    /** Expenses dated outside the trip's days (not in actualMinor) */
+    otherActualMinor: number
+  }
+  rev: number
+}
+
+/** PUT /api/trips/:id/days/:dayId/recap { body }: an empty body clears the recap */
+export interface RecapPutBody {
+  body: string
+}
+
+export interface RecapPutResponse {
+  dayId: string
+  /** '' when the recap was cleared */
+  body: string
+  updatedAt: string
+  rev: number
 }

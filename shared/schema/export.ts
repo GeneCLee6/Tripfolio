@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { TripExport } from '../api/export.ts'
 import { TRIP_EXPORT_FORMAT, TRIP_EXPORT_VERSION } from '../api/export.ts'
+import { RECAP_MAX_CHARS } from '../api/share.ts'
 import { bookingType } from './booking.ts'
 import {
   colorValue,
@@ -16,6 +17,7 @@ import { expenseCategory, poolRefundMode, settlementMethod, splitMethod } from '
 import { campFacilitiesSchema, campType, hhmm, payStatus } from './lodging.ts'
 import { memberIdentity, role } from './member.ts'
 import { placeHours, placeSource } from './place.ts'
+import { budgetCategory, checklistKind, noteSection } from './prep.ts'
 import { bookingState, legMode, stopType } from './stop.ts'
 import { MAX_TRIP_DAYS, tripStyle } from './trip.ts'
 import { wishlistCategory, wishlistStatus } from './wishlist.ts'
@@ -272,6 +274,49 @@ const exportAttachment = z.object({
   visibility: z.enum(['trip', 'members-only']),
 })
 
+const exportChecklistItem = z.object({
+  text: z.string().trim().min(1).max(500),
+  note: text(2000),
+  done: z.boolean(),
+  assignee: ref,
+  dueAt: isoDate.nullable(),
+  order: z.number().finite(),
+  templateKey: nullableText(200),
+  linkHint: z
+    .object({ label: z.string().max(300), url: z.url({ protocol: /^https$/ }).optional() })
+    .nullable(),
+})
+
+const exportChecklist = z.object({
+  id: localId,
+  kind: checklistKind,
+  title: z.string().trim().min(1).max(200),
+  order: z.number().finite(),
+  templateKey: nullableText(200),
+  items: list(exportChecklistItem, 2000),
+})
+
+const exportBudgetRow = z.object({
+  category: budgetCategory,
+  plannedMinor: z.number().int().min(0).max(100_000_000_000),
+  currency: currencyCode,
+  perPerson: z.boolean(),
+})
+
+const exportNote = z.object({
+  section: noteSection,
+  title: z.string().trim().min(1).max(200),
+  body: text(20_000),
+  order: z.number().finite(),
+  templateKey: nullableText(200),
+  shareable: z.boolean(),
+})
+
+const exportDayRecap = z.object({
+  day: localId,
+  body: z.string().trim().min(1).max(RECAP_MAX_CHARS),
+})
+
 const tripExportShape = {
   format: z.literal(TRIP_EXPORT_FORMAT),
   version: z.literal(TRIP_EXPORT_VERSION),
@@ -290,6 +335,11 @@ const tripExportShape = {
   poolContributions: list(exportPool, 5000).optional(),
   settlements: list(exportSettlement, 5000).optional(),
   attachments: list(exportAttachment, 20000).optional(),
+  // Additive v1 extension (prep data, recaps): optional, so older files still import
+  checklists: list(exportChecklist, 200).optional(),
+  budgets: list(exportBudgetRow, 20).optional(),
+  notes: list(exportNote, 500).optional(),
+  dayRecaps: list(exportDayRecap, 400).optional(),
 }
 
 export const tripExportSchema = z.object(tripExportShape)

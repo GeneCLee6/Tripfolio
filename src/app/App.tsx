@@ -18,6 +18,7 @@ const ChecklistsPage = lazy(() => import('../pages/checklists/ChecklistsPage.tsx
 const BudgetPage = lazy(() => import('../pages/budget/BudgetPage.tsx'))
 const DocumentsPage = lazy(() => import('../pages/documents/DocumentsPage.tsx'))
 const NotesPage = lazy(() => import('../pages/notes/NotesPage.tsx'))
+const RecapPage = lazy(() => import('../pages/recap/RecapPage.tsx'))
 const PlacesPage = lazy(() => import('../pages/places/PlacesPage.tsx'))
 const BookingsPage = lazy(() => import('../pages/bookings/BookingsPage.tsx'))
 const BalancesPage = lazy(() => import('../pages/balances/BalancesPage.tsx'))
@@ -113,6 +114,7 @@ function AppRoutes() {
           <Route path="budget" element={<BudgetPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="notes" element={<NotesPage />} />
+          <Route path="recap" element={<RecapPage />} />
           <Route path="places" element={<PlacesPage />} />
           <Route path="bookings" element={<BookingsPage />} />
           <Route path="expenses/balances" element={<BalancesPage />} />

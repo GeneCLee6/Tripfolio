@@ -37,7 +37,9 @@ depends_on: [E1, E6, E7]
 
 ## 驗收條件
 
-- [ ] AC-9.1 — 預算：類別與每人預估、與實際對照、burn-down；分享頁概算來源。（#I2：前三項完成並有測試；分享頁概算待 `worker/share.ts` 改用 `getBudgetPerPerson`，之後再勾。#I2b：統計頁預算卡已接上 `GET /budget/progress`——計畫 vs 實際、每人、差距最大的三個類別、連到 `/budget`，沒設預算時維持停用樣子；`e2e/home.spec.ts` 驗過）
+- [x] AC-9.1 — 預算：類別與每人預估、與實際對照、burn-down；分享頁概算來源。（#I2：前三項完成並有測試；分享頁概算待 `worker/share.ts` 改用 `getBudgetPerPerson`，之後再勾）
+  - #J1a：分享頁概算已改用預算——有預算時 `trip.estimatedPerPersonMinor` 與概算表的每人金額取 `getBudgetPerPerson()`（`estimate.perPersonSource: 'budget'`、另給 `budgetTotalMinor`，表上多「預算合計」「每人預算」兩列、附註改寫），沒有預算時照舊用行程點＋住宿＋預訂平分；只有預算沒有任何標價也會有概算表；`hideMoney` 一樣整塊不送（`tests/worker/recap.test.ts`、`e2e/recap.spec.ts`）。統計頁預算卡是另一批，三項都到位後由協調者勾 AC-9.1。
+  - 2026-11-10 合併時勾選：統計頁預算卡（#I2b）與分享頁預算概算（#J1a）都已完成。
 - [x] AC-9.2 — 清單：行前／打包、範本帶入、認領、期限、勾選同步。（#I1：同步目前是頁面每 20 秒＋回到視窗時重抓；TripDO 廣播接上 `notifyTrip` 後改即時，兩台實測未做）
 - [x] AC-9.3 — 文件夾：上傳、分類、成員限定、分享頁絕不出現（測試）。（#I2：`tests/worker/prep.test.ts` 建分享連結後斷言 payload 不含任何文件 id、`/api/media/:aid?s=` 對文件回 403）
 - [x] AC-9.4 — 目的地筆記：範本帶入、可編輯、分享可選。（#I2：`shareable` 旗標已存；分享頁顯示屬 E8）

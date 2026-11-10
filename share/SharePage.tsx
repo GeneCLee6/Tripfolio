@@ -22,6 +22,7 @@ import { Cover } from './components/Cover.tsx'
 import { DayCard } from './components/DayCard.tsx'
 import { Estimate } from './components/Estimate.tsx'
 import { Picks } from './components/Picks.tsx'
+import { Recap } from './components/Recap.tsx'
 import { RouteOverview } from './components/RouteOverview.tsx'
 import { setShareLocale } from './locale.ts'
 import { PrintStyle } from './print.ts'
@@ -34,6 +35,8 @@ import { PrintStyle } from './print.ts'
 // `beforeprint`) first renders the print-only parts — each day's static map and stops table, the
 // bookings summary — synchronously, then prints: cover and route overview, a page per day, then the
 // bookings and the estimate. The picks wall and the controls stay off paper.
+// Recap (e8-t04): with showRecap after the end date, a 「回顧」 section of recap texts and photos
+// follows the days (screen only).
 
 const Page = styled.div`
   max-width: 880px;
@@ -286,6 +289,9 @@ export function SharePage() {
                 })}
               </Days>
             </Section>
+            <Block>
+              <Recap days={state.payload.days} token={token} />
+            </Block>
             {printing && state.payload.bookings.length > 0 && (
               <PrintOnly data-print="only" data-print-break="before">
                 <BookingsTable bookings={state.payload.bookings} options={state.payload.options} />

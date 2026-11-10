@@ -44,6 +44,7 @@ export const TRIP_PURGE_STATEMENTS: readonly string[] = [
   'DELETE FROM attachments WHERE tripId = ?1',
   'DELETE FROM bookings WHERE tripId = ?1',
   'DELETE FROM lodgings WHERE tripId = ?1',
+  'DELETE FROM dayRecaps WHERE tripId = ?1',
   'DELETE FROM days WHERE tripId = ?1',
   'DELETE FROM places WHERE tripId = ?1',
   'DELETE FROM shares WHERE tripId = ?1',

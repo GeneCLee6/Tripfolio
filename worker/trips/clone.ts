@@ -5,6 +5,8 @@
 //                               memory (worker/trips/export.ts). The caller becomes the owner of
 //                               the copy; members, expenses and photos are cleared unless `keep`
 //                               says otherwise (expenses need the members, so they bring them).
+//                               Checklists (unticked), the budget and notes always come along;
+//                               day recaps (e8-t04) never do.
 //                               Photos are copied in R2 under the new trip's keys.
 //   POST /api/trips/:id/restore (owner) undoes a soft delete within 30 days (410 afterwards).
 //   GET  /api/trips/deleted     soft-deleted trips behind the device's tokens (X-Member-Tokens,
@@ -152,6 +154,7 @@ export async function cloneTrip(c: RouteContext): Promise<Response> {
       name,
       startDate,
       keep: { members, expenses: keep.expenses },
+      asTemplate: true,
     },
     keep.photos ? (ids) => photoStatements(c.env, file, internals, ids) : () => [],
   )

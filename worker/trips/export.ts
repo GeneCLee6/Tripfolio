@@ -5,18 +5,24 @@
 // tokens, emails or R2 keys. POST /api/import (no auth, like POST /api/trips) validates a file
 // (shared/schema/export.ts), checks every local reference, moves all dates by the same number of
 // days when `startDate` differs, and writes a new trip in one D1 batch. The caller becomes the
-// owner and gets the first memberToken. Bulk inserts go through `json_each(?)` so a whole table is
-// one statement (D1 counts statements per invocation and allows 100 bound parameters each).
+// owner and gets the first memberToken. Checklists, the budget, notes (E9) and day recaps (e8-t04)
+// are an additive v1 extension: always exported, optional on import. Bulk inserts go through
+// `json_each(?)` so a whole table is one statement (D1 counts statements per invocation and allows
+// 100 bound parameters each).
 
 import type {
   CopyOptions,
   ExportAttachment,
   ExportBooking,
+  ExportBudgetRow,
+  ExportChecklist,
   ExportDay,
+  ExportDayRecap,
   ExportExpense,
   ExportLeg,
   ExportLodging,
   ExportMember,
+  ExportNote,
   ExportPlace,
   ExportStop,
   ExportWishlistItem,
@@ -327,6 +333,63 @@ export async function buildExport(
       })),
   }))
 
+  // Prep data (E9) and day recaps (e8-t04): always part of the file
+  const [checklistRows, checklistItemRows, budgetRows, noteRows, recapRows] = await Promise.all([
+    rows(
+      db,
+      'SELECT * FROM checklists WHERE tripId = ? ORDER BY kind, "order", createdAt, id',
+      tripId,
+    ),
+    rows(
+      db,
+      'SELECT * FROM checklistItems WHERE tripId = ? ORDER BY checklistId, "order", createdAt, id',
+      tripId,
+    ),
+    rows(db, 'SELECT * FROM budgets WHERE tripId = ? ORDER BY category', tripId),
+    rows(db, 'SELECT * FROM notes WHERE tripId = ? ORDER BY "order", createdAt, id', tripId),
+    rows(db, "SELECT * FROM dayRecaps WHERE tripId = ? AND body != ''", tripId),
+  ])
+  const checklistIds = new LocalIds()
+  const exportChecklists: ExportChecklist[] = checklistRows.map((r) => ({
+    id: checklistIds.add(r.id),
+    kind: str(r.kind) as ExportChecklist['kind'],
+    title: str(r.title),
+    order: Number(r.order),
+    templateKey: strOrNull(r.templateKey),
+    items: checklistItemRows
+      .filter((i) => i.checklistId === r.id)
+      .map((i) => ({
+        text: str(i.text),
+        note: str(i.note),
+        done: bool(i.done),
+        assignee: members.ref(i.assigneeMemberId),
+        dueAt: strOrNull(i.dueAt),
+        order: Number(i.order),
+        templateKey: strOrNull(i.templateKey),
+        linkHint: parseJson<ExportChecklist['items'][number]['linkHint']>(i.linkHint, null),
+      })),
+  }))
+  const exportBudgets: ExportBudgetRow[] = budgetRows.map((r) => ({
+    category: str(r.category) as ExportBudgetRow['category'],
+    plannedMinor: Number(r.plannedMinor),
+    currency: str(r.currency),
+    perPerson: bool(r.perPerson),
+  }))
+  const exportNotes: ExportNote[] = noteRows.map((r) => ({
+    section: str(r.section) as ExportNote['section'],
+    title: str(r.title),
+    body: str(r.body),
+    order: Number(r.order),
+    templateKey: strOrNull(r.templateKey),
+    shareable: bool(r.shareable),
+  }))
+  const exportRecaps: ExportDayRecap[] = recapRows
+    .flatMap((r) => {
+      const day = days.ref(r.dayId)
+      return day === null ? [] : [{ day, body: str(r.body) }]
+    })
+    .sort((a, b) => a.day - b.day)
+
   const trip = toTrip(tripRow)
   const file: TripExport = {
     format: TRIP_EXPORT_FORMAT,
@@ -359,6 +422,10 @@ export async function buildExport(
     lodgings: exportLodgings,
     bookings: exportBookings,
     wishlist: exportItems,
+    checklists: exportChecklists,
+    budgets: exportBudgets,
+    notes: exportNotes,
+    dayRecaps: exportRecaps,
   }
 
   if (include.expenses) {
@@ -561,6 +628,8 @@ export interface ImportOptions {
   name?: string
   startDate?: string
   keep: Pick<CopyOptions, 'members' | 'expenses'>
+  /** Clone: leave out day recaps and untick every checklist item (a fresh template) */
+  asTemplate?: boolean
 }
 
 /** New database ids per kind, keyed by the file's local ids (clone uses them for photos) */
@@ -700,6 +769,23 @@ function checkReferences(file: TripExport) {
     if (s.from === s.to) throw invalid(`settlements[${i}].to: same member as from`)
   })
   idSet(file.attachments ?? [], 'attachments')
+  idSet(file.checklists ?? [], 'checklists')
+  file.checklists?.forEach((l, i) =>
+    l.items.forEach((item, j) =>
+      checkRef(members, item.assignee, `checklists[${i}].items[${j}].assignee`, 'member'),
+    ),
+  )
+  const categories = new Set<string>()
+  file.budgets?.forEach((b, i) => {
+    if (categories.has(b.category)) throw invalid(`budgets[${i}].category: duplicate`)
+    categories.add(b.category)
+  })
+  const recapDays = new Set<LocalId>()
+  file.dayRecaps?.forEach((r, i) => {
+    checkRef(days, r.day, `dayRecaps[${i}].day`, 'day')
+    if (recapDays.has(r.day)) throw invalid(`dayRecaps[${i}].day: duplicate`)
+    recapDays.add(r.day)
+  })
 }
 
 const MS_PER_DAY = 86_400_000
@@ -1092,6 +1178,67 @@ export async function writeImport(
   if ((file.attachments?.length ?? 0) > 0)
     skipped.push('attachments: photo files are not part of an export')
 
+  // Prep data (E9): checklists come along unticked in a template copy; the budget in the file's
+  // own currency (the trip keeps the file's base currency, so it matches)
+  const checklistRecords: Record<string, unknown>[] = []
+  const checklistItemRecords: Record<string, unknown>[] = []
+  for (const l of file.checklists ?? []) {
+    const checklistId = crypto.randomUUID()
+    checklistRecords.push({
+      id: checklistId,
+      tripId,
+      kind: l.kind,
+      title: l.title,
+      order: l.order,
+      templateKey: l.templateKey,
+      ...stamp(),
+    })
+    for (const item of l.items)
+      checklistItemRecords.push({
+        id: crypto.randomUUID(),
+        checklistId,
+        tripId,
+        text: item.text,
+        note: item.note,
+        done: item.done && !options.asTemplate ? 1 : 0,
+        assigneeMemberId: member(item.assignee),
+        dueAt: item.dueAt === null ? null : shiftDate(item.dueAt),
+        order: item.order,
+        templateKey: item.templateKey,
+        linkHint: item.linkHint === null ? null : JSON.stringify(item.linkHint),
+        ...stamp(),
+      })
+  }
+  const budgetRecords = (file.budgets ?? []).map((b) => ({
+    tripId,
+    category: b.category,
+    plannedMinor: b.plannedMinor,
+    currency: b.currency,
+    perPerson: b.perPerson ? 1 : 0,
+    updatedAt: now,
+  }))
+  const noteRecords = (file.notes ?? []).map((n) => ({
+    id: crypto.randomUUID(),
+    tripId,
+    section: n.section,
+    title: n.title,
+    body: n.body,
+    order: n.order,
+    templateKey: n.templateKey,
+    shareable: n.shareable ? 1 : 0,
+    ...stamp(),
+  }))
+  // Day recaps (e8-t04): what happened on that trip, so never part of a template copy
+  const recapRecords = options.asTemplate
+    ? []
+    : (file.dayRecaps ?? []).map((r) => ({
+        dayId: ids.days.get(r.day),
+        tripId,
+        body: r.body,
+        updatedByMemberId: null,
+        updatedAt: now,
+      }))
+
   const t = file.trip
   const tripRecord = {
     id: tripId,
@@ -1135,6 +1282,11 @@ export async function writeImport(
     ...bulkInsert(db, 'expenseShares', shareRecords),
     ...bulkInsert(db, 'poolContributions', poolRecords),
     ...bulkInsert(db, 'settlements', settlementRecords),
+    ...bulkInsert(db, 'checklists', checklistRecords),
+    ...bulkInsert(db, 'checklistItems', checklistItemRecords),
+    ...bulkInsert(db, 'budgets', budgetRecords),
+    ...bulkInsert(db, 'notes', noteRecords),
+    ...bulkInsert(db, 'dayRecaps', recapRecords),
     ...(await extra(ids)),
   ]
   const rev = await writeWithRev(db, tripId, statements)

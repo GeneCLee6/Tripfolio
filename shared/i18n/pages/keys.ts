@@ -11,6 +11,7 @@ import type { PhotosMessageKey } from './photos.zh-TW.ts'
 import type { PicksMessageKey } from './picks.zh-TW.ts'
 import type { PlacesMessageKey } from './places.zh-TW.ts'
 import type { PrepMessageKey } from './prep.zh-TW.ts'
+import type { RecapMessageKey } from './recap.zh-TW.ts'
 import type { SettingsMessageKey } from './settings.zh-TW.ts'
 import type { StatsMessageKey } from './stats.zh-TW.ts'
 
@@ -29,5 +30,6 @@ export type PageMessageKey =
   | PicksMessageKey
   | PlacesMessageKey
   | PrepMessageKey
+  | RecapMessageKey
   | SettingsMessageKey
   | StatsMessageKey

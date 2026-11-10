@@ -513,6 +513,7 @@ describe('GET /api/share/:token, full version (e8-t01b)', () => {
       totalMinor: 20001,
       // Two members, rounded
       perPersonMinor: 10001,
+      perPersonSource: 'items',
       breakdown: [
         { category: 'food', minor: 8001 },
         { category: 'activity', minor: 12000 },

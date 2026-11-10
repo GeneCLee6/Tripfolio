@@ -1,4 +1,4 @@
-// Share links (e1-t01) and the public share payload (e8-t01a, e8-t01b). Hiding happens here, on the
+// Share links (e1-t01) and the public share payload (e8-t01a, e8-t01b, e8-t04 recap). Hiding happens here, on the
 // server: the public endpoint builds its answer field by field from an allow-list, so nothing
 // hidden ever leaves the Worker (CLAUDE.md rule 4).
 
@@ -18,6 +18,7 @@ import {
   type SharePoint,
   type ShareStop,
   type ShareTrip,
+  SHARE_RECAP_PHOTOS,
 } from '../shared/api/share.ts'
 import type { ApiErrorBody, CreateShareResponse, Place, Stop } from '../shared/api/types.ts'
 import {
@@ -50,6 +51,8 @@ import { json, notFound, nowIso, readBody } from './http.ts'
 import { routeKey } from './proxy/route.ts'
 import type { RouteContext } from './router.ts'
 import { localDate, localTime } from './trips/booking-time.ts'
+import { getBudgetPerPerson } from './trips/budget.ts'
+import { todayIn } from './trips/expenses.ts'
 import { toLodging } from './trips/lodging.ts'
 
 /** GET /api/trips/:id/shares (owner): active share links, without tokens */
@@ -237,6 +240,27 @@ export function buildEstimate(
   return estimate
 }
 
+/**
+ * The per-person figure prefers the trip's budget (E9, getBudgetPerPerson) over the priced items
+ * split over the members; the item sums by category stay as they are. A budget alone (nothing
+ * priced) still makes an estimate.
+ */
+export function withBudget(
+  estimate: ShareEstimate | undefined,
+  budget: { currency: string; perPersonMinor: number; totalMinor: number } | null,
+  baseCurrency: string,
+): ShareEstimate | undefined {
+  if (!budget || budget.currency !== baseCurrency) {
+    if (estimate) estimate.perPersonSource = 'items'
+    return estimate
+  }
+  const out: ShareEstimate = estimate ?? { currency: baseCurrency, breakdown: [], others: [] }
+  out.perPersonMinor = budget.perPersonMinor
+  out.budgetTotalMinor = budget.totalMinor
+  out.perPersonSource = 'budget'
+  return out
+}
+
 /** Great-circle metres, enough to drop zero-length lines */
 function distanceM(a: SharePoint, b: SharePoint): number {
   const rad = Math.PI / 180
@@ -374,6 +398,8 @@ export async function publicShare(c: RouteContext): Promise<Response> {
     ...SHARE_DEFAULTS,
     ...toShare({ options: row.shareOptions }).options,
   }
+  // Recap (e8-t04): only when the share asks for it and the trip is over in its own zone
+  const showRecap = options.showRecap && todayIn(trip.tz) > trip.endDate
 
   const [
     dayRows,
@@ -439,6 +465,15 @@ export async function publicShare(c: RouteContext): Promise<Response> {
       .bind(trip.id)
       .all<Row>(),
   ])
+  const recapRows = showRecap
+    ? (
+        await db
+          .prepare("SELECT dayId, body FROM dayRecaps WHERE tripId = ? AND body != ''")
+          .bind(trip.id)
+          .all<Row>()
+      ).results
+    : []
+  const recapByDay = new Map(recapRows.map((r) => [String(r.dayId), String(r.body)]))
 
   const places = new Map(placeRows.results.map((r) => [String(r.id), toPlace(r)]))
   const overrides: Record<string, LegChoice> = {}
@@ -462,6 +497,7 @@ export async function publicShare(c: RouteContext): Promise<Response> {
   // Shareable photos per day (the day's own and its stops'), already in takenAt order
   const photoIds = new Set<string>()
   const photosByDay = new Map<string, string[]>()
+  const recapPhotosByDay = new Map<string, string[]>()
   for (const r of photoRows.results) {
     const id = String(r.id)
     photoIds.add(id)
@@ -470,6 +506,11 @@ export async function publicShare(c: RouteContext): Promise<Response> {
     const list = photosByDay.get(dayId) ?? []
     if (list.length < DAY_PHOTOS) list.push(id)
     photosByDay.set(dayId, list)
+    if (showRecap) {
+      const wall = recapPhotosByDay.get(dayId) ?? []
+      if (wall.length < SHARE_RECAP_PHOTOS) wall.push(id)
+      recapPhotosByDay.set(dayId, wall)
+    }
   }
   const placeOf = (s: Stop) => (s.placeId ? places.get(s.placeId) : undefined)
   const itineraryStops = (stops: Stop[]): ItineraryStop[] =>
@@ -536,6 +577,11 @@ export async function publicShare(c: RouteContext): Promise<Response> {
     }
     if (leaving?.checkOutTime) out.checkoutTime = leaving.checkOutTime
     if (tonight?.campType) out.campType = tonight.campType
+    if (showRecap) {
+      const recap = recapByDay.get(day.id)
+      if (recap) out.recapBody = recap
+      out.recapPhotoIds = recapPhotosByDay.get(day.id) ?? []
+    }
     return out
   })
 
@@ -680,7 +726,11 @@ export async function publicShare(c: RouteContext): Promise<Response> {
         currency: String(r.currency),
       })
     }
-    const estimate = buildEstimate(items, trip.baseCurrency, shareTrip.memberCount)
+    const estimate = withBudget(
+      buildEstimate(items, trip.baseCurrency, shareTrip.memberCount),
+      await getBudgetPerPerson(db, trip.id),
+      trip.baseCurrency,
+    )
     if (estimate) {
       body.estimate = estimate
       if (estimate.perPersonMinor !== undefined) {

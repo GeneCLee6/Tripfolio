@@ -11,6 +11,7 @@ import './photos.ts'
 import './picks.ts'
 import './places.ts'
 import './prep.ts'
+import './recap.ts'
 import './settings.ts'
 import './stats.ts'
 
