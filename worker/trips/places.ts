@@ -8,6 +8,7 @@ import { authTrip } from '../auth.ts'
 import { insertStatement, toPlace, updateStatement, writeWithRev, type Row } from '../db.ts'
 import { invalid, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 
 const PLACE_COLUMNS = [
   'nameLocal',
@@ -135,6 +136,7 @@ export async function createPlace(c: RouteContext): Promise<Response> {
       updatedAt: now,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'place', id, action: 'upsert', by: auth.member.id })
   return json({ place: await loadPlace(db, auth.trip.id, id), rev }, 201)
 }
 
@@ -149,6 +151,7 @@ export async function patchPlace(c: RouteContext): Promise<Response> {
     values: [place.id],
   })
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'place', id: place.id, action: 'upsert', by: auth.member.id })
   return json({ place: await loadPlace(db, auth.trip.id, place.id), rev })
 }
 
@@ -162,6 +165,7 @@ export async function deletePlace(c: RouteContext): Promise<Response> {
     ...repointStatements(db, auth.trip.id, place.id, null, now),
     db.prepare('DELETE FROM places WHERE id = ?').bind(place.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'place', id: place.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -246,5 +250,6 @@ export async function mergePlace(c: RouteContext): Promise<Response> {
         ]
       : []),
   ])
+  notifyTrip(c.env, auth.trip.id, [{ rev, entity: 'place', id: duplicate.id, action: 'delete', by: auth.member.id }, { rev, entity: 'place', id: target.id, action: 'upsert', by: auth.member.id }])
   return json({ place: await loadPlace(db, auth.trip.id, target.id), repointed, rev })
 }

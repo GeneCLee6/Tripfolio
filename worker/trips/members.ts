@@ -27,6 +27,7 @@ import {
 } from '../db.ts'
 import { forbidden, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 
 async function loadMember(db: D1Database, tripId: string, memberId: string) {
   const row = await db
@@ -53,6 +54,7 @@ export async function createMember(c: RouteContext): Promise<Response> {
       updatedAt: now,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'member', id, action: 'upsert', by: auth.member.id })
   return json({ member: await loadMember(db, auth.trip.id, id), rev }, 201)
 }
 
@@ -81,6 +83,7 @@ export async function patchMember(c: RouteContext): Promise<Response> {
     { bumpRowRev: false },
   )
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'member', id: target.id, action: 'upsert', by: auth.member.id })
   return json({ member: await loadMember(db, auth.trip.id, target.id), rev })
 }
 
@@ -99,6 +102,7 @@ export async function deleteMember(c: RouteContext): Promise<Response> {
       .prepare('UPDATE memberTokens SET revokedAt = ? WHERE memberId = ? AND revokedAt IS NULL')
       .bind(now, target.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'member', id: target.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -231,6 +235,7 @@ export async function join(c: RouteContext): Promise<Response> {
     }),
   )
   const rev = await writeWithRev(db, trip.id, statements)
+  notifyTrip(c.env, trip.id, { rev, entity: 'member', id: memberId, action: 'upsert', by: memberId })
   const response: MemberTokenResponse = {
     trip: { ...trip, rev },
     member: await loadMember(db, trip.id, memberId),

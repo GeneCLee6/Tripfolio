@@ -21,6 +21,7 @@ import {
 } from '../db.ts'
 import { invalid, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 import { dayLodgings } from './lodging.ts'
 import { planPlacement, type Ordered } from './order.ts'
 
@@ -151,6 +152,7 @@ export async function patchDay(c: RouteContext): Promise<Response> {
     },
   )
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'day', id: day.id, action: 'upsert', by: auth.member.id })
   return json({ day: await loadDay(db, auth.trip.id, day.id), rev })
 }
 
@@ -180,6 +182,7 @@ export async function createStop(c: RouteContext): Promise<Response> {
       updatedAt: now,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'stop', id, action: 'upsert', by: auth.member.id })
   return json({ stop: await loadStop(db, auth.trip.id, id), rev }, 201)
 }
 
@@ -195,6 +198,7 @@ export async function patchStop(c: RouteContext): Promise<Response> {
     values: [stop.id],
   })
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'stop', id: stop.id, action: 'upsert', by: auth.member.id })
   return json({ stop: await loadStop(db, auth.trip.id, stop.id), rev })
 }
 
@@ -220,6 +224,7 @@ export async function deleteStop(c: RouteContext): Promise<Response> {
       )
       .bind(nowIso(), auth.trip.id, stop.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'stop', id: stop.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -240,6 +245,7 @@ export async function moveStop(c: RouteContext): Promise<Response> {
       .prepare('UPDATE stops SET dayId = ?, "order" = ?, rev = rev + 1, updatedAt = ? WHERE id = ?')
       .bind(day.id, placement.order, now, stop.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'stop', id: stop.id, action: 'upsert', by: auth.member.id })
   return json({
     stop: await loadStop(db, auth.trip.id, stop.id),
     renumbered: placement.renumbered,
@@ -272,6 +278,7 @@ export async function putLeg(c: RouteContext): Promise<Response> {
     .prepare('SELECT * FROM legOverrides WHERE fromStopId = ? AND toStopId = ?')
     .bind(fromStopId, toStopId)
     .first<Row>()
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'legOverride', id: `${fromStopId}:${toStopId}`, action: 'upsert', by: auth.member.id })
   return json({ leg: row ? toLeg(row) : null, rev })
 }
 
@@ -291,5 +298,6 @@ export async function deleteLeg(c: RouteContext): Promise<Response> {
       .prepare('DELETE FROM legOverrides WHERE fromStopId = ? AND toStopId = ?')
       .bind(c.params.fromStopId, c.params.toStopId),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'legOverride', id: `${c.params.fromStopId}:${c.params.toStopId}`, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }

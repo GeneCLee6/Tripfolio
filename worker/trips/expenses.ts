@@ -63,6 +63,7 @@ import { ensureRate } from '../proxy/fx.ts'
 import { insertStatement, writeWithRev, type Row } from '../db.ts'
 import { ApiError, invalid, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 
 // ---------------------------------------------------------------------------------------------
 // Shared helpers (also used by pool.ts and settlements.ts)
@@ -682,6 +683,7 @@ export async function createExpense(c: RouteContext): Promise<Response> {
     }),
   ])
   const response: ExpenseResponse = { expense: await loadExpense(db, trip.id, id), rev }
+  notifyTrip(c.env, trip.id, { rev, entity: 'expense', id, action: 'upsert', by: auth.member.id })
   return json(response, 201)
 }
 
@@ -775,6 +777,7 @@ export async function patchExpense(c: RouteContext): Promise<Response> {
   const rate = await patchRate(db, trip, prev, draft, body.fxRate)
   const state = buildState(draft, rate, trip.baseCurrency)
   const rev = await saveState(db, auth, prev, state, 'update')
+  if (rev !== auth.trip.rev) notifyTrip(c.env, trip.id, { rev, entity: 'expense', id: prev.id, action: 'upsert', by: auth.member.id })
   const response: ExpenseResponse = { expense: await loadExpense(db, trip.id, prev.id), rev }
   return json(response)
 }
@@ -786,6 +789,7 @@ export async function deleteExpense(c: RouteContext): Promise<Response> {
   const prev = await loadExpense(db, auth.trip.id, c.params.eid)
   const state: ExpenseState = { ...stateOf(prev), deletedAt: nowIso() }
   const rev = await saveState(db, auth, prev, state, 'delete')
+  if (rev !== auth.trip.rev) notifyTrip(c.env, auth.trip.id, { rev, entity: 'expense', id: prev.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -831,6 +835,7 @@ export async function restoreExpense(c: RouteContext): Promise<Response> {
     state = buildState(draft, rate, trip.baseCurrency)
   }
   const rev = await saveState(db, auth, prev, state, 'restore')
+  if (rev !== auth.trip.rev) notifyTrip(c.env, trip.id, { rev, entity: 'expense', id: prev.id, action: 'upsert', by: auth.member.id })
   const response: ExpenseResponse = { expense: await loadExpense(db, trip.id, prev.id), rev }
   return json(response)
 }
@@ -1012,6 +1017,7 @@ export async function applyRate(c: RouteContext): Promise<Response> {
     )
   }
   const rev = statements.length ? await writeWithRev(db, trip.id, statements) : trip.rev
+  if (statements.length) notifyTrip(c.env, trip.id, { rev, entity: 'expense', id: '*', action: 'upsert', by: auth.member.id })
   const body: ApplyRateResponse = { updated, rev }
   return json(body)
 }
@@ -1064,5 +1070,6 @@ export async function putFxOverrides(c: RouteContext): Promise<Response> {
       .prepare('UPDATE trips SET fxOverrides = ?, updatedAt = ? WHERE id = ?')
       .bind(JSON.stringify(overrides), nowIso(), auth.trip.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'expense', id: 'fx', action: 'upsert', by: auth.member.id })
   return json({ overrides, rev })
 }

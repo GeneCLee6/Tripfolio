@@ -14,6 +14,7 @@ import { authTrip } from '../auth.ts'
 import { insertStatement, writeWithRev, type Row } from '../db.ts'
 import { json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 import {
   checkMember,
   diffOf,
@@ -171,6 +172,7 @@ export async function createContribution(c: RouteContext): Promise<Response> {
       snapshot: state,
     }),
   ])
+  notifyTrip(c.env, trip.id, { rev, entity: 'pool', id, action: 'upsert', by: auth.member.id })
   return json({ contribution: await loadContribution(db, trip.id, id), rev }, 201)
 }
 
@@ -253,6 +255,7 @@ export async function patchContribution(c: RouteContext): Promise<Response> {
     deletedAt: null,
   }
   const rev = await saveContribution(db, trip.id, auth.member.id, prev, state, 'update', trip.rev)
+  if (rev !== trip.rev) notifyTrip(c.env, trip.id, { rev, entity: 'pool', id: prev.id, action: 'upsert', by: auth.member.id })
   return json({ contribution: await loadContribution(db, trip.id, prev.id), rev })
 }
 
@@ -271,6 +274,7 @@ export async function deleteContribution(c: RouteContext): Promise<Response> {
     'delete',
     auth.trip.rev,
   )
+  if (rev !== auth.trip.rev) notifyTrip(c.env, auth.trip.id, { rev, entity: 'pool', id: prev.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -284,5 +288,6 @@ export async function patchPoolSettings(c: RouteContext): Promise<Response> {
       .prepare('UPDATE trips SET poolRefundMode = ?, updatedAt = ? WHERE id = ?')
       .bind(refundMode, nowIso(), auth.trip.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'pool', id: 'settings', action: 'upsert', by: auth.member.id })
   return json({ refundMode, rev })
 }

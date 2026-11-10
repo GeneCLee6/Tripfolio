@@ -19,6 +19,7 @@ import {
 } from '../db.ts'
 import { ApiError, invalid, json, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 import { dayCount, planDays, type DayPlan, type DaySlot } from './day-plan.ts'
 import { relinkTripLodgings } from './lodging.ts'
 
@@ -270,6 +271,7 @@ export async function patchTrip(c: RouteContext): Promise<Response> {
     const relink = await relinkTripLodgings(db, trip.id, nowIso())
     if (relink.length) rev = await writeWithRev(db, trip.id, relink)
   }
+  if (rev !== trip.rev) notifyTrip(c.env, trip.id, { rev, entity: 'trip', id: trip.id, action: 'upsert', by: auth.member.id })
   return json({ trip: await loadTrip(db, trip.id), rev })
 }
 
@@ -283,6 +285,7 @@ export async function deleteTrip(c: RouteContext): Promise<Response> {
       .prepare('UPDATE trips SET deletedAt = ?, updatedAt = ? WHERE id = ?')
       .bind(now, now, auth.trip.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'trip', id: auth.trip.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 

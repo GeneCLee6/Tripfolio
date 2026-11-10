@@ -71,7 +71,7 @@ depends_on: [E1, E3, E10]
 
 ### M2
 
-- [ ] `e2-t08a` `TripDO`：WebSocket、patch 廣播、rev、重連補差 · AC-2.6 · M · ← e2-t01
+- [x] `e2-t08a` `TripDO`：WebSocket、patch 廣播、rev、重連補差 · AC-2.6 · M · ← e2-t01 · #H2a（協定與緩衝見 `ARCHITECTURE.md` §4.2；事件只說「什麼變了」，client 重抓；前端 `src/lib/sync/` 已備、尚未接頁面）
 - [ ] `e2-t08b` 前端 `useTrip()`：本機快取、欄位級合併、IndexedDB 離線佇列與重送；兩台裝置實測 · AC-2.6 · M · ← e2-t08a, e10-t05
 
 ## 風險與對策

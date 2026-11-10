@@ -20,6 +20,7 @@ import { authTrip } from '../auth.ts'
 import { insertStatement, updateStatement, writeWithRev, type Row } from '../db.ts'
 import { invalid, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 import { resolveInstant } from './booking-time.ts'
 import { dayCount } from './day-plan.ts'
 
@@ -251,6 +252,7 @@ export async function createLodging(c: RouteContext): Promise<Response> {
     conflicts: link.conflicts,
     rev,
   }
+  notifyTrip(c.env, tripId, { rev, entity: 'lodging', id, action: 'upsert', by: auth.member.id })
   return json(res, 201)
 }
 
@@ -280,6 +282,7 @@ export async function patchLodging(c: RouteContext): Promise<Response> {
     conflicts: link.conflicts,
     rev,
   }
+  if (statements.length) notifyTrip(c.env, tripId, { rev, entity: 'lodging', id: lodging.id, action: 'upsert', by: auth.member.id })
   return json(res)
 }
 
@@ -302,6 +305,7 @@ export async function deleteLodging(c: RouteContext): Promise<Response> {
       )
       .bind(now, tripId, lodging.id),
   ])
+  notifyTrip(c.env, tripId, { rev, entity: 'lodging', id: lodging.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 

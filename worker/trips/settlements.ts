@@ -16,6 +16,7 @@ import { authTrip } from '../auth.ts'
 import { insertStatement, writeWithRev, type Row } from '../db.ts'
 import { json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 import {
   checkMember,
   diffOf,
@@ -166,6 +167,7 @@ export async function createSettlement(c: RouteContext): Promise<Response> {
     }),
   ])
   const row = await db.prepare('SELECT * FROM settlements WHERE id = ?').bind(id).first<Row>()
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'settlement', id, action: 'upsert', by: auth.member.id })
   return json({ settlement: toSettlement(row as Row), rev }, 201)
 }
 
@@ -196,5 +198,6 @@ export async function deleteSettlement(c: RouteContext): Promise<Response> {
       snapshot: state,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'settlement', id: prev.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }

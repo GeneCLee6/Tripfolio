@@ -24,6 +24,7 @@ import { cloneTrip, listDeletedTrips, restoreTrip } from './trips/clone.ts'
 import { exportTrip, importTrip } from './trips/export.ts'
 import { memberCalendar, shareCalendar } from './trips/ics.ts'
 import { createShare, listShares, publicShare, revokeShare } from './share.ts'
+import { tripSocket, withExecutionContext } from './sync.ts'
 import {
   applyRate,
   createExpense,
@@ -240,15 +241,31 @@ async function serveSharePage(request: Request, env: Env): Promise<Response> {
 // The Worker answers /api/*, /ws/* and /s/* (wrangler `run_worker_first`) and hands everything else
 // to the static assets (the app; client routes fall back to index.html).
 // Every response gets the security headers (worker/security/headers.ts), HTML also the CSP.
-export async function handleRequest(request: Request, env: Env): Promise<Response> {
-  return withSecurityHeaders(await route(request, env))
+// `ctx` gives the handlers' notifyTrip calls (worker/sync.ts) the request's waitUntil.
+export async function handleRequest(
+  request: Request,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<Response> {
+  return withSecurityHeaders(await route(request, withExecutionContext(env, ctx)))
 }
+
+/** /ws/trips/<id>: the trip's live sync socket (e2-t08a) */
+const TRIP_SOCKET = /^\/ws\/trips\/([A-Za-z0-9_-]{1,64})$/
 
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   if (url.pathname.startsWith('/api/')) return handleApi(request, env, url)
-  if (url.pathname.startsWith('/ws/'))
-    return errorResponse(new ApiError(404, 'not_found', 'no such endpoint'))
+  if (url.pathname.startsWith('/ws/')) {
+    const match = TRIP_SOCKET.exec(url.pathname)
+    if (!match) return errorResponse(new ApiError(404, 'not_found', 'no such endpoint'))
+    try {
+      return await tripSocket(request, env, url, match[1])
+    } catch (error) {
+      console.error(error)
+      return errorResponse(new ApiError(500, 'internal', 'internal error'))
+    }
+  }
   if (url.pathname.startsWith('/s/')) return serveSharePage(request, env)
   return env.ASSETS.fetch(request)
 }

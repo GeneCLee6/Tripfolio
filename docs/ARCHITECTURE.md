@@ -29,7 +29,7 @@ Cloudflare Worker（單一，帶靜態資產）
 
 ```
 shared/                 前後端共用、純 TS、可在 Node 測
-  protocol.ts           TripDO 協定（hello／snapshot／patch／ack／error）
+  protocol.ts           TripDO 協定（hello／resync／patch／ack／ping／pong／error、close code）
   patch.ts              欄位級 patch 與合併（移植 LongTalk 的 diff，改成實體＋欄位）
   money/
     split.ts            split(expense) → shares[]（整數分、餘數規則）
@@ -55,7 +55,8 @@ worker/
   proxy/fx.ts           匯率，每日一次拉全表存 fxRates
   proxy/og.ts           連結 og:title／og:image，只抓 meta
   media.ts              R2 直傳簽發、讀取
-  trip-do.ts            TripDO
+  trip-do.ts            TripDO（WebSocket、事件緩衝、廣播）
+  sync.ts               notifyTrip（寫入後通知 TripDO）、GET /ws/trips/:id 驗證與轉交
   backup.ts、cleanup.ts cron
 src/
   app/                  路由、殼、底部導覽、三欄版面
@@ -101,7 +102,15 @@ sw/                     Service Worker（Workbox 或手寫）：shell、資料�
 ### 4.2 同步與離線
 
 - `useTrip(tripId)`：IndexedDB 存旅程全部實體（一趟旅程幾千筆以內）；UI 讀本機；寫入先改本機再送 patch；未送出的 patch 在佇列，連線後依序送；伺服器回 `ack(rev)` 或 `conflict(entity, field, serverValue)`，欄位級「後寫的贏」，衝突時以伺服器為準並 toast。
-- `TripDO`：收到 REST 寫入或 WebSocket patch → 寫 D1 → 廣播給其他連線；`rev` 每旅程遞增；重連帶 `sinceRev` 補差，差太多就全量 snapshot。
+- `TripDO`（e2-t08a 已做）：每旅程一個（`idFromName(tripId)`），**只廣播、不寫 D1**。流程：REST 寫入 → D1 batch（`writeWithRev` 把 `trips.rev` +1）→ handler 呼叫 `notifyTrip(env, tripId, change)`（`worker/sync.ts`，走 binding 的 RPC `notify()`，在請求的 `waitUntil` 裡跑；DO 失敗只記 log、不讓寫入失敗；`rev` 沒變的空 PATCH 不通知）→ DO 存進緩衝、廣播給已 hello 的連線。下面是實際協定（`shared/protocol.ts`）。
+  - **連線**：`GET /ws/trips/:id`，memberToken 放第二個 subprotocol（`new WebSocket(url, ['tripfolio', token])`，伺服器回 `tripfolio`）或 `?token=`。Worker 驗 token（同 `authTrip` 的雜湊比對），再把 upgrade 轉給 DO，帶 `x-member-id`／`x-role`／`x-read-only` 標頭（token 不往下傳）。已封存、已軟刪除的旅程與 viewer 仍可連（`readOnly: true`，e2-t08b 寫入時用）。拒絕時先接受再關閉，讓瀏覽器拿得到 close code：`4401` token 無效／成員被移除（DO 收到 `member` 的 delete 事件會關掉該成員的連線）、`4404` 旅程已不存在、`4429` 超過每旅程 50 條連線、`4408` 心跳逾時。前兩個是終局，client 不重連；其他照退避重連。
+  - **事件**：`{ rev, entity, id, action: 'upsert'|'delete', byMemberId, at }`，**不帶整列資料**，client 收到後自己重抓需要的東西（e2-t08b 再加欄位級 patch）。`entity` 是 `trip／day／stop／legOverride／place／member／lodging／booking／wishlist／expense／pool／settlement／share`；`legOverride` 的 id 是 `from:to`，`expense` 的 `'*'` 表示整批（套用匯率）、`'fx'` 表示匯率覆寫，`pool` 的 `'settings'` 是公基金設定；wishlist 的投票、認領都報 `wishlist` 該項。排入／移出日程一次報兩筆（wishlist＋stop，同一個 rev）。目前**不通知**：建立旅程、邀請、分享連結、附件／照片（`media.ts`）、匯入／複製／還原旅程——這些不經 `worker/trips/*` 的一般寫入或沒有人在線上，e2-t08b 視需要補。
+  - **緩衝**：DO storage 存最近 200 筆事件（依 rev 排序；同 rev 可多筆；重複的同一變更忽略），加一個 `floor`：rev ≤ floor 的事件可能不在緩衝裡（被擠掉的最大 rev；第一次收到事件時設為該 rev − 1）。休眠或被逐出後從 storage 讀回。
+  - **補差**：連上後 client 送 `hello { sinceRev }`（`revStore` 記的最後 rev；沒有就 `null`）。`sinceRev < floor` → 回 `resync { rev }`，client 全部重抓；否則回 `hello { memberId, readOnly, rev, events }`，`events` 是 rev > sinceRev 的緩衝事件（`sinceRev` 為 `null` 則空）。之後即時收到 `patch { events }`。只有 hello 過的連線收得到廣播。rev 不連號是正常的（沒通知的寫入也會 +1）。已知縫隙：兩個並行寫入的通知順序顛倒、且 client 剛好在兩者之間斷線，較小的那筆可能補不到；e2-t08b 的全量重抓（開頁、resync）會蓋過。
+  - **心跳**：client 每 30 秒送 `{"type":"ping"}`，DO 用 `setWebSocketAutoResponse` 回 `{"type":"pong"}`（不喚醒）；DO 有連線時每 30 秒一個 alarm，65 秒（兩次沒 ping）沒聲音的連線用 4408 關掉。client 兩次 ping 沒任何回應也自己斷線重連。
+  - **前端**（`src/lib/sync/`，尚未接到頁面）：`TripSocket`（退避 1、2、4、8、15、30 秒，之後每 30 秒；嘗試 10 秒沒 hello 算失敗；`online`／回到前景立刻重試；事件 `event`／`resync`／`status: connecting|online|offline`／`welcome`／`closed`）、`revStore`（每旅程最後看到的 rev，localStorage，只會往前）、`useTripSync(tripId, handler)` hook。頁面抓資料後應把回應的 `rev` 記進 `revStore`（e2-t08b）。
+  - 實測（本機 dev，兩個成員）：A 的 `POST /stops` 到 B 的 socket 收到事件 32–38 ms（Node client，含 POST 來回）、44–48 ms（兩個 Chromium context）；B 斷線期間的兩筆寫入在重連的 hello 裡補回。
+- e2-t08b 要做：`useTrip()` 本機快取（IndexedDB）、寫入先改本機、離線佇列與重送、欄位級「後寫的贏」（`ack`／`conflict`）、可能改成經 socket 寫入；把 itinerary 接上 `useTripSync`；兩台裝置實測後才勾 AC-2.6。
 - Service Worker：app shell（precache）、`/api/trips/:id/*` 的 GET 用 stale-while-revalidate 存最近 3 個旅程、瓦片 cache-first（旅程外框、zoom 5–12、上限 150 MB）、Background Sync 不依賴（Safari 沒有），用 app 開啟時重送。
 
 ### 4.3 錢

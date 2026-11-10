@@ -26,6 +26,7 @@ import { authTrip } from '../auth.ts'
 import { insertStatement, toPlace, toStop, updateStatement, writeWithRev, type Row } from '../db.ts'
 import { invalid, json, notFound, nowIso, readBody } from '../http.ts'
 import type { RouteContext } from '../router.ts'
+import { notifyTrip } from '../sync.ts'
 import { planPlacement } from './order.ts'
 
 const ITEM_COLUMNS = [
@@ -232,6 +233,7 @@ export async function createWishlistItem(c: RouteContext): Promise<Response> {
       updatedAt: now,
     }),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id, action: 'upsert', by: auth.member.id })
   return json({ item: await loadView(db, auth.trip.id, id), rev }, 201)
 }
 
@@ -257,6 +259,7 @@ export async function patchWishlistItem(c: RouteContext): Promise<Response> {
     values: [item.id],
   })
   const rev = update ? await writeWithRev(db, auth.trip.id, [update]) : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id })
   return json({ item: await loadView(db, auth.trip.id, item.id), rev })
 }
 
@@ -276,6 +279,7 @@ export async function deleteWishlistItem(c: RouteContext): Promise<Response> {
       )
       .bind(now, auth.trip.id, item.id),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id: item.id, action: 'delete', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -293,6 +297,7 @@ export async function voteWishlistItem(c: RouteContext): Promise<Response> {
       .bind(item.id, auth.member.id, now),
     touchItem(db, item.id, now),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id })
   return json({ item: await loadView(db, auth.trip.id, item.id), rev })
 }
 
@@ -308,6 +313,7 @@ export async function unvoteWishlistItem(c: RouteContext): Promise<Response> {
       .bind(item.id, auth.member.id),
     touchItem(db, item.id, now),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id })
   return json({ item: await loadView(db, auth.trip.id, item.id), rev })
 }
 
@@ -339,6 +345,7 @@ export async function createClaim(c: RouteContext): Promise<Response> {
     }),
     touchItem(db, item.id, now),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id })
   return json({ claim: await loadClaim(db, item.id, id), rev }, 201)
 }
 
@@ -363,6 +370,7 @@ export async function patchClaim(c: RouteContext): Promise<Response> {
   const rev = update
     ? await writeWithRev(db, auth.trip.id, [update, touchItem(db, item.id, now)])
     : auth.trip.rev
+  if (update) notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id })
   return json({ claim: await loadClaim(db, item.id, claim.id), rev })
 }
 
@@ -376,6 +384,7 @@ export async function deleteClaim(c: RouteContext): Promise<Response> {
     db.prepare('DELETE FROM wishlistClaims WHERE id = ?').bind(claim.id),
     touchItem(db, item.id, nowIso()),
   ])
+  notifyTrip(c.env, auth.trip.id, { rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id })
   return json({ ok: true, rev })
 }
 
@@ -435,6 +444,7 @@ export async function scheduleWishlistItem(c: RouteContext): Promise<Response> {
       )
       .bind(stopId, now, item.id),
   ])
+  notifyTrip(c.env, auth.trip.id, [{ rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id }, { rev, entity: 'stop', id: stopId, action: 'upsert', by: auth.member.id }])
   const stopRow = await db.prepare('SELECT * FROM stops WHERE id = ?').bind(stopId).first<Row>()
   return json(
     {
@@ -479,6 +489,7 @@ export async function unscheduleWishlistItem(c: RouteContext): Promise<Response>
       )
       .bind(now, item.id),
   ])
+  notifyTrip(c.env, auth.trip.id, [{ rev, entity: 'wishlist', id: item.id, action: 'upsert', by: auth.member.id }, ...(stopId ? [{ rev, entity: 'stop' as const, id: stopId, action: 'delete' as const, by: auth.member.id }] : [])])
   return json({ item: await loadView(db, auth.trip.id, item.id), deletedStopId: stopId, rev })
 }
 
