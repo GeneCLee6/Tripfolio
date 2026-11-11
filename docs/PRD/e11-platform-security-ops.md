@@ -39,6 +39,7 @@ depends_on: []
 ## 驗收條件
 
 - [ ] AC-11.1 — 部署：PR 預覽與 `main` 自動上線可用；`DEPLOY.md`。
+  - 2026-11-11：正式站首次部署成功（Deploy run 43011138533，遷移 0001–0012、smoke 通過）；PR 預覽尚未實測。
   - 進度（A1）：`DEPLOY.md`、`deploy.yml`、`preview.yml` 已有；正式與預覽設定以 `wrangler deploy --dry-run` 確認綁定正確（正式 D1 `tripfolio`、預覽 `tripfolio-staging`）。**workflow 還沒在 GitHub 跑過**（尚無 remote、未設 `CLOUDFLARE_API_TOKEN`），也還沒部署過，所以不勾。
 - [x] AC-11.2 — CI：lint／typecheck／test／build／check-i18n／bundle 預算全部在 CI 擋。（2026-11-09 repo 建立後第一次 push，GitHub Actions `CI / verify` 六步全綠，run 42613183736）
   - 進度（A1）：六個步驟都寫進 `ci.yml`，本機六個指令全部通過；**`ci.yml` 還沒在 GitHub Actions 跑過**，等 repo 建立、第一個 PR 跑綠才勾。

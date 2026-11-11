@@ -54,6 +54,7 @@
 - **2026-11-10 e10-t07 中英文走查完成（#C2b，已合併）。** 137 個字串值＋5 處範本：英文改英式／澳式拼法（colour、traveller、licence、car hire）、不用 Please、彎引號、pool→Shared fund、travel mate→traveller；繁中統一「旅程列表」「餐飲」「開車」「火車」「假日公園」「自給自足認證」「公基金」「建立」「電子郵件」，全形標點。術語表定稿在 `docs/DESIGN.md` §5，逐頁紀錄在 `docs/ZH-WALKTHROUGH.md`、`docs/EN-WALKTHROUGH.md`。**AC-10.2 已勾**（仍建議請母語者實用一輪）。留下：英文日期仍是美式順序，`format.ts` 改 `en-AU` 待做。
 - **2026-11-10 e10-t06 無障礙走查完成（#C2a，已合併）。** `e2e/a11y.spec.ts`（axe wcag2a／2aa／21aa，22 條路由＋兩個 Sheet＋燈箱 × 淺深色 × 繁中英文，共 100 次，零 serious／critical）、`e2e/keyboard.spec.ts`（10 項鍵盤走查）、reduced motion（`src/map/camera.ts`）、375 px 觸控 44 px（`GlobalStyle` 全域規則＋`coarseTarget`／`coarseLink`）。對比修正集中在 `tokens.ts`（`muted`、`success`、`danger` 微調；新增 `warningText`、`tussockText`），DESIGN §2 已同步。修掉 Sheet 卸載時焦點掉到 body 的 bug（`Dialog.tsx` 記住開啟者）。**AC-10.5 已勾**。新增 devDependency `@axe-core/playwright` 4.14.0。留下：MapLibre attribution 不在觸控檢查內；記一筆的分類與付款人 radio 沒做 roving；VoiceOver／TalkBack 實機未測。
 - **2026-11-10 英文日期改澳式（`chore/en-au-formats`）。** `shared/i18n/format.ts` 的 `dateLocale()`：英文日期與時間用 `en-AU`（Mon, 9 Nov；7:30 pm；時區縮寫 NZDT／AEST），金額維持 `en`（A$、NZ$、NT$ 不含糊）。相關單元測試期望值已更新。
+- **2026-11-11 第一次部署成功。** 擁有者設好 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`；手動觸發 Deploy（run 43011138533）：D1 遷移 0001–0012 套用到正式庫、build、部署、smoke 全過。正式站 https://tripfolio.genelee-pro.workers.dev ，`/api/health` 回 commit `574fc7c`。`curl -I` 驗證：`/` 與 `/s/*` 有 CSP、`X-Robots-Tag: noindex`、nosniff、Referrer-Policy、Permissions-Policy（`public/_headers` 生效）；`/api/share/<假 token>` 回 404；`/sw.js`、`/manifest.webmanifest` 200。正式庫建立→讀回（3 天）→刪除一筆測試旅程成功。**還沒驗**：PR 預覽站（要開一個 PR）、速率限制 429（只在預覽站測，會建 10 筆旅程）、每日備份（明天看 R2）。
 - **進行中的 agent 分支：無**。71 個 task 已全部完成；剩下的 AC 都要部署後或實體裝置驗證，清單見 §2。
 - **下一步：合併上面三個分支後，開 B2（`e2-t05` 移動段接地圖頁）、B3 其餘（`e2-t04` 拖曳、`e2-t06` 時間檢查）、C1 其餘（`e5-t01`、`e2-t07`、`e1-t05`）。原計畫：（日程頁、地點搜尋元件、行程點編輯）。擁有者要先建 GitHub repo、設 secret（§2）。**
 
@@ -77,8 +78,8 @@
 
 | 先做 | AC | 怎麼驗 |
 | --- | --- | --- |
-| 1 | AC-11.1 部署 | 設好 `CLOUDFLARE_API_TOKEN` secret 後 push 一次，看 Deploy workflow 真的部署；開一個 PR 看預覽站 |
-| 2 | AC-11.4 安全 | 部署後照 `DEPLOY.md` §12.3 跑 `curl -I`，確認標頭與第 11 次建旅程回 429 |
+| 1 | AC-11.1 部署 | ~~正式站~~ 2026-11-11 已上線；**剩**：開一個 PR 看預覽站 `tripfolio-pr-<號>` 有沒有建起來 |
+| 2 | AC-11.4 安全 | ~~標頭~~ 2026-11-11 正式站已驗；**剩**：在預覽站確認第 11 次建旅程回 429 |
 | 3 | AC-11.3 備份 | 部署隔天看 R2 `backups/production/` 有檔，照 §10 遠端還原一次到臨時資料庫 |
 | 4 | AC-11.5 成本 | 設 `ADMIN_KEY`（和選用的 `CF_ANALYTICS_TOKEN`），開 `/admin/usage?key=…` 看到 Cloudflare 數字 |
 | 5 | AC-1.4 Google 登入 | 照 §13 建 OAuth client、設 secret，兩台裝置登入看到同一份旅程清單 |
